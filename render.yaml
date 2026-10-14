@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: valyutabot
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m src.main
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
