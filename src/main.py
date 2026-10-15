@@ -11,7 +11,7 @@ from aiogram.client.session.aiohttp import AiohttpSession
 
 from src.config import BOT_TOKEN
 from src.database import init_db
-from src.handlers import start, rates, convert, notifications
+from src.handlers import start, rates, convert, notifications, admin
 from src.services.scheduler import morning_scheduler_task
 from src.web import create_web_app
 
@@ -26,6 +26,7 @@ async def set_commands(bot: Bot):
     commands = [
         BotCommand(command="start", description="Botni ishga tushirish"),
         BotCommand(command="help", description="Yordam va qo'llanma"),
+        BotCommand(command="admin", description="Admin paneli (Faqat admin)"),
     ]
     await bot.set_my_commands(commands)
 
@@ -65,7 +66,8 @@ async def main():
     )
     dp = Dispatcher()
 
-    # Routerlarni ulash
+    # Routerlarni ulash (admin router birinchi bo'lib keladi)
+    dp.include_router(admin.router)
     dp.include_router(start.router)
     dp.include_router(rates.router)
     dp.include_router(convert.router)

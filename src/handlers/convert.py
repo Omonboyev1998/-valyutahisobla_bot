@@ -5,6 +5,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from src.services.cbu_service import cbu_service
 from src.keyboards.inline import get_converter_quick_keyboard, get_cancel_keyboard
+from src.database import log_conversion
 
 router = Router(name="convert")
 
@@ -106,6 +107,8 @@ async def process_amount(message: Message, state: FSMContext):
         await message.answer("⚠️ Valyuta kursini hisoblashda xatolik yuz berdi.")
         return
 
+    log_conversion(message.from_user.id, from_ccy, to_ccy, amount)
+
     result_val = res["result"]
     if to_ccy == "UZS":
         unit_rate = res["unit_rate"]
@@ -176,6 +179,8 @@ async def smart_text_converter(message: Message, state: FSMContext):
         if not usd_res:
             return
 
+        log_conversion(message.from_user.id, "UZS", "USD", amount)
+
         msg = (
             f"🇺🇿 <b>{amount:,.2f} UZS</b> ning qiymati:\n\n"
             f"🇺🇸 <b>{usd_res['result']:,.2f} USD</b> (Kurs: {usd_res['unit_rate']:,.2f})\n"
@@ -193,6 +198,8 @@ async def smart_text_converter(message: Message, state: FSMContext):
     if not res:
         # Tanimagan valyuta bo'lsa, hech narsa qilmaymiz
         return
+
+    log_conversion(message.from_user.id, from_ccy, to_ccy, amount)
 
     result_val = res["result"]
     if to_ccy == "UZS":
