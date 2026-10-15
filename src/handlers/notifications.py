@@ -27,11 +27,13 @@ def build_settings_text(settings: dict) -> str:
         c_status = "✅ Yoqilgan" if settings.get("sub_currency", True) else "❌ O'chirilgan"
         w_status = "✅ Yoqilgan" if settings.get("sub_weather", True) else "❌ O'chirilgan"
         f_status = "✅ Yoqilgan" if settings.get("sub_football", True) else "❌ O'chirilgan"
+        p_status = "✅ Yoqilgan" if settings.get("sub_prayer", True) else "❌ O'chirilgan"
         city = settings.get("weather_city", "Toshkent")
         curr_time = settings.get("notify_time", "09:00")
 
         status_text = (
             f"📌 <b>Yoqilgan sohalar:</b>\n"
+            f"• 🕌 Namoz vaqtlari (15 daqiqa oldin): <b>{p_status}</b>\n"
             f"• 💵 Valyuta kurslari: <b>{c_status}</b>\n"
             f"• 🌤 Ob-havo ({city}): <b>{w_status}</b>\n"
             f"• ⚽️ Futbol yangiliklari: <b>{f_status}</b>\n\n"
@@ -72,7 +74,8 @@ async def toggle_topic_callback(callback: CallbackQuery):
     topic_names = {
         "currency": "Valyuta kurslari",
         "weather": "Ob-havo",
-        "football": "Futbol"
+        "football": "Futbol",
+        "prayer": "Namoz vaqtlari"
     }
     name = topic_names.get(topic, topic)
     status_str = "yoqildi ✅" if new_state else "o'chirildi ❌"

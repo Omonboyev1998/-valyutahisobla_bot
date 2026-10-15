@@ -44,6 +44,7 @@ def init_db():
             ("sub_currency", "INTEGER DEFAULT 1"),
             ("sub_weather", "INTEGER DEFAULT 1"),
             ("sub_football", "INTEGER DEFAULT 1"),
+            ("sub_prayer", "INTEGER DEFAULT 1"),
             ("notify_time", "TEXT DEFAULT '09:00'"),
             ("weather_city", "TEXT DEFAULT 'Toshkent'")
         ]
@@ -86,7 +87,7 @@ def get_user_settings(user_id: int) -> Dict[str, Any]:
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT is_subscribed, sub_currency, sub_weather, sub_football, notify_time, weather_city
+            SELECT is_subscribed, sub_currency, sub_weather, sub_football, notify_time, weather_city, sub_prayer
             FROM users WHERE user_id = ?
         """, (user_id,))
         row = cursor.fetchone()
@@ -97,7 +98,8 @@ def get_user_settings(user_id: int) -> Dict[str, Any]:
                 "sub_weather": bool(row[2]) if row[2] is not None else True,
                 "sub_football": bool(row[3]) if row[3] is not None else True,
                 "notify_time": row[4] or "09:00",
-                "weather_city": row[5] or "Toshkent"
+                "weather_city": row[5] or "Toshkent",
+                "sub_prayer": bool(row[6]) if row[6] is not None else True
             }
         else:
             return {
@@ -106,15 +108,17 @@ def get_user_settings(user_id: int) -> Dict[str, Any]:
                 "sub_weather": True,
                 "sub_football": True,
                 "notify_time": "09:00",
-                "weather_city": "Toshkent"
+                "weather_city": "Toshkent",
+                "sub_prayer": True
             }
 
 def toggle_user_topic(user_id: int, topic: str) -> bool:
-    """Valyuta, Ob-havo yoki Futbol obunasini yoqish/o'chirish"""
+    """Valyuta, Ob-havo, Futbol yoki Namoz obunasini yoqish/o'chirish"""
     column_map = {
         "currency": "sub_currency",
         "weather": "sub_weather",
-        "football": "sub_football"
+        "football": "sub_football",
+        "prayer": "sub_prayer"
     }
     col = column_map.get(topic)
     if not col:
@@ -129,6 +133,13 @@ def toggle_user_topic(user_id: int, topic: str) -> bool:
         cursor.execute(f"UPDATE users SET {col} = ? WHERE user_id = ?", (new_val, user_id))
         conn.commit()
         return bool(new_val)
+
+def get_users_for_prayer_alert() -> List[Tuple[int, str]]:
+    """Namoz eslatmasini yoqqan barcha foydalanuvchilar (user_id, city)"""
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT user_id, weather_city FROM users WHERE is_subscribed = 1 AND sub_prayer = 1")
+        return cursor.fetchall()
 
 def set_user_notify_time(user_id: int, time_str: str):
     """Xabar kelish vaqtini o'rnatish (masalan: '08:00', '09:00')"""

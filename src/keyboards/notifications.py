@@ -7,20 +7,22 @@ def get_notifications_settings_keyboard(settings: Dict[str, Any]) -> InlineKeybo
     c_status = "✅" if settings.get("sub_currency", True) else "❌"
     w_status = "✅" if settings.get("sub_weather", True) else "❌"
     f_status = "✅" if settings.get("sub_football", True) else "❌"
+    p_status = "✅" if settings.get("sub_prayer", True) else "❌"
     curr_time = settings.get("notify_time", "09:00")
     curr_city = settings.get("weather_city", "Toshkent")
 
     buttons = [
         [
-            InlineKeyboardButton(text=f"💵 Valyuta: {c_status}", callback_data="notif_toggle:currency"),
-            InlineKeyboardButton(text=f"🌤 Ob-havo: {w_status}", callback_data="notif_toggle:weather")
+            InlineKeyboardButton(text=f"🕌 Namoz: {p_status}", callback_data="notif_toggle:prayer"),
+            InlineKeyboardButton(text=f"💵 Valyuta: {c_status}", callback_data="notif_toggle:currency")
         ],
         [
-            InlineKeyboardButton(text=f"⚽️ Futbol: {f_status}", callback_data="notif_toggle:football"),
-            InlineKeyboardButton(text=f"🏙 Shahar: {curr_city}", callback_data="notif_choose_city")
+            InlineKeyboardButton(text=f"🌤 Ob-havo: {w_status}", callback_data="notif_toggle:weather"),
+            InlineKeyboardButton(text=f"⚽️ Futbol: {f_status}", callback_data="notif_toggle:football")
         ],
         [
-            InlineKeyboardButton(text=f"⏰ Xabar vaqti: {curr_time}", callback_data="notif_choose_time")
+            InlineKeyboardButton(text=f"🏙 Shahar: {curr_city}", callback_data="notif_choose_city"),
+            InlineKeyboardButton(text=f"⏰ Vaqt: {curr_time}", callback_data="notif_choose_time")
         ],
         [
             InlineKeyboardButton(text="🧪 Hoziroq sinab ko'rish (Test)", callback_data="notif_test")

@@ -11,7 +11,7 @@ from aiogram.client.session.aiohttp import AiohttpSession
 
 from src.config import BOT_TOKEN
 from src.database import init_db
-from src.handlers import start, rates, convert, notifications, admin, weather, football, referral
+from src.handlers import start, rates, convert, notifications, admin, weather, football, referral, prayer
 from src.services.scheduler import morning_scheduler_task
 from src.web import create_web_app
 
@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 async def set_commands(bot: Bot):
     commands = [
         BotCommand(command="start", description="Botni ishga tushirish"),
+        BotCommand(command="namoz", description="Namoz vaqtlari va taqvim"),
         BotCommand(command="help", description="Yordam va qo'llanma"),
         BotCommand(command="admin", description="Admin paneli (Faqat admin)"),
     ]
@@ -71,12 +72,13 @@ async def main():
     dp.include_router(start.router)
     dp.include_router(rates.router)
     dp.include_router(weather.router)
+    dp.include_router(prayer.router)
     dp.include_router(football.router)
     dp.include_router(referral.router)
     dp.include_router(notifications.router)
     dp.include_router(convert.router)
 
-    # 4. Kunlik ertalabki eslatmalar (scheduler) fon vazifasini ishga tushirish
+    # 4. Eslatmalar va namoz ogohlantirishlari (scheduler)
     scheduler_task = asyncio.create_task(morning_scheduler_task(bot))
 
     # Telegram API ga ulanish va polling

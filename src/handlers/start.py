@@ -11,10 +11,11 @@ HELP_TEXT = (
     "Bu bot orqali quyidagi barcha foydali xizmatlardan bir joyda foydalanishingiz mumkin:\n\n"
     "📌 <b>Asosiy bo'limlar:</b>\n"
     "• 💵 <b>Valyuta kurslari</b> — Markaziy Bank rasmiy kurslari va aqlli kalkulyator.\n"
+    "• 🕌 <b>Namoz vaqtlari</b> — 5 mahal namoz, saharlik/iftorlik duolari va 15 daqiqa oldin eslatmalar.\n"
     "• 🌤 <b>Ob-havo</b> — Siz turgan joy yoki istalgan shahar bo'yicha aniq harorat va prognoz.\n"
     "• ⚽️ <b>Futbol olami</b> — APL, La Liga, Serie A va Chempionlar ligasi turnir jadvallari hamda o'yinlar natijalari.\n"
     "• 🎁 <b>Do'stlarni taklif qilish</b> — O'z havolangizni do'stlarga ulashish va reytingda ko'tarilish.\n"
-    "• 🔔 <b>Eslatmalar</b> — Har kuni ertalab 09:00 da kunlik muhim xabarlarni avtomatik olish.\n\n"
+    "• 🔔 <b>Eslatmalar</b> — O'zingiz belgilagan vaqtda shaxsiy xabarlarni avtomatik olish.\n\n"
     "💡 <b>Tezkor hisoblash:</b>\n"
     "Shunchaki botga <code>100 USD</code>, <code>500000 som</code> yoki <code>50 EUR</code> deb yozsangiz ham hisoblab beradi!"
 )
