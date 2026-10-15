@@ -1,5 +1,6 @@
 import logging
 from aiogram import Router, F
+from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
 from aiogram.exceptions import TelegramBadRequest
 
@@ -43,6 +44,7 @@ def format_weather_message(data: dict) -> str:
 
     return text
 
+@router.message(Command("obhavo"))
 @router.message(F.text.contains("Ob-havo"))
 async def show_weather_menu(message: Message):
     user_id = message.from_user.id

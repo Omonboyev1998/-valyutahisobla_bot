@@ -1,4 +1,5 @@
 from aiogram import Router, F
+from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
 from src.services.football_service import football_service, LEAGUES
 from src.keyboards.football import (
@@ -9,6 +10,7 @@ from src.keyboards.football import (
 
 router = Router(name="football")
 
+@router.message(Command("futbol"))
 @router.message(F.text.contains("Futbol"))
 async def show_football_menu(message: Message):
     text = (

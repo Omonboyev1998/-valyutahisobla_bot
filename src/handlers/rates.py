@@ -1,4 +1,5 @@
 from aiogram import Router, F
+from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
 from src.services.cbu_service import cbu_service
 from src.keyboards.inline import get_rates_keyboard
@@ -52,6 +53,7 @@ async def build_popular_rates_message() -> str:
     text += "\n💡 <i>Hisoblash uchun quyidagi tugmadan yoki to'g'ridan-to'g'ri (masalan: 100 USD) foydalaning.</i>"
     return text
 
+@router.message(Command("kurslar"))
 @router.message(F.text.in_(["💵 Valyuta kurslari", "💵 Bugungi kurslar", "📊 Ommabop valyutalar"]))
 async def show_rates_message(message: Message):
     text = await build_popular_rates_message()

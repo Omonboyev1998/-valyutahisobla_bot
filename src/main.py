@@ -25,11 +25,18 @@ logger = logging.getLogger(__name__)
 async def set_commands(bot: Bot):
     commands = [
         BotCommand(command="start", description="Botni ishga tushirish"),
+        BotCommand(command="kurslar", description="Valyuta kurslari va hisoblagich"),
         BotCommand(command="namoz", description="Namoz vaqtlari va taqvim"),
+        BotCommand(command="obhavo", description="Ob-havo ma'lumotlari"),
+        BotCommand(command="futbol", description="Futbol jadvallari va natijalari"),
+        BotCommand(command="ref", description="Do'stlarni taklif qilish"),
         BotCommand(command="help", description="Yordam va qo'llanma"),
         BotCommand(command="admin", description="Admin paneli (Faqat admin)"),
     ]
-    await bot.set_my_commands(commands)
+    try:
+        await bot.set_my_commands(commands)
+    except Exception as e:
+        logger.warning(f"Buyruqlarni o'rnatishda xatolik: {e}")
 
 async def start_web_server():
     """Render va boshqa bepul serverlarda uxlab qolmaslik uchun yengil web-server"""
