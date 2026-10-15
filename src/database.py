@@ -138,11 +138,19 @@ def set_user_notify_time(user_id: int, time_str: str):
         conn.commit()
 
 def set_user_weather_city(user_id: int, city: str):
-    """Ob-havo eslatmasi uchun shahar nomini o'rnatish"""
+    """Ob-havo eslatmasi va doimiy hudud uchun shahar nomini o'rnatish"""
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
         cursor.execute("UPDATE users SET weather_city = ? WHERE user_id = ?", (city, user_id))
         conn.commit()
+
+def get_user_weather_city(user_id: int) -> str:
+    """Foydalanuvchining doimiy saqlangan shahrini qaytaradi"""
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT weather_city FROM users WHERE user_id = ?", (user_id,))
+        row = cursor.fetchone()
+        return row[0] if (row and row[0]) else "Toshkent"
 
 def set_subscription(user_id: int, status: bool):
     with sqlite3.connect(DB_PATH) as conn:

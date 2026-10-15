@@ -3,9 +3,10 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.exceptions import TelegramBadRequest
 
-from src.services.weather_service import weather_service
+from src.services.weather_service import weather_service, get_nearest_region
 from src.keyboards.weather import get_cities_keyboard
 from src.keyboards.reply import get_main_keyboard, get_weather_location_keyboard
+from src.database import get_user_weather_city, set_user_weather_city
 
 logger = logging.getLogger(__name__)
 
@@ -44,12 +45,24 @@ def format_weather_message(data: dict) -> str:
 
 @router.message(F.text.contains("Ob-havo"))
 async def show_weather_menu(message: Message):
+    user_id = message.from_user.id
+    saved_city = get_user_weather_city(user_id)
+
+    # Doimiy hudud ob-havosini avtomatik olamiz
+    coords = await weather_service.get_coordinates_by_city(saved_city)
+    weather_part = ""
+    if coords:
+        lat, lon, real_name, intl_name = coords
+        data = await weather_service.get_weather(lat, lon, real_name, intl_name)
+        if data:
+            weather_part = f"{format_weather_message(data)}\n"
+
     text = (
-        "🌤 <b>Ob-havo ma'lumotlari bo'limi</b>\n\n"
-        "O'zingiz turgan joy ob-havosini bilish uchun pastdagi <b>'📍 Mening joylashuvim'</b> tugmasini bosing,\n"
-        "yoki quyidagi shaharlardan birini tanlang:\n\n"
-        "<i>(Shuningdek, istalgan shahar nomini ham yozib yuborishingiz mumkin, masalan: <code>Samarqand</code>)</i>"
+        f"📌 <b>Sizning doimiy hududingiz: {saved_city}</b>\n\n"
+        f"{weather_part}"
+        "<i>Hududni o'zgartirish uchun pastdagi tugmalardan boshqa viloyatni tanlang yoki joylashuvingizni yuboring:</i>"
     )
+
     await message.answer("Joylashuvingizni yuborishingiz mumkin:", reply_markup=get_weather_location_keyboard())
     await message.answer(text, parse_mode="HTML", reply_markup=get_cities_keyboard())
 
@@ -61,34 +74,52 @@ async def back_to_main_menu(message: Message):
 async def process_location_weather(message: Message):
     lat = message.location.latitude
     lon = message.location.longitude
+    user_id = message.from_user.id
 
     status_msg = await message.answer("⏳ Hududingiz bo'yicha ob-havo aniqlanmoqda...")
-    data = await weather_service.get_weather(lat, lon, "Siz turgan joy")
+    
+    # Koordinataga eng yaqin viloyatni aniqlaymiz va doimiy qilib saqlaymiz
+    nearest_region = get_nearest_region(lat, lon)
+    set_user_weather_city(user_id, nearest_region)
+
+    data = await weather_service.get_weather(lat, lon, f"Siz turgan joy ({nearest_region})")
 
     if not data:
         await status_msg.edit_text("⚠️ Ob-havo ma'lumotini olishda xatolik yuz berdi. Qayta urinib ko'ring.")
         return
 
-    msg = format_weather_message(data)
+    msg = (
+        f"✅ <b>{nearest_region} sizning doimiy hududingiz sifatida saqlandi!</b>\n\n"
+        f"{format_weather_message(data)}"
+    )
     await status_msg.edit_text(msg, parse_mode="HTML")
 
 @router.callback_query(F.data.startswith("weather:"))
 async def process_city_weather_callback(callback: CallbackQuery):
-    await callback.answer("Ob-havo yuklanmoqda...")
     city_name = callback.data.split(":")[1]
-    
+    user_id = callback.from_user.id
+    await callback.answer("Ob-havo yuklanmoqda...")
+
     coords = await weather_service.get_coordinates_by_city(city_name)
     if not coords:
         await callback.message.answer(f"⚠️ {city_name} koordinatalari topilmadi.")
         return
 
     lat, lon, real_name, intl_name = coords
+    
+    # Tanlangan hududni foydalanuvchining doimiy hududi sifatida saqlaymiz!
+    set_user_weather_city(user_id, real_name)
+
     data = await weather_service.get_weather(lat, lon, real_name, intl_name)
     if not data:
         await callback.message.answer(f"⚠️ {real_name} bo'yicha ob-havo ma'lumotlarini yuklab bo'lmadi. Qayta urinib ko'ring.")
         return
 
-    msg = format_weather_message(data)
+    msg = (
+        f"✅ <b>{real_name} sizning doimiy hududingiz sifatida saqlandi!</b>\n\n"
+        f"{format_weather_message(data)}\n"
+        "<i>Hududni o'zgartirish uchun boshqa viloyatni tanlashingiz mumkin:</i>"
+    )
     try:
         await callback.message.edit_text(msg, parse_mode="HTML", reply_markup=get_cities_keyboard())
     except TelegramBadRequest:

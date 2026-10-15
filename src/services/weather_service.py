@@ -24,6 +24,18 @@ UZB_REGIONS = {
     "Guliston": {"coords": (40.4897, 68.7842), "intl": "Gulistan"}
 }
 
+def get_nearest_region(lat: float, lon: float) -> str:
+    """Berilgan koordinatalarga eng yaqin O'zbekiston viloyat markazini topadi"""
+    min_dist = float('inf')
+    nearest = "Toshkent"
+    for name, data in UZB_REGIONS.items():
+        c_lat, c_lon = data["coords"]
+        dist = (lat - c_lat)**2 + (lon - c_lon)**2
+        if dist < min_dist:
+            min_dist = dist
+            nearest = name
+    return nearest
+
 MET_SYMBOLS = {
     "clearsky_day": ("Musaffo osmon", "☀️"),
     "clearsky_night": ("Musaffo osmon", "🌙"),
