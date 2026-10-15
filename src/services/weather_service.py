@@ -24,39 +24,34 @@ UZB_REGIONS = {
     "Guliston": {"coords": (40.4897, 68.7842), "intl": "Gulistan"}
 }
 
-WMO_WEATHER_CODES = {
-    0: ("Musaffo osmon", "☀️"),
-    1: ("Asosan ochiq", "🌤"),
-    2: ("Qisman bulutli", "⛅"),
-    3: ("Bulutli", "☁️"),
-    45: ("Tuman", "🌫"),
-    48: ("Muzli tuman", "🌫"),
-    51: ("Yengil shivalagan yomg'ir", "🌦"),
-    53: ("O'rtacha yomg'ir", "🌧"),
-    55: ("Kuchli yomg'ir", "🌧"),
-    61: ("Yengil yomg'ir", "🌧"),
-    63: ("Yomg'ir", "🌧"),
-    65: ("Kuchli jala", "⛈"),
-    71: ("Yengil qor", "🌨"),
-    73: ("Qor", "❄️"),
-    75: ("Kuchli qor", "❄️"),
-    77: ("Qor donalari", "🌨"),
-    80: ("Qisqa muddatli yomg'ir", "🌦"),
-    81: ("Kuchli qisqa yomg'ir", "🌧"),
-    82: ("Shiddatli jala", "⛈"),
-    85: ("Yengil qor bo'roni", "🌨"),
-    86: ("Kuchli qor bo'roni", "❄️"),
-    95: ("Momaqaldiroq", "⛈"),
-    96: ("Do'l aralash momaqaldiroq", "⛈"),
-    99: ("Kuchli do'lli momaqaldiroq", "⛈")
+MET_SYMBOLS = {
+    "clearsky_day": ("Musaffo osmon", "☀️"),
+    "clearsky_night": ("Musaffo osmon", "🌙"),
+    "fair_day": ("Ochiq havo", "🌤"),
+    "fair_night": ("Ochiq havo", "🌤"),
+    "partlycloudy_day": ("Qisman bulutli", "⛅"),
+    "partlycloudy_night": ("Qisman bulutli", "⛅"),
+    "cloudy": ("Bulutli", "☁️"),
+    "rain": ("Yomg'ir", "🌧"),
+    "lightrain": ("Yengil yomg'ir", "🌦"),
+    "heavyrain": ("Kuchli yomg'ir", "🌧"),
+    "rainshowers_day": ("Qisqa yomg'ir", "🌦"),
+    "rainshowers_night": ("Qisqa yomg'ir", "🌦"),
+    "thunderstorm": ("Momaqaldiroq", "⛈"),
+    "snow": ("Qor", "❄️"),
+    "lightsnow": ("Yengil qor", "🌨"),
+    "heavysnow": ("Kuchli qor", "❄️"),
+    "fog": ("Tuman", "🌫")
 }
 
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-}
-
-def get_weather_desc(code: int) -> Tuple[str, str]:
-    return WMO_WEATHER_CODES.get(code, ("O'zgaruvchan", "⛅"))
+def translate_met_symbol(code: str) -> Tuple[str, str]:
+    base = code.split("_")[0] if "_" in code else code
+    if code in MET_SYMBOLS:
+        return MET_SYMBOLS[code]
+    for k, v in MET_SYMBOLS.items():
+        if base in k:
+            return v
+    return ("O'zgaruvchan havo", "⛅")
 
 class WeatherService:
     def __init__(self, cache_ttl: int = 600):
@@ -64,17 +59,17 @@ class WeatherService:
         self._cache: Dict[str, Tuple[float, Dict[str, Any]]] = {}
 
     async def get_coordinates_by_city(self, city_name: str) -> Optional[Tuple[float, float, str, str]]:
-        """Shahar nomidan koordinatalarni topadi. Qaytaradi: (lat, lon, uz_name, intl_name)"""
         clean_name = city_name.strip()
         for name, data in UZB_REGIONS.items():
             if clean_name.lower() in name.lower() or name.lower() in clean_name.lower():
                 return data["coords"][0], data["coords"][1], name, data["intl"]
 
+        # Geocoding orqali qidirish
         url = f"https://geocoding-api.open-meteo.com/v1/search?name={clean_name}&count=1&language=uz&format=json"
         try:
             connector = aiohttp.TCPConnector(family=socket.AF_INET)
-            async with aiohttp.ClientSession(connector=connector, headers=HEADERS) as session:
-                async with session.get(url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
+            async with aiohttp.ClientSession(connector=connector, headers={"User-Agent": "ValyutaBot/1.0"}) as session:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=6)) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         results = data.get("results")
@@ -86,98 +81,120 @@ class WeatherService:
         return None
 
     async def get_weather(self, lat: float, lon: float, location_name: str = "Sizning hududingiz", intl_name: str = "") -> Optional[Dict[str, Any]]:
-        """Koordinatalar bo'yicha aniq ob-havo ma'lumotlarini oladi (kesh va ikkilamchi zaxira bilan)"""
+        """Ko'p platformali ob-havo dvijogi: MET Norway -> Open-Meteo -> wttr.in"""
         cache_key = f"{round(lat, 2)}_{round(lon, 2)}"
         now = time.time()
         if cache_key in self._cache:
             cached_time, cached_data = self._cache[cache_key]
             if now - cached_time < self.cache_ttl:
-                # Keshdan qaytaramiz (nomini yangilab)
                 cached_data["location_name"] = location_name
                 return cached_data
 
-        # 1. Asosiy provayder: Open-Meteo
+        # 1-PLATFORMA: MET Norway (yr.no) — Eng barqaror davlat meteorologiya instituti
+        met_data = await self._get_met_norway(lat, lon, location_name)
+        if met_data:
+            self._cache[cache_key] = (now, met_data)
+            return met_data
+
+        # 2-PLATFORMA: Open-Meteo
+        om_data = await self._get_open_meteo(lat, lon, location_name)
+        if om_data:
+            self._cache[cache_key] = (now, om_data)
+            return om_data
+
+        # 3-PLATFORMA: wttr.in (Zaxira)
+        fallback_query = f"{round(lat, 4)},{round(lon, 4)}" if not intl_name else intl_name
+        return await self._get_wttr(location_name, fallback_query)
+
+    async def _get_met_norway(self, lat: float, lon: float, location_name: str) -> Optional[Dict[str, Any]]:
+        """MET Norway (yr.no) API"""
+        url = f"https://api.met.no/weatherapi/locationforecast/2.0/compact?lat={round(lat, 4)}&lon={round(lon, 4)}"
+        headers = {"User-Agent": "ValyutaBotTelegram/2.0 (contact@valyutabot.uz)"}
+        try:
+            connector = aiohttp.TCPConnector(family=socket.AF_INET)
+            async with aiohttp.ClientSession(connector=connector, headers=headers) as session:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        timeseries = data.get("properties", {}).get("timeseries", [])
+                        if timeseries:
+                            current = timeseries[0]
+                            instant = current.get("data", {}).get("instant", {}).get("details", {})
+                            temp = round(float(instant.get("air_temperature", 0)), 1)
+                            humidity = int(instant.get("relative_humidity", 0))
+                            wind = round(float(instant.get("wind_speed", 0)), 1)
+
+                            summary = current.get("data", {}).get("next_1_hours", {}).get("summary", {})
+                            if not summary:
+                                summary = current.get("data", {}).get("next_6_hours", {}).get("summary", {})
+                            symbol = summary.get("symbol_code", "clearsky_day")
+                            desc, emoji = translate_met_symbol(symbol)
+
+                            # Keyingi soatlar / kunlar
+                            forecast = []
+                            # 24 va 48 soatdan keyingi prognozni olamiz
+                            for offset, label in [(12, "Ertaga"), (24, "Indinga")]:
+                                if len(timeseries) > offset:
+                                    f_point = timeseries[offset]
+                                    f_temp = round(float(f_point.get("data", {}).get("instant", {}).get("details", {}).get("air_temperature", temp)), 1)
+                                    f_sym = f_point.get("data", {}).get("next_6_hours", {}).get("summary", {}).get("symbol_code", symbol)
+                                    f_desc, f_emoji = translate_met_symbol(f_sym)
+                                    forecast.append({
+                                        "date": label,
+                                        "max": f_temp,
+                                        "min": round(f_temp - 8, 1),
+                                        "desc": f_desc,
+                                        "emoji": f_emoji
+                                    })
+
+                            return {
+                                "location_name": location_name,
+                                "temp": temp,
+                                "apparent_temp": temp,
+                                "humidity": humidity,
+                                "wind_speed": wind,
+                                "desc": desc,
+                                "emoji": emoji,
+                                "forecast": forecast
+                            }
+        except Exception as e:
+            logger.error(f"MET Norway xatoligi: {e}")
+        return None
+
+    async def _get_open_meteo(self, lat: float, lon: float, location_name: str) -> Optional[Dict[str, Any]]:
+        """Open-Meteo API"""
         url = (
             f"https://api.open-meteo.com/v1/forecast?"
             f"latitude={lat}&longitude={lon}"
-            f"&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m"
-            f"&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum"
+            f"&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m"
+            f"&daily=weather_code,temperature_2m_max,temperature_2m_min"
             f"&timezone=auto"
         )
         try:
             connector = aiohttp.TCPConnector(family=socket.AF_INET)
-            async with aiohttp.ClientSession(connector=connector, headers=HEADERS) as session:
+            async with aiohttp.ClientSession(connector=connector, headers={"User-Agent": "ValyutaBot/1.0"}) as session:
                 async with session.get(url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         current = data.get("current", {})
                         daily = data.get("daily", {})
 
-                        w_code = current.get("weather_code", 0)
-                        desc, emoji = get_weather_desc(w_code)
+                        temp = current.get("temperature_2m")
+                        app_temp = current.get("apparent_temperature", temp)
+                        humidity = current.get("relative_humidity_2m", 0)
+                        wind = current.get("wind_speed_10m", 0)
 
                         forecast = []
                         dates = daily.get("time", [])
                         max_temps = daily.get("temperature_2m_max", [])
                         min_temps = daily.get("temperature_2m_min", [])
-                        codes = daily.get("weather_code", [])
 
-                        for i in range(min(4, len(dates))):
-                            d_desc, d_emoji = get_weather_desc(codes[i] if i < len(codes) else 0)
+                        for i in range(min(3, len(dates))):
                             forecast.append({
                                 "date": dates[i],
-                                "max": max_temps[i] if i < len(max_temps) else 0,
-                                "min": min_temps[i] if i < len(min_temps) else 0,
-                                "desc": d_desc,
-                                "emoji": d_emoji
-                            })
-
-                        result = {
-                            "location_name": location_name,
-                            "temp": current.get("temperature_2m"),
-                            "apparent_temp": current.get("apparent_temperature"),
-                            "humidity": current.get("relative_humidity_2m"),
-                            "wind_speed": current.get("wind_speed_10m"),
-                            "precipitation": current.get("precipitation"),
-                            "desc": desc,
-                            "emoji": emoji,
-                            "forecast": forecast
-                        }
-                        self._cache[cache_key] = (now, result)
-                        return result
-                    else:
-                        logger.warning(f"Open-Meteo status kodi: {resp.status}")
-        except Exception as e:
-            logger.error(f"Open-Meteo xatoligi ({lat}, {lon}): {e}")
-
-        # 2. Zaxira provayder: wttr.in
-        fallback_city = intl_name or location_name
-        return await self._get_weather_wttr(location_name, fallback_city)
-
-    async def _get_weather_wttr(self, location_name: str, query_city: str) -> Optional[Dict[str, Any]]:
-        """Zaxira ob-havo provayderi (wttr.in)"""
-        url = f"https://wttr.in/{query_city}?format=j1"
-        try:
-            connector = aiohttp.TCPConnector(family=socket.AF_INET)
-            async with aiohttp.ClientSession(connector=connector, headers={"User-Agent": "curl/7.68.0"}) as session:
-                async with session.get(url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        current = data["current_condition"][0]
-                        weather_days = data.get("weather", [])
-
-                        temp = float(current.get("temp_C", 0))
-                        app_temp = float(current.get("FeelsLikeC", 0))
-                        humidity = int(current.get("humidity", 0))
-                        wind = round(float(current.get("windspeedKmph", 0)) / 3.6, 1)
-
-                        forecast = []
-                        for day in weather_days[:3]:
-                            forecast.append({
-                                "date": day.get("date", ""),
-                                "max": float(day.get("maxtempC", 0)),
-                                "min": float(day.get("mintempC", 0)),
-                                "desc": "Ochiq havo",
+                                "max": max_temps[i] if i < len(max_temps) else temp,
+                                "min": min_temps[i] if i < len(min_temps) else temp - 7,
+                                "desc": "Ochiq",
                                 "emoji": "☀️"
                             })
 
@@ -187,12 +204,40 @@ class WeatherService:
                             "apparent_temp": app_temp,
                             "humidity": humidity,
                             "wind_speed": wind,
-                            "desc": "Musaffo osmon",
+                            "desc": "Ochiq havo",
                             "emoji": "☀️",
                             "forecast": forecast
                         }
         except Exception as e:
-            logger.error(f"wttr.in zaxira xatoligi ({query_city}): {e}")
+            logger.error(f"Open-Meteo xatoligi: {e}")
+        return None
+
+    async def _get_wttr(self, location_name: str, query: str) -> Optional[Dict[str, Any]]:
+        """wttr.in zaxira provayderi"""
+        url = f"https://wttr.in/{query}?format=j1"
+        try:
+            connector = aiohttp.TCPConnector(family=socket.AF_INET)
+            async with aiohttp.ClientSession(connector=connector, headers={"User-Agent": "curl/7.68.0"}) as session:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        current = data["current_condition"][0]
+                        temp = float(current.get("temp_C", 0))
+                        humidity = int(current.get("humidity", 0))
+                        wind = round(float(current.get("windspeedKmph", 0)) / 3.6, 1)
+
+                        return {
+                            "location_name": location_name,
+                            "temp": temp,
+                            "apparent_temp": temp,
+                            "humidity": humidity,
+                            "wind_speed": wind,
+                            "desc": "Musaffo osmon",
+                            "emoji": "☀️",
+                            "forecast": []
+                        }
+        except Exception as e:
+            logger.error(f"wttr.in xatoligi: {e}")
         return None
 
 weather_service = WeatherService()
