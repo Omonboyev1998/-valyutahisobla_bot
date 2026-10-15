@@ -49,34 +49,37 @@ WMO_WEATHER_CODES = {
     99: ("Kuchli do'lli momaqaldiroq", "⛈")
 }
 
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+}
+
 def get_weather_desc(code: int) -> Tuple[str, str]:
     return WMO_WEATHER_CODES.get(code, ("O'zgaruvchan", "⛅"))
 
 class WeatherService:
     async def get_coordinates_by_city(self, city_name: str) -> Optional[Tuple[float, float, str]]:
         """Shahar nomidan koordinatalarni topadi"""
-        # Avval mahalliy ro'yxatdan tekshiramiz
+        clean_name = city_name.strip()
         for name, coords in UZB_REGIONS.items():
-            if city_name.strip().lower() in name.lower():
+            if clean_name.lower() in name.lower() or name.lower() in clean_name.lower():
                 return coords[0], coords[1], name
 
-        # Aks holda Open-Meteo Geocoding API orqali qidiramiz
-        url = f"https://geocoding-api.open-meteo.com/v1/search?name={city_name}&count=1&language=uz&format=json"
+        url = f"https://geocoding-api.open-meteo.com/v1/search?name={clean_name}&count=1&language=uz&format=json"
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+            async with aiohttp.ClientSession(headers=HEADERS) as session:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=6)) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         results = data.get("results")
                         if results:
                             item = results[0]
-                            return float(item["latitude"]), float(item["longitude"]), item.get("name", city_name)
+                            return float(item["latitude"]), float(item["longitude"]), item.get("name", clean_name)
         except Exception as e:
             logger.error(f"Geocoding xatoligi ({city_name}): {e}")
         return None
 
     async def get_weather(self, lat: float, lon: float, location_name: str = "Sizning hududingiz") -> Optional[Dict[str, Any]]:
-        """Koordinatalar bo'yicha aniq ob-havo ma'lumotlarini oladi"""
+        """Koordinatalar bo'yicha aniq ob-havo ma'lumotlarini oladi (Open-Meteo va zaxira wttr.in bilan)"""
         url = (
             f"https://api.open-meteo.com/v1/forecast?"
             f"latitude={lat}&longitude={lon}"
@@ -85,7 +88,7 @@ class WeatherService:
             f"&timezone=auto"
         )
         try:
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(headers=HEADERS) as session:
                 async with session.get(url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
                     if resp.status == 200:
                         data = await resp.json()
@@ -95,7 +98,6 @@ class WeatherService:
                         w_code = current.get("weather_code", 0)
                         desc, emoji = get_weather_desc(w_code)
 
-                        # 3 kunlik prognoz
                         forecast = []
                         dates = daily.get("time", [])
                         max_temps = daily.get("temperature_2m_max", [])
@@ -123,8 +125,52 @@ class WeatherService:
                             "emoji": emoji,
                             "forecast": forecast
                         }
+                    else:
+                        logger.warning(f"Open-Meteo status kodi: {resp.status}")
         except Exception as e:
-            logger.error(f"Ob-havo olishda xatolik ({lat}, {lon}): {e}")
+            logger.error(f"Open-Meteo xatoligi ({lat}, {lon}): {e}")
+
+        # Zaxira provayder: wttr.in
+        return await self._get_weather_wttr(location_name)
+
+    async def _get_weather_wttr(self, city_name: str) -> Optional[Dict[str, Any]]:
+        """Zaxira ob-havo provayderi (wttr.in)"""
+        url = f"https://wttr.in/{city_name}?format=j1"
+        try:
+            async with aiohttp.ClientSession(headers={"User-Agent": "curl/7.68.0"}) as session:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=6)) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        current = data["current_condition"][0]
+                        weather_days = data.get("weather", [])
+
+                        temp = float(current.get("temp_C", 0))
+                        app_temp = float(current.get("FeelsLikeC", 0))
+                        humidity = int(current.get("humidity", 0))
+                        wind = round(float(current.get("windspeedKmph", 0)) / 3.6, 1)
+
+                        forecast = []
+                        for day in weather_days[:3]:
+                            forecast.append({
+                                "date": day.get("date", ""),
+                                "max": float(day.get("maxtempC", 0)),
+                                "min": float(day.get("mintempC", 0)),
+                                "desc": "Ochiq havo",
+                                "emoji": "☀️"
+                            })
+
+                        return {
+                            "location_name": city_name,
+                            "temp": temp,
+                            "apparent_temp": app_temp,
+                            "humidity": humidity,
+                            "wind_speed": wind,
+                            "desc": "Musaffo osmon",
+                            "emoji": "☀️",
+                            "forecast": forecast
+                        }
+        except Exception as e:
+            logger.error(f"wttr.in zaxira xatoligi ({city_name}): {e}")
         return None
 
 weather_service = WeatherService()
