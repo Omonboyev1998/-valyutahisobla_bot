@@ -3,7 +3,7 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.exceptions import TelegramBadRequest
 
-from src.services.weather_service import weather_service, UZB_REGIONS
+from src.services.weather_service import weather_service
 from src.keyboards.weather import get_cities_keyboard
 from src.keyboards.reply import get_main_keyboard, get_weather_location_keyboard
 
@@ -50,9 +50,7 @@ async def show_weather_menu(message: Message):
         "yoki quyidagi shaharlardan birini tanlang:\n\n"
         "<i>(Shuningdek, istalgan shahar nomini ham yozib yuborishingiz mumkin, masalan: <code>Samarqand</code>)</i>"
     )
-    # Joylashuv yuborish reply klaviaturasi
     await message.answer("Joylashuvingizni yuborishingiz mumkin:", reply_markup=get_weather_location_keyboard())
-    # Shaharlar inline tugmalari
     await message.answer(text, parse_mode="HTML", reply_markup=get_cities_keyboard())
 
 @router.message(F.text == "🔙 Asosiy menyu")
@@ -76,7 +74,7 @@ async def process_location_weather(message: Message):
 
 @router.callback_query(F.data.startswith("weather:"))
 async def process_city_weather_callback(callback: CallbackQuery):
-    await callback.answer("Ob-havo ma'lumoti yuklanmoqda...")
+    await callback.answer("Ob-havo yuklanmoqda...")
     city_name = callback.data.split(":")[1]
     
     coords = await weather_service.get_coordinates_by_city(city_name)
@@ -84,8 +82,8 @@ async def process_city_weather_callback(callback: CallbackQuery):
         await callback.message.answer(f"⚠️ {city_name} koordinatalari topilmadi.")
         return
 
-    lat, lon, real_name = coords
-    data = await weather_service.get_weather(lat, lon, real_name)
+    lat, lon, real_name, intl_name = coords
+    data = await weather_service.get_weather(lat, lon, real_name, intl_name)
     if not data:
         await callback.message.answer(f"⚠️ {real_name} bo'yicha ob-havo ma'lumotlarini yuklab bo'lmadi. Qayta urinib ko'ring.")
         return
@@ -94,7 +92,6 @@ async def process_city_weather_callback(callback: CallbackQuery):
     try:
         await callback.message.edit_text(msg, parse_mode="HTML", reply_markup=get_cities_keyboard())
     except TelegramBadRequest:
-        # Xabar o'zgarmagan bo'lsa
         pass
     except Exception as e:
         logger.error(f"Xabarni tahrirlashda xatolik: {e}")
