@@ -37,7 +37,7 @@ def format_weather_message(data: dict) -> str:
 
     return text
 
-@router.message(F.text == "🌤 Ob-havo")
+@router.message(F.text.contains("Ob-havo"))
 async def show_weather_menu(message: Message):
     text = (
         "🌤 <b>Ob-havo ma'lumotlari bo'limi</b>\n\n"

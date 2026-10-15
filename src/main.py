@@ -70,10 +70,10 @@ async def main():
     dp.include_router(admin.router)
     dp.include_router(start.router)
     dp.include_router(rates.router)
-    dp.include_router(convert.router)
     dp.include_router(weather.router)
     dp.include_router(football.router)
     dp.include_router(notifications.router)
+    dp.include_router(convert.router)
 
     # 4. Kunlik ertalabki eslatmalar (scheduler) fon vazifasini ishga tushirish
     scheduler_task = asyncio.create_task(morning_scheduler_task(bot))

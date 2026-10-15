@@ -9,7 +9,7 @@ from src.keyboards.football import (
 
 router = Router(name="football")
 
-@router.message(F.text == "⚽️ Futbol olami")
+@router.message(F.text.contains("Futbol"))
 async def show_football_menu(message: Message):
     text = (
         "⚽️ <b>Futbol olamiga xush kelibsiz!</b>\n\n"

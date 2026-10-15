@@ -141,7 +141,7 @@ async def process_amount(message: Message, state: FSMContext):
 @router.message(F.text)
 async def smart_text_converter(message: Message, state: FSMContext):
     # Agar foydalanuvchi menyudagi asosiy tugmalarni bosgan bo'lsa, boshqa handlerlar ishlaydi
-    if message.text.startswith("/") or message.text in ["💵 Bugungi kurslar", "📊 Ommabop valyutalar", "🔄 Valyuta hisoblash", "❓ Yordam"]:
+    if message.text.startswith("/") or any(k in message.text for k in ["kurslar", "Valyuta", "Ob-havo", "Futbol", "Eslatmalar", "Yordam", "Menyu"]):
         return
 
     text = message.text.strip().lower()

@@ -16,7 +16,7 @@ def get_status_text(is_sub: bool) -> str:
         f"Quyidagi tugmalar orqali eslatmalarni yoqishingiz, o'chirishingiz yoki hoziroq sinab ko'rishingiz mumkin:"
     )
 
-@router.message(F.text == "🔔 Eslatmalar")
+@router.message(F.text.contains("Eslatmalar"))
 async def show_notifications_settings(message: Message):
     user = message.from_user
     add_user(user.id, user.full_name or "Foydalanuvchi", user.username)
