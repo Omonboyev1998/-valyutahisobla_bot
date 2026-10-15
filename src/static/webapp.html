@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Universal Yordamchi</title>
+  <!-- Telegram WebApp SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: var(--tg-theme-bg-color, #0b1329);
+      --card-bg: var(--tg-theme-secondary-bg-color, #131f37);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --text: var(--tg-theme-text-color, #f1f5f9);
+      --text-muted: var(--tg-theme-hint-color, #94a3b8);
+      --primary: var(--tg-theme-button-color, #3b82f6);
+      --primary-text: var(--tg-theme-button-text-color, #ffffff);
+      --accent: #10b981;
+      --accent-danger: #ef4444;
+      --accent-gold: #f59e0b;
+      --card-radius: 16px;
+      --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    body {
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      padding-bottom: 84px;
+    }
+
+    /* Header */
+    header {
+      padding: 14px 18px 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      background: var(--bg);
+      backdrop-filter: blur(12px);
+      z-index: 50;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+
+    .brand-title {
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .brand-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .header-badge {
+      font-size: 11px;
+      background: rgba(59, 130, 246, 0.15);
+      color: #60a5fa;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+
+    /* Container */
+    main {
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      flex: 1;
+    }
+
+    .section-view {
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .section-view.active {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Common Card */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--card-radius);
+      padding: 16px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .card-title {
+      font-size: 15px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Pills / Tabs */
+    .pills {
+      display: flex;
+      gap: 6px;
+      background: rgba(0, 0, 0, 0.2);
+      padding: 4px;
+      border-radius: 12px;
+      overflow-x: auto;
+    }
+
+    .pill-btn {
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: var(--transition);
+      white-space: nowrap;
+    }
+
+    .pill-btn.active {
+      background: var(--primary);
+      color: var(--primary-text);
+      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+    }
+
+    /* Chart Card */
+    .chart-container {
+      position: relative;
+      height: 220px;
+      width: 100%;
+      margin: 10px 0;
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .stat-item {
+      background: rgba(255, 255, 255, 0.03);
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--card-border);
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .stat-val {
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .trend-up { color: var(--accent); }
+    .trend-down { color: var(--accent-danger); }
+
+    /* Currency Converter in App */
+    .calc-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .calc-input {
+      flex: 1;
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      outline: none;
+      font-family: inherit;
+    }
+
+    .calc-select {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 12px 10px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      outline: none;
+      font-family: inherit;
+      cursor: pointer;
+    }
+
+    .calc-result-box {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(139, 92, 246, 0.15));
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      padding: 14px;
+      border-radius: 12px;
+      text-align: center;
+      margin-top: 10px;
+    }
+
+    .calc-result-num {
+      font-size: 22px;
+      font-weight: 700;
+      color: #60a5fa;
+    }
+
+    /* Clock & Prayer Card */
+    .clock-hero {
+      text-align: center;
+      padding: 16px 0 10px;
+      position: relative;
+    }
+
+    .digital-clock {
+      font-size: 42px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: #ffffff;
+      text-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .digital-date {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .next-prayer-banner {
+      background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin: 12px 0 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);
+    }
+
+    .next-p-title {
+      font-size: 12px;
+      opacity: 0.85;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .next-p-name {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .next-p-timer {
+      font-size: 15px;
+      font-weight: 600;
+      background: rgba(0, 0, 0, 0.25);
+      padding: 6px 12px;
+      border-radius: 20px;
+      backdrop-filter: blur(4px);
+    }
+
+    .city-select-box {
+      margin-bottom: 12px;
+    }
+
+    .prayer-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    .prayer-item {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 12px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: var(--transition);
+    }
+
+    .prayer-item.active-prayer {
+      background: rgba(59, 130, 246, 0.15);
+      border-color: #3b82f6;
+      box-shadow: 0 0 12px rgba(59, 130, 246, 0.25);
+    }
+
+    .prayer-name {
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .prayer-time {
+      font-size: 16px;
+      font-weight: 700;
+      color: #60a5fa;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .dua-btn {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: 12px;
+      padding: 12px;
+      width: 100%;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 10px;
+      transition: var(--transition);
+    }
+
+    .dua-btn:active {
+      transform: scale(0.98);
+    }
+
+    /* Football Table */
+    .table-container {
+      overflow-x: auto;
+      margin: 8px -4px;
+    }
+
+    .fb-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .fb-table th {
+      text-align: left;
+      padding: 8px 6px;
+      color: var(--text-muted);
+      font-weight: 500;
+      font-size: 11px;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .fb-table td {
+      padding: 10px 6px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      vertical-align: middle;
+    }
+
+    .team-cell {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+    }
+
+    .team-logo {
+      width: 22px;
+      height: 22px;
+      object-fit: contain;
+      flex-shrink: 0;
+      border-radius: 50%;
+    }
+
+    .rank-badge {
+      width: 20px;
+      height: 20px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: 6px;
+    }
+
+    .rank-ucl { background: rgba(59, 130, 246, 0.25); color: #60a5fa; }
+    .rank-uel { background: rgba(245, 158, 11, 0.25); color: #fbbf24; }
+    .rank-normal { color: var(--text-muted); }
+
+    /* Matches List */
+    .match-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .match-team {
+      flex: 1;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .match-team.away {
+      text-align: right;
+    }
+
+    .match-score {
+      padding: 4px 10px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 14px;
+      color: #60a5fa;
+      margin: 0 10px;
+    }
+
+    /* Weather Card */
+    .weather-hero {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 0;
+    }
+
+    .w-temp-box {
+      display: flex;
+      align-items: flex-start;
+    }
+
+    .w-temp {
+      font-size: 48px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .w-unit {
+      font-size: 24px;
+      color: var(--text-muted);
+      margin-left: 2px;
+    }
+
+    .w-icon {
+      font-size: 54px;
+    }
+
+    .w-details-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid var(--card-border);
+    }
+
+    .w-detail-item {
+      text-align: center;
+    }
+
+    .w-detail-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+    }
+
+    .w-detail-val {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    /* Forecast list */
+    .forecast-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      font-size: 13px;
+    }
+
+    /* Modal */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(8px);
+      z-index: 100;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+      animation: modalFade 0.25s ease;
+    }
+
+    .modal-sheet {
+      background: var(--card-bg);
+      border-top: 1px solid var(--card-border);
+      border-radius: 20px 20px 0 0;
+      padding: 20px;
+      width: 100%;
+      max-height: 85vh;
+      overflow-y: auto;
+      animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+
+    @keyframes modalFade {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .modal-close-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: var(--text);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .dua-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .dua-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fbbf24;
+      margin-bottom: 8px;
+    }
+
+    .dua-arabic {
+      font-size: 16px;
+      direction: rtl;
+      text-align: right;
+      line-height: 1.8;
+      margin-bottom: 8px;
+      color: #fef08a;
+    }
+
+    .dua-meaning {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* Bottom Nav Bar */
+    nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 68px;
+      background: rgba(11, 19, 41, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-top: 1px solid var(--card-border);
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      z-index: 80;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      color: var(--text-muted);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: 6px 12px;
+      border-radius: 12px;
+      transition: var(--transition);
+      font-family: inherit;
+    }
+
+    .nav-icon {
+      font-size: 20px;
+      transition: transform 0.2s ease;
+    }
+
+    .nav-label {
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .nav-item.active {
+      color: #60a5fa;
+    }
+
+    .nav-item.active .nav-icon {
+      transform: translateY(-2px) scale(1.1);
+    }
+
+    /* Spinner */
+    .loader {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-radius: 50%;
+      border-top-color: #3b82f6;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .center-spinner {
+      display: flex;
+      justify-content: center;
+      padding: 30px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon">⚡️</div>
+      <div>
+        <div class="brand-title">Universal Yordamchi</div>
+        <div class="brand-subtitle">@valyutahisobla_bot</div>
+      </div>
+    </div>
+    <div class="header-badge" id="onlineBadge">Faol 🟢</div>
+  </header>
+
+  <main>
+    <!-- 1. VALYUTA BO'LIMI -->
+    <section id="section-rates" class="section-view active">
+      <!-- Valyuta tanlash -->
+      <div class="pills" id="currencyPills">
+        <button class="pill-btn active" data-ccy="USD">🇺🇸 USD</button>
+        <button class="pill-btn" data-ccy="EUR">🇪🇺 EUR</button>
+        <button class="pill-btn" data-ccy="RUB">🇷🇺 RUB</button>
+        <button class="pill-btn" data-ccy="KZT">🇰🇿 KZT</button>
+        <button class="pill-btn" data-ccy="CNY">🇨🇳 CNY</button>
+        <button class="pill-btn" data-ccy="GBP">🇬🇧 GBP</button>
+      </div>
+
+      <!-- Dinamika Grafigi -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <span>📈</span> <span id="chartTitle">USD dinamikasi</span>
+          </div>
+          <div class="pills">
+            <button class="pill-btn active" id="btn7Days" onclick="setChartDays(7)">7 kun</button>
+            <button class="pill-btn" id="btn30Days" onclick="setChartDays(30)">30 kun</button>
+          </div>
+        </div>
+
+        <div class="chart-container">
+          <canvas id="currencyChart"></canvas>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat-item">
+            <div class="stat-label">Hozirgi kurs</div>
+            <div class="stat-val" id="statCurrent">—</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">Dinamika</div>
+            <div class="stat-val" id="statDiff">—</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">Eng baland</div>
+            <div class="stat-val" id="statMax">—</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">Eng past</div>
+            <div class="stat-val" id="statMin">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tezkor Kalkulyator -->
+      <div class="card">
+        <div class="card-title" style="margin-bottom: 12px;">
+          <span>🧮</span> Aqlli Konvertor
+        </div>
+        <div class="calc-row">
+          <input type="number" id="calcAmount" class="calc-input" value="100" placeholder="Miqdor" oninput="calculateRate()">
+          <select id="calcFrom" class="calc-select" onchange="calculateRate()">
+            <option value="USD" selected>USD ($)</option>
+            <option value="EUR">EUR (€)</option>
+            <option value="RUB">RUB (₽)</option>
+            <option value="UZS">UZS (so'm)</option>
+          </select>
+        </div>
+        <div class="calc-row">
+          <div style="font-size: 13px; color: var(--text-muted); width: 100%; text-align: center;">⬇️ O'girish:</div>
+        </div>
+        <div class="calc-row">
+          <select id="calcTo" class="calc-select" style="width: 100%;" onchange="calculateRate()">
+            <option value="UZS" selected>UZS — O'zbekiston so'mi</option>
+            <option value="USD">USD — AQSH Dollari</option>
+            <option value="EUR">EUR — Yevro</option>
+            <option value="RUB">RUB — Rossiya Rubli</option>
+          </select>
+        </div>
+        <div class="calc-result-box">
+          <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">Natija:</div>
+          <div class="calc-result-num" id="calcResultDisplay">—</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. NAMOZ VAQTLARI BO'LIMI -->
+    <section id="section-prayer" class="section-view">
+      <!-- Hudud tanlash -->
+      <div class="card city-select-box" style="padding: 10px 14px;">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">📍 Hudud:</span>
+          <select id="prayerCitySelect" class="calc-select" style="padding: 6px 12px;" onchange="loadPrayerData()">
+            <option value="Toshkent" selected>Toshkent shahri</option>
+            <option value="Samarqand">Samarqand</option>
+            <option value="Andijon">Andijon</option>
+            <option value="Namangan">Namangan</option>
+            <option value="Farg'ona">Farg'ona</option>
+            <option value="Buxoro">Buxoro</option>
+            <option value="Qarshi">Qarshi</option>
+            <option value="Navoiy">Navoiy</option>
+            <option value="Urganch">Urganch</option>
+            <option value="Nukus">Nukus</option>
+            <option value="Termiz">Termiz</option>
+            <option value="Jizzax">Jizzax</option>
+            <option value="Guliston">Guliston</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Soat & Keyingi namoz -->
+      <div class="card clock-hero">
+        <div class="digital-clock" id="liveClock">--:--:--</div>
+        <div class="digital-date" id="liveDate">Yuklanmoqda...</div>
+
+        <div class="next-prayer-banner">
+          <div>
+            <div class="next-p-title">Keyingi namoz</div>
+            <div class="next-p-name" id="nextPrayerName">—</div>
+          </div>
+          <div class="next-p-timer" id="nextPrayerRemaining">--:-- qoldi</div>
+        </div>
+      </div>
+
+      <!-- 5 Mahal Namoz Ro'yxati -->
+      <div class="card">
+        <div class="card-title" style="margin-bottom: 12px;">
+          <span>🕌</span> 5 Mahal Namoz Vaqtlari (Hanafiy)
+        </div>
+        <div class="prayer-grid">
+          <div class="prayer-item" id="p-fajr">
+            <span class="prayer-name">🌌 Tong</span>
+            <span class="prayer-time" id="val-fajr">--:--</span>
+          </div>
+          <div class="prayer-item" id="p-sunrise">
+            <span class="prayer-name">🌅 Quyosh</span>
+            <span class="prayer-time" id="val-sunrise">--:--</span>
+          </div>
+          <div class="prayer-item" id="p-dhuhr">
+            <span class="prayer-name">☀️ Peshin</span>
+            <span class="prayer-time" id="val-dhuhr">--:--</span>
+          </div>
+          <div class="prayer-item" id="p-asr">
+            <span class="prayer-name">⛅️ Asr</span>
+            <span class="prayer-time" id="val-asr">--:--</span>
+          </div>
+          <div class="prayer-item" id="p-maghrib">
+            <span class="prayer-name">🌇 Shom</span>
+            <span class="prayer-time" id="val-maghrib">--:--</span>
+          </div>
+          <div class="prayer-item" id="p-isha">
+            <span class="prayer-name">🌙 Xufton</span>
+            <span class="prayer-time" id="val-isha">--:--</span>
+          </div>
+        </div>
+
+        <button class="dua-btn" onclick="openDuasModal()">
+          <span>🤲</span> Saharlik va Iftorlik Duolari
+        </button>
+      </div>
+    </section>
+
+    <!-- 3. FUTBOL BO'LIMI -->
+    <section id="section-football" class="section-view">
+      <div class="pills" id="footballPills">
+        <button class="pill-btn active" data-league="eng.1">🏴󠁧󠁢󠁥󠁮󠁧󠁿 APL</button>
+        <button class="pill-btn" data-league="esp.1">🇪🇸 La Liga</button>
+        <button class="pill-btn" data-league="ita.1">🇮🇹 Serie A</button>
+        <button class="pill-btn" data-league="ger.1">🇩🇪 Bundesliga</button>
+        <button class="pill-btn" data-league="uefa.champions">🏆 UCL</button>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <span>⚽️</span> <span id="fbLeagueTitle">Turnir Jadvali</span>
+          </div>
+          <div style="font-size: 11px; color: var(--text-muted);">Top 10</div>
+        </div>
+
+        <div class="table-container">
+          <table class="fb-table">
+            <thead>
+              <tr>
+                <th style="width: 28px;">#</th>
+                <th>Klub</th>
+                <th style="text-align: center; width: 34px;">O'</th>
+                <th style="text-align: center; width: 38px;">+/-</th>
+                <th style="text-align: right; width: 38px;">Och</th>
+              </tr>
+            </thead>
+            <tbody id="fbTableBody">
+              <tr><td colspan="5" style="text-align: center; padding: 20px;"><div class="loader"></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Yaqin / So'nggi O'yinlar -->
+      <div class="card">
+        <div class="card-title" style="margin-bottom: 12px;">
+          <span>⚡️</span> O'yinlar natijalari & taqvim
+        </div>
+        <div id="fbMatchesList">
+          <div style="text-align: center; padding: 15px;"><div class="loader"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. OB-HAVO BO'LIMI -->
+    <section id="section-weather" class="section-view">
+      <div class="card city-select-box" style="padding: 10px 14px;">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">📍 Shahar:</span>
+          <select id="weatherCitySelect" class="calc-select" style="padding: 6px 12px;" onchange="loadWeatherData()">
+            <option value="Toshkent" selected>Toshkent</option>
+            <option value="Samarqand">Samarqand</option>
+            <option value="Andijon">Andijon</option>
+            <option value="Buxoro">Buxoro</option>
+            <option value="Namangan">Namangan</option>
+            <option value="Farg'ona">Farg'ona</option>
+            <option value="Qarshi">Qarshi</option>
+            <option value="Navoiy">Navoiy</option>
+            <option value="Urganch">Urganch</option>
+            <option value="Nukus">Nukus</option>
+            <option value="Termiz">Termiz</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="weather-hero">
+          <div>
+            <div class="w-temp-box">
+              <span class="w-temp" id="wTemp">--</span>
+              <span class="w-unit">°C</span>
+            </div>
+            <div style="font-size: 14px; font-weight: 600; margin-top: 4px;" id="wDesc">Yuklanmoqda...</div>
+            <div style="font-size: 12px; color: var(--text-muted);" id="wAppTemp">Hiss qilinishi: --°C</div>
+          </div>
+          <div class="w-icon" id="wEmoji">🌤</div>
+        </div>
+
+        <div class="w-details-grid">
+          <div class="w-detail-item">
+            <div class="w-detail-label">💧 Namlik</div>
+            <div class="w-detail-val" id="wHumidity">--%</div>
+          </div>
+          <div class="w-detail-item">
+            <div class="w-detail-label">💨 Shamol</div>
+            <div class="w-detail-val" id="wWind">-- m/s</div>
+          </div>
+          <div class="w-detail-item">
+            <div class="w-detail-label">📍 Hudud</div>
+            <div class="w-detail-val" id="wLocation">--</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" style="margin-bottom: 10px;">
+          <span>📅</span> 3 kunlik ob-havo prognozi
+        </div>
+        <div id="wForecastList">
+          <div style="text-align: center; padding: 15px;"><div class="loader"></div></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Duolar Modali -->
+  <div class="modal-backdrop" id="duasModal">
+    <div class="modal-sheet">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div style="font-size: 17px; font-weight: 700;">🤲 Ro'za Duolari</div>
+        <button class="modal-close-btn" onclick="closeDuasModal()">Yopish</button>
+      </div>
+
+      <div class="dua-card">
+        <div class="dua-title">🌅 Saharlik (Og'iz yopish) duosi:</div>
+        <div class="dua-arabic">نَوَيْتُ أَنْ أَصُومَ صَوْمَ شَهْرِ رَمَضَانَ مِنَ الْفَجْرِ إِلَى الْمَغْرِبِ، خَالِصًا لِلَّهِ تَعَالَى أَللَّهُ أَكْبَرُ</div>
+        <div class="dua-meaning">
+          <b>O'qilishi:</b> Navaytu an asuma sovma shahri ramazona minal fajri ilal mag'ribi, xolisan lillahi ta'ala. Allohu akbar.<br><br>
+          <b>Ma'nosi:</b> Ramazon oyining ro'zasini tongdan to quyosh botguniga qadar xolis Alloh taolo uchun tutishni niyat qildim. Alloh buyukdir.
+        </div>
+      </div>
+
+      <div class="dua-card">
+        <div class="dua-title">🌇 Iftorlik (Og'iz ochish) duosi:</div>
+        <div class="dua-arabic">اَللَّهُمَّ لَكَ صُمْتُ وَبِكَ آمَنْتُ وَعَلَيْكَ تَوَكَّلْتُ وَعَلَى رِزْقِكَ أَفْطَرْتُ</div>
+        <div class="dua-meaning">
+          <b>O'qilishi:</b> Allohumma laka sumtu va bika aamantu va 'alayka tavakkaltu va 'ala rizqika aftartu.<br><br>
+          <b>Ma'nosi:</b> Ey Allohim, ushbu ro'zamni Sen uchun tutdim, Senga iymon keltirdim, Senga tavakkal qildim va bergan rizqing bilan og'iz ochdim.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Nav -->
+  <nav>
+    <button class="nav-item active" onclick="switchSection('rates', this)">
+      <span class="nav-icon">📈</span>
+      <span class="nav-label">Kurslar</span>
+    </button>
+    <button class="nav-item" onclick="switchSection('prayer', this)">
+      <span class="nav-icon">🕌</span>
+      <span class="nav-label">Namoz</span>
+    </button>
+    <button class="nav-item" onclick="switchSection('football', this)">
+      <span class="nav-icon">⚽️</span>
+      <span class="nav-label">Futbol</span>
+    </button>
+    <button class="nav-item" onclick="switchSection('weather', this)">
+      <span class="nav-icon">🌤</span>
+      <span class="nav-label">Ob-havo</span>
+    </button>
+  </nav>
+
+  <script>
+    // Telegram WebApp Setup
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      tg.ready();
+      tg.expand();
+      try {
+        tg.setHeaderColor('#0b1329');
+        tg.setBackgroundColor('#0b1329');
+      } catch (e) {}
+    }
+
+    function haptic() {
+      try {
+        tg?.HapticFeedback?.impactOccurred('light');
+      } catch (e) {}
+    }
+
+    // Navigation Switcher
+    function switchSection(secId, btn) {
+      haptic();
+      document.querySelectorAll('.section-view').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+
+      const target = document.getElementById('section-' + secId);
+      if (target) target.classList.add('active');
+      if (btn) btn.classList.add('active');
+
+      if (secId === 'prayer' && !window.prayerLoaded) loadPrayerData();
+      if (secId === 'football' && !window.footballLoaded) loadFootballData('eng.1');
+      if (secId === 'weather' && !window.weatherLoaded) loadWeatherData();
+    }
+
+    // Modal
+    function openDuasModal() {
+      haptic();
+      document.getElementById('duasModal').classList.add('open');
+    }
+    function closeDuasModal() {
+      haptic();
+      document.getElementById('duasModal').classList.remove('open');
+    }
+
+    // 1. CHART.JS & CURRENCY ENGINE
+    let chartInstance = null;
+    let currentCcy = 'USD';
+    let currentDays = 7;
+    let cachedRates = {};
+
+    function initChart() {
+      const ctx = document.getElementById('currencyChart').getContext('2d');
+      chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [{
+            label: 'Kurs (UZS)',
+            data: [],
+            borderColor: '#3b82f6',
+            backgroundColor: 'rgba(59, 130, 246, 0.12)',
+            borderWidth: 2.5,
+            fill: true,
+            tension: 0.35,
+            pointBackgroundColor: '#60a5fa',
+            pointBorderColor: '#0b1329',
+            pointRadius: 4,
+            pointHoverRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#1e293b',
+              titleColor: '#94a3b8',
+              bodyColor: '#f8fafc',
+              borderColor: 'rgba(255,255,255,0.1)',
+              borderWidth: 1,
+              padding: 10,
+              displayColors: false,
+              callbacks: {
+                label: function(context) {
+                  return context.parsed.y.toLocaleString('uz-UZ') + ' UZS';
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { color: '#64748b', font: { size: 11 } }
+            },
+            y: {
+              grid: { color: 'rgba(255, 255, 255, 0.05)' },
+              ticks: {
+                color: '#64748b',
+                font: { size: 10 },
+                callback: function(v) { return v.toLocaleString(); }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    async function loadCurrencyHistory(ccy, days) {
+      document.getElementById('chartTitle').innerText = `${ccy} dinamikasi (${days} kun)`;
+      try {
+        const res = await fetch(`/api/rates/history?ccy=${ccy}&days=${days}`);
+        const data = await res.json();
+        if (data && data.points) {
+          const labels = data.points.map(p => p.date);
+          const values = data.points.map(p => p.rate);
+
+          chartInstance.data.labels = labels;
+          chartInstance.data.datasets[0].data = values;
+          chartInstance.update();
+
+          document.getElementById('statCurrent').innerText = data.current_rate.toLocaleString('uz-UZ') + ' so\'m';
+          
+          const diffEl = document.getElementById('statDiff');
+          const isUp = data.diff >= 0;
+          diffEl.innerText = (isUp ? '+' : '') + data.diff.toLocaleString('uz-UZ') + ` (${data.diff_pct}%)`;
+          diffEl.className = 'stat-val ' + (isUp ? 'trend-up' : 'trend-down');
+
+          document.getElementById('statMax').innerText = data.max_rate.toLocaleString('uz-UZ');
+          document.getElementById('statMin').innerText = data.min_rate.toLocaleString('uz-UZ');
+        }
+      } catch (err) {
+        console.error('Rates history error:', err);
+      }
+    }
+
+    function setChartDays(days) {
+      haptic();
+      currentDays = days;
+      document.getElementById('btn7Days').classList.toggle('active', days === 7);
+      document.getElementById('btn30Days').classList.toggle('active', days === 30);
+      loadCurrencyHistory(currentCcy, currentDays);
+    }
+
+    document.querySelectorAll('#currencyPills .pill-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        haptic();
+        document.querySelectorAll('#currencyPills .pill-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentCcy = btn.dataset.ccy;
+        loadCurrencyHistory(currentCcy, currentDays);
+      });
+    });
+
+    // Converter Calculator
+    async function calculateRate() {
+      const amount = parseFloat(document.getElementById('calcAmount').value) || 0;
+      const from = document.getElementById('calcFrom').value;
+      const to = document.getElementById('calcTo').value;
+
+      if (from === to) {
+        document.getElementById('calcResultDisplay').innerText = amount.toLocaleString('uz-UZ') + ' ' + to;
+        return;
+      }
+
+      try {
+        if (!cachedRates[from] && from !== 'UZS') {
+          const r = await fetch(`/api/rates/current`);
+          const d = await r.json();
+          cachedRates = d;
+        }
+        
+        let rateInUzs = 1;
+        if (from !== 'UZS') {
+          const item = cachedRates[from];
+          rateInUzs = item ? item.rate / item.nominal : 1;
+        }
+
+        let totalUzs = amount * rateInUzs;
+        let finalVal = 0;
+
+        if (to === 'UZS') {
+          finalVal = totalUzs;
+        } else {
+          const toItem = cachedRates[to];
+          const toUnitRate = toItem ? toItem.rate / toItem.nominal : 1;
+          finalVal = totalUzs / toUnitRate;
+        }
+
+        document.getElementById('calcResultDisplay').innerText = 
+          finalVal.toLocaleString('uz-UZ', { maximumFractionDigits: 2 }) + ' ' + to;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // 2. NAMOZ VAQTLARI & LIVE CLOCK
+    function updateLiveClock() {
+      const now = new Date();
+      const h = String(now.getHours()).padStart(2, '0');
+      const m = String(now.getMinutes()).padStart(2, '0');
+      const s = String(now.getSeconds()).padStart(2, '0');
+      document.getElementById('liveClock').innerText = `${h}:${m}:${s}`;
+    }
+    setInterval(updateLiveClock, 1000);
+    updateLiveClock();
+
+    async function loadPrayerData() {
+      const city = document.getElementById('prayerCitySelect').value;
+      try {
+        const res = await fetch(`/api/prayer?city=${encodeURIComponent(city)}`);
+        const data = await res.json();
+        window.prayerLoaded = true;
+
+        if (data) {
+          document.getElementById('liveDate').innerText = `${data.gregorian_date} | Hijriy: ${data.hijri_date}`;
+          document.getElementById('val-fajr').innerText = data.fajr || '--:--';
+          document.getElementById('val-sunrise').innerText = data.sunrise || '--:--';
+          document.getElementById('val-dhuhr').innerText = data.dhuhr || '--:--';
+          document.getElementById('val-asr').innerText = data.asr || '--:--';
+          document.getElementById('val-maghrib').innerText = data.maghrib || '--:--';
+          document.getElementById('val-isha').innerText = data.isha || '--:--';
+
+          if (data.next_prayer) {
+            document.getElementById('nextPrayerName').innerText = data.next_prayer.name + ' (' + data.next_prayer.time + ')';
+            document.getElementById('nextPrayerRemaining').innerText = data.next_prayer.remaining + ' qoldi';
+
+            // Active prayer card highlight
+            document.querySelectorAll('.prayer-item').forEach(el => el.classList.remove('active-prayer'));
+            const map = {
+              'Tong': 'p-fajr',
+              'Quyosh': 'p-sunrise',
+              'Peshin': 'p-dhuhr',
+              'Asr': 'p-asr',
+              'Shom': 'p-maghrib',
+              'Xufton': 'p-isha'
+            };
+            const activeId = map[data.next_prayer.name];
+            if (activeId) {
+              const card = document.getElementById(activeId);
+              if (card) card.classList.add('active-prayer');
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Prayer error:', err);
+      }
+    }
+
+    // 3. FUTBOL JADVALLARI & NATIJALAR
+    let currentLeague = 'eng.1';
+    async function loadFootballData(league) {
+      currentLeague = league;
+      const tbody = document.getElementById('fbTableBody');
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px;"><div class="loader"></div></td></tr>`;
+
+      try {
+        const res = await fetch(`/api/football/standings?league=${league}`);
+        const data = await res.json();
+        window.footballLoaded = true;
+
+        if (data && data.table) {
+          document.getElementById('fbLeagueTitle').innerText = data.league || 'Turnir Jadvali';
+          let html = '';
+          data.table.forEach(row => {
+            let rankClass = 'rank-normal';
+            if (row.rank <= 4) rankClass = 'rank-ucl';
+            else if (row.rank === 5) rankClass = 'rank-uel';
+
+            const logoHtml = row.logo ? 
+              `<img src="${row.logo}" class="team-logo" alt="" onerror="this.style.display='none'">` : '⚽';
+
+            html += `
+              <tr>
+                <td><span class="rank-badge ${rankClass}">${row.rank}</span></td>
+                <td>
+                  <div class="team-cell">
+                    ${logoHtml}
+                    <span>${row.team}</span>
+                  </div>
+                </td>
+                <td style="text-align: center; color: var(--text-muted);">${row.played}</td>
+                <td style="text-align: center; color: ${row.diff >= 0 ? '#10b981' : '#ef4444'};">${row.diff > 0 ? '+' : ''}${row.diff}</td>
+                <td style="text-align: right; font-weight: 700; color: #60a5fa;">${row.points}</td>
+              </tr>
+            `;
+          });
+          tbody.innerHTML = html;
+        }
+
+        // Matches
+        const mRes = await fetch(`/api/football/matches?league=${league}`);
+        const mData = await mRes.json();
+        const matchesContainer = document.getElementById('fbMatchesList');
+        if (mData && mData.matches && mData.matches.length > 0) {
+          let mHtml = '';
+          mData.matches.slice(0, 5).forEach(m => {
+            mHtml += `
+              <div class="match-card">
+                <div class="match-team">${m.home_team}</div>
+                <div class="match-score">${m.score || m.status}</div>
+                <div class="match-team away">${m.away_team}</div>
+              </div>
+            `;
+          });
+          matchesContainer.innerHTML = mHtml;
+        } else {
+          matchesContainer.innerHTML = `<div style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 10px;">Hozircha yaqin o'yinlar ma'lumoti mavjud emas.</div>`;
+        }
+
+      } catch (err) {
+        console.error('Football error:', err);
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #ef4444; padding: 15px;">Ma'lumot yuklab bo'lmadi</td></tr>`;
+      }
+    }
+
+    document.querySelectorAll('#footballPills .pill-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        haptic();
+        document.querySelectorAll('#footballPills .pill-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        loadFootballData(btn.dataset.league);
+      });
+    });
+
+    // 4. OB-HAVO
+    async function loadWeatherData() {
+      const city = document.getElementById('weatherCitySelect').value;
+      try {
+        const res = await fetch(`/api/weather?city=${encodeURIComponent(city)}`);
+        const data = await res.json();
+        window.weatherLoaded = true;
+
+        if (data) {
+          document.getElementById('wTemp').innerText = data.temp !== undefined ? (data.temp > 0 ? '+' : '') + data.temp : '--';
+          document.getElementById('wDesc').innerText = data.desc || '--';
+          document.getElementById('wEmoji').innerText = data.emoji || '🌤';
+          document.getElementById('wAppTemp').innerText = 'Hiss qilinishi: ' + (data.apparent_temp > 0 ? '+' : '') + data.apparent_temp + '°C';
+          document.getElementById('wHumidity').innerText = (data.humidity || '--') + '%';
+          document.getElementById('wWind').innerText = (data.wind_speed || '--') + ' m/s';
+          document.getElementById('wLocation').innerText = data.location_name || city;
+
+          const fList = document.getElementById('wForecastList');
+          if (data.forecast && data.forecast.length > 0) {
+            let fHtml = '';
+            data.forecast.slice(0, 3).forEach(f => {
+              fHtml += `
+                <div class="forecast-item">
+                  <span style="font-weight: 600;">${f.date}</span>
+                  <span>${f.emoji} ${f.desc}</span>
+                  <span style="font-weight: 700; color: #60a5fa;">${f.max > 0 ? '+' : ''}${f.max}° / ${f.min > 0 ? '+' : ''}${f.min}°</span>
+                </div>
+              `;
+            });
+            fList.innerHTML = fHtml;
+          }
+        }
+      } catch (err) {
+        console.error('Weather error:', err);
+      }
+    }
+
+    // Startup
+    window.addEventListener('DOMContentLoaded', () => {
+      initChart();
+      loadCurrencyHistory('USD', 7);
+      calculateRate();
+    });
+  </script>
+</body>
+</html>

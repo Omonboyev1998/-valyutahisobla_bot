@@ -1,8 +1,9 @@
 from aiogram import Router, F, Bot
 from aiogram.filters import CommandStart, Command, CommandObject
-from aiogram.types import Message
+from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 from src.keyboards.reply import get_main_keyboard
 from src.database import add_user, get_referral_count
+from src.config import WEB_APP_URL
 
 router = Router(name="start")
 
@@ -59,3 +60,22 @@ async def cmd_start(message: Message, command: CommandObject, bot: Bot):
 @router.message(F.text == "❓ Yordam")
 async def cmd_help(message: Message):
     await message.answer(HELP_TEXT, parse_mode="HTML", reply_markup=get_main_keyboard())
+
+@router.message(Command("app"))
+@router.message(F.text.contains("Mini Ilova"))
+async def cmd_webapp(message: Message):
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="📱 Mini Ilovani ochish", web_app=WebAppInfo(url=WEB_APP_URL))
+        ]
+    ])
+    await message.answer(
+        "📱 <b>Universal Telegram Mini App</b>\n\n"
+        "Quyidagi tugmani bosing va botning zamonaviy interaktiv ilovasidan bahramand bo'ling:\n\n"
+        "• 📈 <b>Valyuta kurslari:</b> 7 va 30 kunlik chiroyli grafiklar\n"
+        "• 🕌 <b>Namoz vaqtlari:</b> Jonli orqaga sanash taymeri va soat\n"
+        "• ⚽️ <b>Futbol:</b> Top ligalar jadvallari va klub logotiplari\n"
+        "• 🌤 <b>Ob-havo:</b> Harorat va 3 kunlik prognoz kartalari",
+        parse_mode="HTML",
+        reply_markup=keyboard
+    )

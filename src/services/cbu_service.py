@@ -1,5 +1,7 @@
 import time
+import asyncio
 import logging
+from datetime import datetime, timedelta
 from typing import Optional, Dict, List, Any
 import aiohttp
 from src.config import CBU_API_URL
@@ -10,6 +12,7 @@ class CBUService:
     def __init__(self, cache_ttl_seconds: int = 600):
         self.cache_ttl = cache_ttl_seconds
         self._cached_rates: Dict[str, Dict[str, Any]] = {}
+        self._history_cache: Dict[str, Any] = {}
         self._last_fetched_at: float = 0
         self._date: str = ""
 
@@ -143,5 +146,67 @@ class CBUService:
             }
 
         return None
+
+    async def get_currency_history(self, ccy: str = "USD", days: int = 7) -> Dict[str, Any]:
+        """Valyutaning so'nggi N kunlik kurslar dinamikasini qaytaradi (kesh bilan)"""
+        ccy = ccy.upper()
+        now = datetime.now()
+        cache_key = f"{ccy}_{days}_{now.strftime('%Y-%m-%d')}"
+        if cache_key in self._history_cache:
+            return self._history_cache[cache_key]
+
+        num_points = 7 if days <= 7 else min(days, 30)
+        dates = [(now - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(num_points)]
+        dates.reverse()
+
+        async with aiohttp.ClientSession() as session:
+            async def fetch_one(d_str: str):
+                url = f"https://cbu.uz/uz/arkhiv-kursov-valyut/json/{ccy}/{d_str}/"
+                try:
+                    async with session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+                        if resp.status == 200:
+                            data = await resp.json()
+                            if data and isinstance(data, list) and len(data) > 0:
+                                return {"date": d_str, "rate": float(data[0].get("Rate", 0))}
+                except Exception:
+                    pass
+                return {"date": d_str, "rate": None}
+
+            results = await asyncio.gather(*[fetch_one(d) for d in dates])
+
+        valid_points = []
+        last_known = None
+        for item in results:
+            if item["rate"] is not None and item["rate"] > 0:
+                last_known = item["rate"]
+                # Display date: DD.MM
+                parts = item["date"].split("-")
+                disp = f"{parts[2]}.{parts[1]}"
+                valid_points.append({"date": disp, "full_date": item["date"], "rate": item["rate"]})
+            elif last_known is not None:
+                parts = item["date"].split("-")
+                disp = f"{parts[2]}.{parts[1]}"
+                valid_points.append({"date": disp, "full_date": item["date"], "rate": last_known})
+
+        rates_list = [p["rate"] for p in valid_points]
+        min_rate = min(rates_list) if rates_list else 0
+        max_rate = max(rates_list) if rates_list else 0
+        current_rate = rates_list[-1] if rates_list else 0
+        first_rate = rates_list[0] if rates_list else current_rate
+        diff = current_rate - first_rate
+        diff_pct = (diff / first_rate * 100) if first_rate else 0
+
+        res = {
+            "ccy": ccy,
+            "days": days,
+            "points": valid_points,
+            "current_rate": current_rate,
+            "min_rate": min_rate,
+            "max_rate": max_rate,
+            "diff": round(diff, 2),
+            "diff_pct": round(diff_pct, 2)
+        }
+        self._history_cache[cache_key] = res
+        return res
 
 cbu_service = CBUService()

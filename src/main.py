@@ -4,12 +4,12 @@ import os
 import sys
 from aiohttp import web
 from aiogram import Bot, Dispatcher
-from aiogram.types import BotCommand
+from aiogram.types import BotCommand, MenuButtonWebApp, WebAppInfo
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 from aiogram.client.session.aiohttp import AiohttpSession
 
-from src.config import BOT_TOKEN
+from src.config import BOT_TOKEN, WEB_APP_URL
 from src.database import init_db
 from src.handlers import start, rates, convert, notifications, admin, weather, football, referral, prayer
 from src.services.scheduler import morning_scheduler_task
@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 async def set_commands(bot: Bot):
     commands = [
         BotCommand(command="start", description="Botni ishga tushirish"),
+        BotCommand(command="app", description="Mini Ilova (Grafiklar & Soat)"),
         BotCommand(command="kurslar", description="Valyuta kurslari va hisoblagich"),
         BotCommand(command="namoz", description="Namoz vaqtlari va taqvim"),
         BotCommand(command="obhavo", description="Ob-havo ma'lumotlari"),
@@ -35,8 +36,11 @@ async def set_commands(bot: Bot):
     ]
     try:
         await bot.set_my_commands(commands)
+        await bot.set_chat_menu_button(
+            menu_button=MenuButtonWebApp(text="📱 Mini App", web_app=WebAppInfo(url=WEB_APP_URL))
+        )
     except Exception as e:
-        logger.warning(f"Buyruqlarni o'rnatishda xatolik: {e}")
+        logger.warning(f"Buyruqlarni yoki MenuButtonni o'rnatishda xatolik: {e}")
 
 async def start_web_server():
     """Render va boshqa bepul serverlarda uxlab qolmaslik uchun yengil web-server"""

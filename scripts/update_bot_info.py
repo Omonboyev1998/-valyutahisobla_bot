@@ -1,7 +1,12 @@
+import sys
+import os
 import asyncio
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from aiogram import Bot
-from aiogram.types import BotCommand
-from src.config import BOT_TOKEN
+from aiogram.types import BotCommand, MenuButtonWebApp, WebAppInfo
+from src.config import BOT_TOKEN, WEB_APP_URL
 
 async def update_bot_info():
     bot = Bot(token=BOT_TOKEN)
@@ -32,6 +37,7 @@ async def update_bot_info():
     # 3. Bot commands
     commands = [
         BotCommand(command="start", description="Botni ishga tushirish"),
+        BotCommand(command="app", description="Mini Ilova (Grafiklar & Soat)"),
         BotCommand(command="kurslar", description="Valyuta kurslari va hisoblagich"),
         BotCommand(command="namoz", description="Namoz vaqtlari va taqvim"),
         BotCommand(command="obhavo", description="Ob-havo ma'lumotlari"),
@@ -43,6 +49,18 @@ async def update_bot_info():
     print("Setting commands...")
     ok3 = await bot.set_my_commands(commands)
     print(f"Commands status: {ok3}")
+
+    # 4. Chat Menu Button (Persistent Web App Button next to text input)
+    from aiogram.types import MenuButtonWebApp, WebAppInfo
+    from src.config import WEB_APP_URL
+    print(f"Setting Chat Menu Button to: {WEB_APP_URL}")
+    try:
+        ok4 = await bot.set_chat_menu_button(
+            menu_button=MenuButtonWebApp(text="📱 Mini App", web_app=WebAppInfo(url=WEB_APP_URL))
+        )
+        print(f"Menu Button status: {ok4}")
+    except Exception as e:
+        print(f"Menu Button error: {e}")
 
     await bot.session.close()
     print("All bot profile details updated successfully!")

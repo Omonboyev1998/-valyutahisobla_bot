@@ -1,7 +1,11 @@
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, WebAppInfo
+from src.config import WEB_APP_URL
 
 def get_main_keyboard() -> ReplyKeyboardMarkup:
     keyboard = [
+        [
+            KeyboardButton(text="📱 Mini Ilova (Grafiklar & Soat)", web_app=WebAppInfo(url=WEB_APP_URL))
+        ],
         [
             KeyboardButton(text="💵 Valyuta kurslari"),
             KeyboardButton(text="🌤 Ob-havo")

@@ -6,6 +6,15 @@ Zamonaviy, ko'p funksiyali va qulay Telegram bot. Foydalanuvchilarning kundalik 
 
 ## 🚀 Asosiy Imkoniyatlar va Bo'limlar
 
+### 📱 Telegram Mini App (Web App) Interfeysi
+Bot shunchaki matnli xabarlar bilan cheklanmaydi — unda to'laqonli zamonaviy **Telegram Mini App** mavjud:
+- **Telegram ekotizimiga to'liq moslashgan UI:** Foydalanuvchining tungi/kunduzgi mavzusiga avtomatik moslashadi.
+- **Valyuta grafiklari:** USD, EUR, RUB, KZT, CNY, GBP kabi asosiy valyutalarning **7 va 30 kunlik dinamik Chart.js chiziqli grafiklari** (eng baland, eng past ko'rsatkichlar va trendlar).
+- **Namoz vaqtlari va interaktiv soat:** Jonli raqamli soat, keyingi namozgacha orqaga hisoblash taymeri, joriy namoz vaqtining yonib-o'chuvchi animatsiyasi va viloyatlar tanlovi.
+- **Futbol jadvallari va klub logotiplari:** APL, La Liga, Serie A, Bundesliga va UCL turnir jadvallari rasmiy jamoalar logotiplari bilan.
+- **O'rnatilgan kalkulyator va ob-havo kartasi.**
+- **Tezkor kirish:** Telegram chatida pastki chap burchakdagi doimiy `📱 Mini App` tugmasi orqali istalgan paytda bir bosishda ochiladi!
+
 ### 1. 💵 Valyuta kurslari va Aqlli Hisoblagich
 - **O'zbekiston Markaziy Banki (CBU)** rasmiy kurslari bilan integratsiya (USD, EUR, RUB, KZT, CNY, TRY, GBP va boshqalar).
 - O'sish/pasayish trendlari (📈 / 📉) va kurslar farqi ko'rsatiladi.
@@ -80,6 +89,7 @@ Zamonaviy, ko'p funksiyali va qulay Telegram bot. Foydalanuvchilarning kundalik 
 | Buyruq | Tavsif |
 |---|---|
 | `/start` | Botni ishga tushirish va asosiy menyu |
+| `/app` | Telegram Mini App (Grafiklar, Soat va Jadvallar) |
 | `/kurslar` | Markaziy Bank valyuta kurslari va hisoblagich |
 | `/namoz` | 5 mahal namoz vaqtlari va saharlik/iftorlik duolari |
 | `/obhavo` | Viloyatlar yoki GPS bo'yicha ob-havo ma'lumoti |

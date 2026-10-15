@@ -19,7 +19,7 @@ HEADERS = {
 }
 
 class FootballService:
-    async def get_standings(self, league_code: str = "eng.1") -> Optional[Dict[str, Any]]:
+    async def get_standings(self, league_code: str = "eng.1", limit: int = 10) -> Optional[Dict[str, Any]]:
         """Turnir jadvalini oladi"""
         url = f"https://site.api.espn.com/apis/v2/sports/soccer/{league_code}/standings"
         try:
@@ -33,8 +33,11 @@ class FootballService:
                         entries = children[0].get("standings", {}).get("entries", [])
                         
                         table = []
-                        for rank, entry in enumerate(entries[:10], 1): # Top 10 jamoa
-                            team_name = entry.get("team", {}).get("displayName", "Noma'lum")
+                        for rank, entry in enumerate(entries[:limit], 1):
+                            team_obj = entry.get("team", {})
+                            team_name = team_obj.get("displayName", "Noma'lum")
+                            logos = team_obj.get("logos", [])
+                            logo_url = logos[0].get("href", "") if logos else ""
                             stats = entry.get("stats", [])
                             # stat indexlari: gamesPlayed, wins, ties, losses, points
                             stats_dict = {s.get("name"): s.get("value") for s in stats if "name" in s}
@@ -45,6 +48,7 @@ class FootballService:
                             table.append({
                                 "rank": rank,
                                 "team": team_name,
+                                "logo": logo_url,
                                 "played": played,
                                 "points": points,
                                 "diff": diff
