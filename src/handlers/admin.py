@@ -95,7 +95,8 @@ async def callback_admin_stats(callback: CallbackQuery):
     text = (
         "📊 <b>Botning jonli statistikasi:</b>\n\n"
         f"👥 <b>Jami foydalanuvchilar:</b> {total:,} ta\n"
-        f"🆕 <b>Bugun qo'shilganlar:</b> +{today:,} ta\n\n"
+        f"🆕 <b>Bugun qo'shilganlar:</b> +{today:,} ta\n"
+        f"🎁 <b>Referal orqali qo'shilganlar:</b> {stats.get('referral_joined', 0):,} ta\n\n"
         f"🔔 <b>Eslatmalarga obuna bo'lganlar:</b> {sub:,} ta ({sub_percent})\n"
         f"🔕 <b>Obunani o'chirganlar:</b> {unsub:,} ta\n\n"
         f"🔄 <b>Jami hisob-kitoblar (konvertatsiya):</b> {total_conv:,} marta\n\n"

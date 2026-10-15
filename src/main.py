@@ -11,7 +11,7 @@ from aiogram.client.session.aiohttp import AiohttpSession
 
 from src.config import BOT_TOKEN
 from src.database import init_db
-from src.handlers import start, rates, convert, notifications, admin, weather, football
+from src.handlers import start, rates, convert, notifications, admin, weather, football, referral
 from src.services.scheduler import morning_scheduler_task
 from src.web import create_web_app
 
@@ -72,6 +72,7 @@ async def main():
     dp.include_router(rates.router)
     dp.include_router(weather.router)
     dp.include_router(football.router)
+    dp.include_router(referral.router)
     dp.include_router(notifications.router)
     dp.include_router(convert.router)
 
