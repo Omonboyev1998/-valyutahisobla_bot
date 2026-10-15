@@ -11,7 +11,7 @@ from aiogram.client.session.aiohttp import AiohttpSession
 
 from src.config import BOT_TOKEN
 from src.database import init_db
-from src.handlers import start, rates, convert, notifications, admin
+from src.handlers import start, rates, convert, notifications, admin, weather, football
 from src.services.scheduler import morning_scheduler_task
 from src.web import create_web_app
 
@@ -49,7 +49,7 @@ async def start_web_server():
     return runner
 
 async def main():
-    logger.info("Valyuta bot ishga tushirilmoqda...")
+    logger.info("Universal Bot ishga tushirilmoqda...")
     
     # 1. Bazani initsializatsiya qilish
     init_db()
@@ -66,11 +66,13 @@ async def main():
     )
     dp = Dispatcher()
 
-    # Routerlarni ulash (admin router birinchi bo'lib keladi)
+    # Routerlarni ulash
     dp.include_router(admin.router)
     dp.include_router(start.router)
     dp.include_router(rates.router)
     dp.include_router(convert.router)
+    dp.include_router(weather.router)
+    dp.include_router(football.router)
     dp.include_router(notifications.router)
 
     # 4. Kunlik ertalabki eslatmalar (scheduler) fon vazifasini ishga tushirish

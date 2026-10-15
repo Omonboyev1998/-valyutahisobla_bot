@@ -7,21 +7,15 @@ from src.database import add_user
 router = Router(name="start")
 
 HELP_TEXT = (
-    "🇺🇿 <b>Valyuta Kurslari Botiga xush kelibsiz!</b>\n\n"
-    "Bu bot orqali O'zbekiston Respublikasi Markaziy Bankining rasmiy "
-    "valyuta kurslarini kuzatishingiz va tezkor hisob-kitob qilishingiz mumkin.\n\n"
-    "📌 <b>Asosiy buyruqlar va imkoniyatlar:</b>\n"
-    "• 💵 <b>Bugungi kurslar</b> — asosiy valyutalar (USD, EUR, RUB va h.k.) kursi.\n"
-    "• 🔄 <b>Valyuta hisoblash</b> — interaktiv kalkulyator.\n"
-    "• 📊 <b>Ommabop valyutalar</b> — kengaytirilgan jadval.\n"
-    "• 🔔 <b>Eslatmalar</b> — har kuni ertalab 09:00 da yangi kurslar haqida xabar olish.\n\n"
+    "🌟 <b>Universal Yordamchi Botga xush kelibsiz!</b>\n\n"
+    "Bu bot orqali quyidagi barcha foydali xizmatlardan bir joyda foydalanishingiz mumkin:\n\n"
+    "📌 <b>Asosiy bo'limlar:</b>\n"
+    "• 💵 <b>Valyuta kurslari</b> — Markaziy Bank rasmiy kurslari va aqlli kalkulyator.\n"
+    "• 🌤 <b>Ob-havo</b> — Siz turgan joy yoki istalgan shahar bo'yicha aniq harorat va prognoz.\n"
+    "• ⚽️ <b>Futbol olami</b> — APL, La Liga, Serie A va Chempionlar ligasi turnir jadvallari hamda o'yinlar natijalari.\n"
+    "• 🔔 <b>Eslatmalar</b> — Har kuni ertalab 09:00 da kunlik muhim xabarlarni avtomatik olish.\n\n"
     "💡 <b>Tezkor hisoblash:</b>\n"
-    "Siz shunchaki istalgan summani yozib yuborishingiz mumkin:\n"
-    " Masalan:\n"
-    "  👉 <code>100 USD</code> yoki <code>100 dollar</code>\n"
-    "  👉 <code>500000 UZS</code> yoki <code>500 000 so'm</code>\n"
-    "  👉 <code>50 EUR</code> yoki <code>1000 RUB</code>\n\n"
-    "Bot avtomatik tarzda hisoblab beradi! 🚀"
+    "Shunchaki botga <code>100 USD</code>, <code>500000 som</code> yoki <code>50 EUR</code> deb yozsangiz ham hisoblab beradi!"
 )
 
 @router.message(CommandStart())

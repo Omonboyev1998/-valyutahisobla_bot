@@ -52,7 +52,7 @@ async def build_popular_rates_message() -> str:
     text += "\n💡 <i>Hisoblash uchun quyidagi tugmadan yoki to'g'ridan-to'g'ri (masalan: 100 USD) foydalaning.</i>"
     return text
 
-@router.message(F.text.in_(["💵 Bugungi kurslar", "📊 Ommabop valyutalar"]))
+@router.message(F.text.in_(["💵 Valyuta kurslari", "💵 Bugungi kurslar", "📊 Ommabop valyutalar"]))
 async def show_rates_message(message: Message):
     text = await build_popular_rates_message()
     await message.answer(text, parse_mode="HTML", reply_markup=get_rates_keyboard())
