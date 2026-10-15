@@ -8,6 +8,9 @@ def get_main_keyboard() -> ReplyKeyboardMarkup:
         ],
         [
             KeyboardButton(text="🔄 Valyuta hisoblash"),
+            KeyboardButton(text="🔔 Eslatmalar")
+        ],
+        [
             KeyboardButton(text="❓ Yordam")
         ]
     ]

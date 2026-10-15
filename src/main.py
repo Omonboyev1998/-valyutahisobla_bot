@@ -10,7 +10,9 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.client.session.aiohttp import AiohttpSession
 
 from src.config import BOT_TOKEN
-from src.handlers import start, rates, convert
+from src.database import init_db
+from src.handlers import start, rates, convert, notifications
+from src.services.scheduler import morning_scheduler_task
 from src.web import create_web_app
 
 logging.basicConfig(
@@ -48,10 +50,13 @@ async def start_web_server():
 async def main():
     logger.info("Valyuta bot ishga tushirilmoqda...")
     
-    # Web-serverni dastlab ishga tushiramiz (cloud platformalarda port tekshiruvi o'tishi uchun)
+    # 1. Bazani initsializatsiya qilish
+    init_db()
+
+    # 2. Web-serverni ishga tushirish (Render port check uchun)
     runner = await start_web_server()
 
-    # Bot sessiyasini sozlash (timeout bilan)
+    # 3. Bot sessiyasini sozlash
     session = AiohttpSession(timeout=30)
     bot = Bot(
         token=BOT_TOKEN,
@@ -60,11 +65,16 @@ async def main():
     )
     dp = Dispatcher()
 
+    # Routerlarni ulash
     dp.include_router(start.router)
     dp.include_router(rates.router)
     dp.include_router(convert.router)
+    dp.include_router(notifications.router)
 
-    # Telegram API ga qayta ulanish mantiqi
+    # 4. Kunlik ertalabki eslatmalar (scheduler) fon vazifasini ishga tushirish
+    scheduler_task = asyncio.create_task(morning_scheduler_task(bot))
+
+    # Telegram API ga ulanish va polling
     while True:
         try:
             me = await bot.get_me()
@@ -77,7 +87,8 @@ async def main():
         except Exception as e:
             logger.warning(f"Telegram API ga ulanishda vaqtinchalik xatolik: {e}. 5 soniyadan so'ng qayta uriniladi...")
             await asyncio.sleep(5)
-            
+
+    scheduler_task.cancel()
     await runner.cleanup()
     await bot.session.close()
 

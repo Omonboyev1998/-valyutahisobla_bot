@@ -2,6 +2,7 @@ from aiogram import Router, F
 from aiogram.filters import CommandStart, Command
 from aiogram.types import Message
 from src.keyboards.reply import get_main_keyboard
+from src.database import add_user
 
 router = Router(name="start")
 
@@ -12,7 +13,8 @@ HELP_TEXT = (
     "📌 <b>Asosiy buyruqlar va imkoniyatlar:</b>\n"
     "• 💵 <b>Bugungi kurslar</b> — asosiy valyutalar (USD, EUR, RUB va h.k.) kursi.\n"
     "• 🔄 <b>Valyuta hisoblash</b> — interaktiv kalkulyator.\n"
-    "• 📊 <b>Ommabop valyutalar</b> — kengaytirilgan jadval.\n\n"
+    "• 📊 <b>Ommabop valyutalar</b> — kengaytirilgan jadval.\n"
+    "• 🔔 <b>Eslatmalar</b> — har kuni ertalab 09:00 da yangi kurslar haqida xabar olish.\n\n"
     "💡 <b>Tezkor hisoblash:</b>\n"
     "Siz shunchaki istalgan summani yozib yuborishingiz mumkin:\n"
     " Masalan:\n"
@@ -24,7 +26,11 @@ HELP_TEXT = (
 
 @router.message(CommandStart())
 async def cmd_start(message: Message):
-    name = message.from_user.full_name or "Foydalanuvchi"
+    # Foydalanuvchini bazaga qo'shamiz (kunlik eslatmalar uchun)
+    user = message.from_user
+    add_user(user.id, user.full_name or "Foydalanuvchi", user.username)
+
+    name = user.full_name or "Foydalanuvchi"
     text = (
         f"Assalomu alaykum, <b>{name}</b>!\n\n"
         f"{HELP_TEXT}"
