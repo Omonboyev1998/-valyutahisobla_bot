@@ -20,6 +20,11 @@ def init_db():
                 username TEXT,
                 is_subscribed INTEGER DEFAULT 1,
                 referrer_id INTEGER,
+                sub_currency INTEGER DEFAULT 1,
+                sub_weather INTEGER DEFAULT 1,
+                sub_football INTEGER DEFAULT 1,
+                notify_time TEXT DEFAULT '09:00',
+                weather_city TEXT DEFAULT 'Toshkent',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
@@ -33,20 +38,25 @@ def init_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        # Agar avval yaratilgan bazada referrer_id bo'lmasa, qo'shib qo'yamiz
-        try:
-            cursor.execute("ALTER TABLE users ADD COLUMN referrer_id INTEGER")
-        except sqlite3.OperationalError:
-            pass  # Ustun allaqachon mavjud
+        # Yangi ustunlarni tekshirib qo'shish (migratsiya)
+        new_columns = [
+            ("referrer_id", "INTEGER"),
+            ("sub_currency", "INTEGER DEFAULT 1"),
+            ("sub_weather", "INTEGER DEFAULT 1"),
+            ("sub_football", "INTEGER DEFAULT 1"),
+            ("notify_time", "TEXT DEFAULT '09:00'"),
+            ("weather_city", "TEXT DEFAULT 'Toshkent'")
+        ]
+        for col_name, col_type in new_columns:
+            try:
+                cursor.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}")
+            except sqlite3.OperationalError:
+                pass
 
         conn.commit()
     logger.info("Ma'lumotlar bazasi (SQLite) muvaffaqiyatli ishga tushirildi.")
 
 def add_user(user_id: int, full_name: str, username: Optional[str] = None, referrer_id: Optional[int] = None) -> bool:
-    """
-    Foydalanuvchini bazaga qo'shadi yoki yangilaydi.
-    Agar yangi referal bo'lib qo'shilgan bo'lsa True qaytaradi.
-    """
     is_new_referral = False
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
@@ -54,17 +64,15 @@ def add_user(user_id: int, full_name: str, username: Optional[str] = None, refer
         existing = cursor.fetchone()
 
         if not existing:
-            # Yangi foydalanuvchi
             valid_referrer = referrer_id if (referrer_id and referrer_id != user_id) else None
             cursor.execute("""
-                INSERT INTO users (user_id, full_name, username, is_subscribed, referrer_id)
-                VALUES (?, ?, ?, 1, ?)
+                INSERT INTO users (user_id, full_name, username, is_subscribed, referrer_id, sub_currency, sub_weather, sub_football, notify_time, weather_city)
+                VALUES (?, ?, ?, 1, ?, 1, 1, 1, '09:00', 'Toshkent')
             """, (user_id, full_name, username, valid_referrer))
             conn.commit()
             if valid_referrer:
                 is_new_referral = True
         else:
-            # Mavjud foydalanuvchi ma'lumotlarini yangilash
             cursor.execute("""
                 UPDATE users SET full_name = ?, username = ?
                 WHERE user_id = ?
@@ -72,6 +80,69 @@ def add_user(user_id: int, full_name: str, username: Optional[str] = None, refer
             conn.commit()
 
     return is_new_referral
+
+def get_user_settings(user_id: int) -> Dict[str, Any]:
+    """Foydalanuvchining eslatmalar bo'yicha barcha sozlamalarini oladi"""
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT is_subscribed, sub_currency, sub_weather, sub_football, notify_time, weather_city
+            FROM users WHERE user_id = ?
+        """, (user_id,))
+        row = cursor.fetchone()
+        if row:
+            return {
+                "is_subscribed": bool(row[0]),
+                "sub_currency": bool(row[1]) if row[1] is not None else True,
+                "sub_weather": bool(row[2]) if row[2] is not None else True,
+                "sub_football": bool(row[3]) if row[3] is not None else True,
+                "notify_time": row[4] or "09:00",
+                "weather_city": row[5] or "Toshkent"
+            }
+        else:
+            return {
+                "is_subscribed": True,
+                "sub_currency": True,
+                "sub_weather": True,
+                "sub_football": True,
+                "notify_time": "09:00",
+                "weather_city": "Toshkent"
+            }
+
+def toggle_user_topic(user_id: int, topic: str) -> bool:
+    """Valyuta, Ob-havo yoki Futbol obunasini yoqish/o'chirish"""
+    column_map = {
+        "currency": "sub_currency",
+        "weather": "sub_weather",
+        "football": "sub_football"
+    }
+    col = column_map.get(topic)
+    if not col:
+        return False
+
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(f"SELECT {col} FROM users WHERE user_id = ?", (user_id,))
+        row = cursor.fetchone()
+        current_val = bool(row[0]) if row and row[0] is not None else True
+        new_val = 0 if current_val else 1
+        cursor.execute(f"UPDATE users SET {col} = ? WHERE user_id = ?", (new_val, user_id))
+        conn.commit()
+        return bool(new_val)
+
+def set_user_notify_time(user_id: int, time_str: str):
+    """Xabar kelish vaqtini o'rnatish (masalan: '08:00', '09:00')"""
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("UPDATE users SET notify_time = ? WHERE user_id = ?", (time_str, user_id))
+        conn.commit()
+
+def set_user_weather_city(user_id: int, city: str):
+    """Ob-havo eslatmasi uchun shahar nomini o'rnatish"""
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("UPDATE users SET weather_city = ? WHERE user_id = ?", (city, user_id))
+        conn.commit()
 
 def set_subscription(user_id: int, status: bool):
     with sqlite3.connect(DB_PATH) as conn:
@@ -86,12 +157,28 @@ def is_user_subscribed(user_id: int) -> bool:
         row = cursor.fetchone()
         return bool(row[0]) if row else True
 
-def get_all_subscribed_users() -> List[int]:
+def get_users_for_time(time_str: str) -> List[Dict[str, Any]]:
+    """Aynan belgilangan vaqtda xabar oluvchi faol foydalanuvchilar"""
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT user_id FROM users WHERE is_subscribed = 1")
+        cursor.execute("""
+            SELECT user_id, full_name, sub_currency, sub_weather, sub_football, weather_city
+            FROM users
+            WHERE is_subscribed = 1 AND notify_time = ?
+            AND (sub_currency = 1 OR sub_weather = 1 OR sub_football = 1)
+        """, (time_str,))
         rows = cursor.fetchall()
-        return [row[0] for row in rows]
+        result = []
+        for r in rows:
+            result.append({
+                "user_id": r[0],
+                "full_name": r[1],
+                "sub_currency": bool(r[2]),
+                "sub_weather": bool(r[3]),
+                "sub_football": bool(r[4]),
+                "weather_city": r[5] or "Toshkent"
+            })
+        return result
 
 def get_all_users() -> List[int]:
     with sqlite3.connect(DB_PATH) as conn:
@@ -101,14 +188,12 @@ def get_all_users() -> List[int]:
         return [row[0] for row in rows]
 
 def get_referral_count(user_id: int) -> int:
-    """Foydalanuvchi nechta do'stini taklif qilganini hisoblaydi"""
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT COUNT(*) FROM users WHERE referrer_id = ?", (user_id,))
         return cursor.fetchone()[0]
 
 def get_top_referrers(limit: int = 10) -> List[Tuple[str, int]]:
-    """Eng ko'p do'st taklif qilgan faol foydalanuvchilar"""
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
         cursor.execute("""
@@ -177,12 +262,12 @@ def get_statistics() -> Dict[str, Any]:
 def export_users_csv() -> str:
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT user_id, full_name, username, is_subscribed, referrer_id, created_at FROM users ORDER BY created_at DESC")
+        cursor.execute("SELECT user_id, full_name, username, is_subscribed, referrer_id, notify_time, weather_city, created_at FROM users ORDER BY created_at DESC")
         rows = cursor.fetchall()
 
     output = io.StringIO()
     writer = csv.writer(output, delimiter=',', quoting=csv.QUOTE_MINIMAL)
-    writer.writerow(["User ID", "To'liq ismi", "Username", "Obuna holati", "Taklif qiluvchi ID", "Ro'yxatdan o'tgan sana"])
+    writer.writerow(["User ID", "To'liq ismi", "Username", "Obuna holati", "Taklif qiluvchi ID", "Eslatma vaqti", "Ob-havo shahri", "Ro'yxatdan o'tgan sana"])
     for row in rows:
         writer.writerow(row)
 
