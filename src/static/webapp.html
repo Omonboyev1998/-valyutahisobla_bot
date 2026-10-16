@@ -1027,7 +1027,7 @@
     <section id="section-services" class="section-view">
       <div class="subpage-nav">
         <button class="back-home-btn" onclick="switchSection('home')">‹ Bosh menyu</button>
-        <span style="font-size: 13px; font-weight: 700; color: #ff9500;">🛠 Ustalar Bozori</span>
+        <button class="btn-action-call" style="width: auto; padding: 6px 14px; font-size: 13px;" onclick="openAddServiceModal()">➕ Xizmat qo'shish</button>
       </div>
 
       <!-- Qidiruv & Viloyat tanlash -->
@@ -1059,16 +1059,16 @@
 
       <!-- Toifalar karuseli -->
       <div class="pills" id="serviceCategoryPills">
-        <button class="pill-btn active" data-cat="Barchasi" onclick="setServiceCategory('Barchasi', this)">Barchasi</button>
-        <button class="pill-btn" data-cat="Usta / Ta'mirlash" onclick="setServiceCategory('Usta / Ta'mirlash', this)">🔨 Ta'mirlash</button>
-        <button class="pill-btn" data-cat="Santexnik" onclick="setServiceCategory('Santexnik', this)">🚿 Santexnik</button>
-        <button class="pill-btn" data-cat="Elektrik" onclick="setServiceCategory('Elektrik', this)">⚡️ Elektrik</button>
-        <button class="pill-btn" data-cat="Qo'y yungi olish" onclick="setServiceCategory('Qo'y yungi olish', this)">🐑 Qo'y yungi</button>
-        <button class="pill-btn" data-cat="Maishiy texnika" onclick="setServiceCategory('Maishiy texnika', this)">📺 Texnika</button>
-        <button class="pill-btn" data-cat="Sartarosh" onclick="setServiceCategory('Sartarosh', this)">✂️ Sartarosh</button>
-        <button class="pill-btn" data-cat="Mebel ta'mirlash" onclick="setServiceCategory('Mebel ta'mirlash', this)">🛋 Mebel</button>
-        <button class="pill-btn" data-cat="Tozalash" onclick="setServiceCategory('Tozalash', this)">🧹 Tozalash</button>
-        <button class="pill-btn" data-cat="Yuk tashish" onclick="setServiceCategory('Yuk tashish', this)">🚚 Yuk tashish</button>
+        <button class="pill-btn active" data-cat="Barchasi" onclick="setServiceCategory(this.dataset.cat, this)">Barchasi</button>
+        <button class="pill-btn" data-cat="Usta / Ta'mirlash" onclick="setServiceCategory(this.dataset.cat, this)">🔨 Ta'mirlash</button>
+        <button class="pill-btn" data-cat="Santexnik" onclick="setServiceCategory(this.dataset.cat, this)">🚿 Santexnik</button>
+        <button class="pill-btn" data-cat="Elektrik" onclick="setServiceCategory(this.dataset.cat, this)">⚡️ Elektrik</button>
+        <button class="pill-btn" data-cat="Qo'y yungi olish" onclick="setServiceCategory(this.dataset.cat, this)">🐑 Qo'y yungi</button>
+        <button class="pill-btn" data-cat="Maishiy texnika" onclick="setServiceCategory(this.dataset.cat, this)">📺 Texnika</button>
+        <button class="pill-btn" data-cat="Sartarosh" onclick="setServiceCategory(this.dataset.cat, this)">✂️ Sartarosh</button>
+        <button class="pill-btn" data-cat="Mebel ta'mirlash" onclick="setServiceCategory(this.dataset.cat, this)">🛋 Mebel</button>
+        <button class="pill-btn" data-cat="Tozalash" onclick="setServiceCategory(this.dataset.cat, this)">🧹 Tozalash</button>
+        <button class="pill-btn" data-cat="Yuk tashish" onclick="setServiceCategory(this.dataset.cat, this)">🚚 Yuk tashish</button>
       </div>
 
       <!-- Xizmatlar ro'yxati -->
@@ -1385,6 +1385,92 @@
     </div>
   </div>
 
+  <!-- Yangi Xizmat Qo'shish Modali -->
+  <div class="modal-backdrop" id="addServiceModal">
+    <div class="modal-sheet">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+        <div style="font-size: 17px; font-weight: 700; color: var(--ios-text);">➕ Yangi xizmat qo'shish</div>
+        <button class="modal-close-btn" onclick="closeAddServiceModal()">Yopish</button>
+      </div>
+      <form id="addServiceForm" onsubmit="submitNewService(event)" style="display: flex; flex-direction: column; gap: 12px;">
+        <div>
+          <label style="display: block; font-size: 12px; font-weight: 600; color: var(--ios-text-secondary); margin-bottom: 4px;">Yo'nalish / Toifa *</label>
+          <select id="newServiceCategory" class="calc-select" style="width: 100%; padding: 10px; font-size: 14px;" required>
+            <option value="Usta / Ta'mirlash">🔨 Usta / Ta'mirlash</option>
+            <option value="Santexnik">🚿 Santexnik</option>
+            <option value="Elektrik">⚡️ Elektrik</option>
+            <option value="Qo'y yungi olish">🐑 Qo'y yungi olish</option>
+            <option value="Maishiy texnika">📺 Maishiy texnika ustasi</option>
+            <option value="Sartarosh">✂️ Sartarosh (Uyga chaqiruv)</option>
+            <option value="Mebel ta'mirlash">🛋 Mebel ta'mirlash</option>
+            <option value="Tozalash">🧹 Tozalash / Klining</option>
+            <option value="Yuk tashish">🚚 Yuk tashish</option>
+            <option value="Boshqa xizmat">🔧 Boshqa xizmat</option>
+          </select>
+        </div>
+
+        <div>
+          <label style="display: block; font-size: 12px; font-weight: 600; color: var(--ios-text-secondary); margin-bottom: 4px;">Xizmat nomi yoki kasb *</label>
+          <input type="text" id="newServiceTitle" class="calc-input" placeholder="Masalan: Kafel terish, santexnika ishlari" style="width: 100%; box-sizing: border-box;" required maxlength="120">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div>
+            <label style="display: block; font-size: 12px; font-weight: 600; color: var(--ios-text-secondary); margin-bottom: 4px;">Usta ismi *</label>
+            <input type="text" id="newServiceMasterName" class="calc-input" placeholder="Ismingiz" style="width: 100%; box-sizing: border-box;" required maxlength="50">
+          </div>
+          <div>
+            <label style="display: block; font-size: 12px; font-weight: 600; color: var(--ios-text-secondary); margin-bottom: 4px;">Narx / Tarif</label>
+            <input type="text" id="newServicePrice" class="calc-input" placeholder="Masalan: 100 000 so'mdan" style="width: 100%; box-sizing: border-box;">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div>
+            <label style="display: block; font-size: 12px; font-weight: 600; color: var(--ios-text-secondary); margin-bottom: 4px;">Telefon raqam *</label>
+            <input type="tel" id="newServicePhone" class="calc-input" placeholder="+998901234567" style="width: 100%; box-sizing: border-box;" required>
+          </div>
+          <div>
+            <label style="display: block; font-size: 12px; font-weight: 600; color: var(--ios-text-secondary); margin-bottom: 4px;">Telegram (username)</label>
+            <input type="text" id="newServiceUsername" class="calc-input" placeholder="@username" style="width: 100%; box-sizing: border-box;">
+          </div>
+        </div>
+
+        <div>
+          <label style="display: block; font-size: 12px; font-weight: 600; color: var(--ios-text-secondary); margin-bottom: 4px;">Hudud / Viloyat *</label>
+          <select id="newServiceRegion" class="calc-select" style="width: 100%; padding: 10px; font-size: 14px;" required>
+            <option value="Toshkent shahri">Toshkent shahri</option>
+            <option value="Toshkent viloyati">Toshkent viloyati</option>
+            <option value="Samarqand">Samarqand</option>
+            <option value="Andijon">Andijon</option>
+            <option value="Farg'ona">Farg'ona</option>
+            <option value="Namangan">Namangan</option>
+            <option value="Buxoro">Buxoro</option>
+            <option value="Qashqadaryo">Qashqadaryo</option>
+            <option value="Surxondaryo">Surxondaryo</option>
+            <option value="Xorazm">Xorazm</option>
+            <option value="Navoiy">Navoiy</option>
+            <option value="Jizzax">Jizzax</option>
+            <option value="Sirdaryo">Sirdaryo</option>
+            <option value="Qoraqalpog'iston">Qoraqalpog'iston</option>
+            <option value="Barcha hududlar">Barcha hududlar</option>
+          </select>
+        </div>
+
+        <div>
+          <label style="display: block; font-size: 12px; font-weight: 600; color: var(--ios-text-secondary); margin-bottom: 4px;">Batafsil ma'lumot (ixtiyoriy)</label>
+          <textarea id="newServiceDesc" class="calc-input" rows="3" placeholder="Tajriba, bajariladigan ishlar va qulayliklar haqida..." style="width: 100%; box-sizing: border-box; resize: vertical;"></textarea>
+        </div>
+
+        <div id="newServiceStatus" style="display: none; padding: 10px; border-radius: 10px; font-size: 13px; font-weight: 600; text-align: center;"></div>
+
+        <button type="submit" id="btnSubmitNewService" class="btn-action-call" style="width: 100%; padding: 14px; font-size: 15px; margin-top: 6px;">
+          ✅ Xizmatni e'lon qilish
+        </button>
+      </form>
+    </div>
+  </div>
+
   <!-- Referal Modali -->
   <div class="modal-backdrop" id="referralModal">
     <div class="modal-sheet">
@@ -1481,13 +1567,18 @@
     function openTelegramBot(command) {
       haptic();
       try {
-        if (tg) {
-          tg.close();
+        if (tg && typeof tg.openTelegramLink === 'function') {
+          if (command && command.startsWith('/')) {
+            const startParam = command.replace('/', '');
+            tg.openTelegramLink('https://t.me/valyutahisobla_bot?start=' + encodeURIComponent(startParam));
+          } else {
+            tg.openTelegramLink('https://t.me/valyutahisobla_bot');
+          }
         } else {
-          window.location.href = 'https://t.me/valyutahisobla_bot';
+          window.open('https://t.me/valyutahisobla_bot', '_blank');
         }
       } catch (e) {
-        window.location.href = 'https://t.me/valyutahisobla_bot';
+        window.open('https://t.me/valyutahisobla_bot', '_blank');
       }
     }
 
@@ -1562,6 +1653,116 @@
 
     function closeServiceDetailModal() { haptic(); document.getElementById('serviceDetailModal').classList.remove('open'); }
 
+    function openAddServiceModal() {
+      haptic();
+      const statusEl = document.getElementById('newServiceStatus');
+      if (statusEl) {
+        statusEl.style.display = 'none';
+        statusEl.innerHTML = '';
+      }
+      try {
+        const user = tg?.initDataUnsafe?.user;
+        if (user) {
+          const usernameInput = document.getElementById('newServiceUsername');
+          const masterNameInput = document.getElementById('newServiceMasterName');
+          if (usernameInput && !usernameInput.value && user.username) {
+            usernameInput.value = '@' + user.username;
+          }
+          if (masterNameInput && !masterNameInput.value) {
+            masterNameInput.value = [user.first_name, user.last_name].filter(Boolean).join(' ');
+          }
+        }
+      } catch (e) {}
+      document.getElementById('addServiceModal').classList.add('open');
+    }
+
+    function closeAddServiceModal() {
+      haptic();
+      document.getElementById('addServiceModal').classList.remove('open');
+    }
+
+    async function submitNewService(e) {
+      if (e) e.preventDefault();
+      haptic();
+
+      const btn = document.getElementById('btnSubmitNewService');
+      const statusEl = document.getElementById('newServiceStatus');
+      const category = document.getElementById('newServiceCategory').value;
+      const title = document.getElementById('newServiceTitle').value.trim();
+      const masterName = document.getElementById('newServiceMasterName').value.trim();
+      const price = document.getElementById('newServicePrice').value.trim();
+      const phone = document.getElementById('newServicePhone').value.trim();
+      const username = document.getElementById('newServiceUsername').value.trim();
+      const region = document.getElementById('newServiceRegion').value;
+      const desc = document.getElementById('newServiceDesc').value.trim();
+
+      if (!title || !phone || !masterName) {
+        statusEl.style.display = 'block';
+        statusEl.style.background = 'rgba(255, 59, 48, 0.12)';
+        statusEl.style.color = 'var(--ios-red)';
+        statusEl.innerHTML = '⚠️ Sarlavha, ism va telefon raqamini to&#39;ldiring!';
+        return;
+      }
+
+      let userId = 0;
+      try {
+        if (tg?.initDataUnsafe?.user?.id) {
+          userId = tg.initDataUnsafe.user.id;
+        }
+      } catch (err) {}
+
+      btn.disabled = true;
+      btn.innerHTML = '⏳ Saqlanmoqda...';
+      statusEl.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/services', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: title,
+            master_name: masterName,
+            category: category,
+            price: price || 'Kelishilgan holda',
+            phone: phone,
+            username: username,
+            region: region,
+            description: desc,
+            user_id: userId
+          })
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+          statusEl.style.display = 'block';
+          statusEl.style.background = 'rgba(52, 199, 89, 0.15)';
+          statusEl.style.color = 'var(--ios-green)';
+          statusEl.innerHTML = '✅ Xizmatingiz muvaffaqiyatli qo&#39;shildi!';
+          
+          document.getElementById('addServiceForm').reset();
+          
+          setTimeout(function() {
+            closeAddServiceModal();
+            loadServicesData();
+          }, 1200);
+        } else {
+          statusEl.style.display = 'block';
+          statusEl.style.background = 'rgba(255, 59, 48, 0.12)';
+          statusEl.style.color = 'var(--ios-red)';
+          statusEl.innerHTML = '❌ Xatolik: ' + escapeHtml(data.error || 'Saqlashda xatolik yuz berdi');
+        }
+      } catch (err) {
+        console.error('Service save error:', err);
+        statusEl.style.display = 'block';
+        statusEl.style.background = 'rgba(255, 59, 48, 0.12)';
+        statusEl.style.color = 'var(--ios-red)';
+        statusEl.innerHTML = '❌ Server bilan ulanishda xatolik!';
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '✅ Xizmatni e&#39;lon qilish';
+      }
+    }
+
     // ==================== 1. USTAR BOZORI (SERVICES) ENGINE ====================
     let currentServiceCategory = 'Barchasi';
     let serviceSearchTimer = null;
@@ -1626,10 +1827,10 @@
           '<div style="font-size: 38px; margin-bottom: 10px;">🔍</div>' +
           '<div style="font-size: 15px; font-weight: 700; color: var(--ios-text);">Hozircha xizmatlar topilmadi</div>' +
           '<div style="font-size: 12px; color: var(--ios-text-secondary); margin-top: 6px; line-height: 1.4;">' +
-          'Ushbu toifa yoki hududda hali e&#39;lon berilmagan.<br>Bot chatida <b>/xizmatlar</b> orqali o&#39;z xizmatingizni birinchi bo&#39;lib qo&#39;shishingiz mumkin!' +
+          'Ushbu toifa yoki hududda hali e&#39;lon berilmagan.<br>O&#39;z xizmatingizni birinchi bo&#39;lib qo&#39;shing!' +
           '</div>' +
-          '<button class="btn-action-call" style="margin-top: 14px; width: auto; display: inline-flex;" onclick="openTelegramBot()">' +
-          '➕ Xizmat qo&#39;shish (Botda)' +
+          '<button class="btn-action-call" style="margin-top: 14px; width: auto; display: inline-flex;" onclick="openAddServiceModal()">' +
+          '➕ Yangi xizmat qo&#39;shish' +
           '</button>' +
           '</div>';
         return;

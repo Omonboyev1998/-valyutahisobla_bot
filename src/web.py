@@ -149,6 +149,50 @@ async def api_services(request: web.Request) -> web.Response:
         "total": total
     }, headers={"Access-Control-Allow-Origin": "*"})
 
+from src.database import get_services, count_services, get_service_by_id, add_service
+
+async def api_add_service(request: web.Request) -> web.Response:
+    """Mini App orqali to'g'ridan-to'g'ri yangi xizmat qo'shish API"""
+    try:
+        data = await request.json()
+        title = (data.get("title") or "").strip()
+        master_name = (data.get("master_name") or "Usta").strip()
+        phone = (data.get("phone") or "").strip()
+        category = (data.get("category") or "Usta / Ta'mirlash").strip()
+        region = (data.get("region") or "Barcha hududlar").strip()
+        price = (data.get("price") or "Kelishilgan holda").strip()
+        description = (data.get("description") or "").strip()
+        username = (data.get("username") or "").replace("@", "").strip()
+        user_id = int(data.get("user_id") or 0)
+
+        if not title or not phone:
+            return web.json_response({
+                "success": False,
+                "error": "Sarlavha va telefon raqami kiritilishi shart!"
+            }, status=400, headers={"Access-Control-Allow-Origin": "*"})
+
+        service_id = add_service(
+            user_id=user_id if user_id else 1,
+            master_name=master_name,
+            phone=phone,
+            username=username,
+            category=category,
+            title=title,
+            description=description,
+            region=region,
+            price=price,
+            photo_id=None
+        )
+
+        return web.json_response({
+            "success": True,
+            "service_id": service_id,
+            "message": "Xizmat muvaffaqiyatli qo'shildi!"
+        }, headers={"Access-Control-Allow-Origin": "*"})
+    except Exception as e:
+        logger.error(f"Xizmat qo'shishda xatolik: {e}")
+        return web.json_response({"success": False, "error": str(e)}, status=500, headers={"Access-Control-Allow-Origin": "*"})
+
 async def api_service_detail(request: web.Request) -> web.Response:
     """Bitta xizmat tafsilotlari API"""
     s_id = request.match_info.get("id")
@@ -179,6 +223,7 @@ def create_web_app() -> web.Application:
     app.router.add_get("/api/football/matches", api_football_matches)
     app.router.add_get("/api/weather", api_weather)
     app.router.add_get("/api/services", api_services)
+    app.router.add_post("/api/services", api_add_service)
     app.router.add_get("/api/services/{id}", api_service_detail)
 
     return app
