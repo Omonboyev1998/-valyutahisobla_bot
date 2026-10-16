@@ -563,6 +563,7 @@ def add_service_review(service_id: int, user_id: int, rating: int, comment: str 
             """, (avg_r, cnt_r, service_id))
 
             conn.commit()
+            return True, f"Bahoingiz qabul qilindi! O'rtacha reyting: ⭐ {avg_r}"
         except Exception as e:
             if "UNIQUE" in str(e) or "integrity" in str(e).lower() or isinstance(e, sqlite3.IntegrityError):
                 return False, "Siz ushbu ustaga allaqachon baho bergansiz!"
