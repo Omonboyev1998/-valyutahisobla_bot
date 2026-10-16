@@ -473,14 +473,25 @@ async def add_service_phone_entered(message: Message, state: FSMContext, bot: Bo
     if ADMIN_ID and ADMIN_ID != user.id:
         try:
             admin_msg = (
-                "📢 <b>Yangi xizmat e'loni qo'shildi:</b>\n\n"
-                f"🛠 <b>{data['title']}</b>\n"
-                f"📌 Toifa: {data['category']} | 📍 {data['region']}\n"
-                f"👤 Usta: {master_name} (ID: {user.id})\n"
-                f"📞 Tel: {phone}\n"
-                f"💰 Narx: {data.get('price', '')}"
+                "🆕 <b>Yangi xizmat e'loni qo'shildi (Bot orqali):</b>\n\n"
+                f"👤 <b>Usta:</b> {master_name} (ID: <code>{user.id}</code>)\n"
+                f"📌 <b>Sarlavha:</b> {data['title']}\n"
+                f"🛠 <b>Toifa:</b> {data['category']}\n"
+                f"📍 <b>Hudud:</b> {data['region']}\n"
+                f"📞 <b>Tel:</b> <code>{phone}</code>\n"
+                f"💰 <b>Narx:</b> {data.get('price', 'Kelishilgan holda')}"
             )
-            await bot.send_message(chat_id=ADMIN_ID, text=admin_msg, parse_mode="HTML")
+            from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+            markup = InlineKeyboardMarkup(inline_keyboard=[
+                [
+                    InlineKeyboardButton(text="✅ Tasdiqlash", callback_data=f"admin_srv_ok:{service_id}"),
+                    InlineKeyboardButton(text="🗑 O'chirish", callback_data=f"admin_srv_del:{service_id}")
+                ],
+                [
+                    InlineKeyboardButton(text="👁 Batafsil ko'rish", callback_data=f"srv_view:{service_id}:all:all:0")
+                ]
+            ])
+            await bot.send_message(chat_id=ADMIN_ID, text=admin_msg, parse_mode="HTML", reply_markup=markup)
         except Exception:
             pass
 

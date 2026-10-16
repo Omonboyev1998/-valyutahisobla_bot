@@ -240,3 +240,49 @@ async def callback_execute_broadcast(callback: CallbackQuery, state: FSMContext,
 
     await status_msg.edit_text(result_text, parse_mode="HTML", reply_markup=get_admin_back_keyboard())
     await callback.answer("Rassilka yakunlandi! ✅")
+
+# ==================== XIZMATLARNI MODERATSIYA QILISH ====================
+
+@router.callback_query(F.data.startswith("admin_srv_ok:"))
+async def callback_admin_approve_service(callback: CallbackQuery):
+    if not is_admin(callback.from_user.id):
+        await callback.answer("Ruxsat yo'q!", show_alert=True)
+        return
+    try:
+        s_id = int(callback.data.split(":")[1])
+        from src.database import admin_approve_service, get_service_by_id
+        admin_approve_service(s_id)
+        srv = get_service_by_id(s_id)
+        title = srv.get("title", f"#{s_id}") if srv else f"#{s_id}"
+        await callback.message.edit_text(
+            f"✅ <b>E'lon muvaffaqiyatli tasdiqlandi!</b>\n\n"
+            f"📌 <b>Xizmat:</b> {title}\n"
+            f"🟢 <b>Holati:</b> Faol (katalogda ko'rinadi)",
+            parse_mode="HTML"
+        )
+        await callback.answer("E'lon tasdiqlandi va faol holatga keltirildi! ✅")
+    except Exception as e:
+        logger.error(f"E'lonni tasdiqlashda xatolik: {e}")
+        await callback.answer("Xatolik yuz berdi!", show_alert=True)
+
+@router.callback_query(F.data.startswith("admin_srv_del:"))
+async def callback_admin_delete_service(callback: CallbackQuery):
+    if not is_admin(callback.from_user.id):
+        await callback.answer("Ruxsat yo'q!", show_alert=True)
+        return
+    try:
+        s_id = int(callback.data.split(":")[1])
+        from src.database import admin_delete_service, get_service_by_id
+        srv = get_service_by_id(s_id)
+        title = srv.get("title", f"#{s_id}") if srv else f"#{s_id}"
+        admin_delete_service(s_id)
+        await callback.message.edit_text(
+            f"🗑 <b>E'lon o'chirildi!</b>\n\n"
+            f"📌 <b>Xizmat:</b> {title}\n"
+            f"❌ <b>Holati:</b> Butunlay bazadan o'chirildi",
+            parse_mode="HTML"
+        )
+        await callback.answer("E'lon muvaffaqiyatli o'chirildi! 🗑", show_alert=True)
+    except Exception as e:
+        logger.error(f"E'lonni o'chirishda xatolik: {e}")
+        await callback.answer("Xatolik yuz berdi!", show_alert=True)

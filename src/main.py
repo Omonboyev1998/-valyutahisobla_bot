@@ -43,10 +43,10 @@ async def set_commands(bot: Bot):
     except Exception as e:
         logger.warning(f"Buyruqlarni yoki MenuButtonni o'rnatishda xatolik: {e}")
 
-async def start_web_server():
+async def start_web_server(bot: Bot):
     """Render va boshqa bepul serverlarda uxlab qolmaslik uchun yengil web-server"""
     port = int(os.getenv("PORT", 8000))
-    app = create_web_app()
+    app = create_web_app(bot=bot)
     runner = web.AppRunner(app)
     await runner.setup()
     try:
@@ -67,16 +67,16 @@ async def main():
     # 1. Bazani initsializatsiya qilish
     init_db()
 
-    # 2. Web-serverni ishga tushirish (Render port check uchun)
-    runner = await start_web_server()
-
-    # 3. Bot sessiyasini sozlash
+    # 2. Bot sessiyasini sozlash
     session = AiohttpSession(timeout=30)
     bot = Bot(
         token=BOT_TOKEN,
         session=session,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML)
     )
+
+    # 3. Web-serverni ishga tushirish (Render port check va bot bildirishnomalari uchun)
+    runner = await start_web_server(bot)
     dp = Dispatcher()
 
     # Routerlarni ulash

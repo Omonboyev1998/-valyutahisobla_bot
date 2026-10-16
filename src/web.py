@@ -2,6 +2,10 @@ import os
 import time
 import logging
 from aiohttp import web
+import asyncio
+from typing import Optional, Any
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from src.config import ADMIN_ID
 from src.services.cbu_service import cbu_service
 from src.services.prayer_service import prayer_service
 from src.services.football_service import football_service
@@ -184,6 +188,39 @@ async def api_add_service(request: web.Request) -> web.Response:
             photo_id=None
         )
 
+        # Adminga Telegram orqali xabarnoma yuborish (moderatsiya uchun)
+        bot = request.app.get("bot")
+        if bot and ADMIN_ID:
+            try:
+                admin_text = (
+                    "🆕 <b>Yangi e'lon qo'shildi (Mini App orqali)!</b>\n\n"
+                    f"👤 <b>Usta:</b> {master_name}\n"
+                    f"📌 <b>Sarlavha:</b> {title}\n"
+                    f"🛠 <b>Toifa:</b> {category}\n"
+                    f"📍 <b>Hudud:</b> {region}\n"
+                    f"📞 <b>Telefon:</b> {phone}\n"
+                    f"💰 <b>Narx:</b> {price}\n"
+                    + (f"💬 <b>Telegram:</b> @{username}\n" if username else "")
+                    + (f"📝 <b>Tavsif:</b> {description}\n" if description else "")
+                )
+                markup = InlineKeyboardMarkup(inline_keyboard=[
+                    [
+                        InlineKeyboardButton(text="✅ Tasdiqlash", callback_data=f"admin_srv_ok:{service_id}"),
+                        InlineKeyboardButton(text="🗑 O'chirish", callback_data=f"admin_srv_del:{service_id}")
+                    ],
+                    [
+                        InlineKeyboardButton(text="👁 Batafsil ko'rish", callback_data=f"srv_view:{service_id}:all:all:0")
+                    ]
+                ])
+                asyncio.create_task(bot.send_message(
+                    chat_id=ADMIN_ID,
+                    text=admin_text,
+                    parse_mode="HTML",
+                    reply_markup=markup
+                ))
+            except Exception as ex:
+                logger.warning(f"Adminga xabarnoma yuborishda xatolik: {ex}")
+
         return web.json_response({
             "success": True,
             "service_id": service_id,
@@ -204,8 +241,11 @@ async def api_service_detail(request: web.Request) -> web.Response:
         pass
     return web.json_response({"error": "Xizmat topilmadi"}, status=404, headers={"Access-Control-Allow-Origin": "*"})
 
-def create_web_app() -> web.Application:
+def create_web_app(bot: Optional[Any] = None) -> web.Application:
     app = web.Application()
+    if bot:
+        app["bot"] = bot
+
     # Ping & Health check
     app.router.add_get("/", webapp_html_handler)
     app.router.add_get("/ping", ping_handler)

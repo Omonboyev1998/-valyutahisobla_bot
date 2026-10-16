@@ -457,6 +457,22 @@ def delete_service(service_id: int, user_id: int) -> bool:
         conn.commit()
         return cursor.rowcount > 0
 
+def admin_delete_service(service_id: int) -> bool:
+    """Admin tomonidan xizmatni bazadan o'chirish"""
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM services WHERE id = ?", (service_id,))
+        conn.commit()
+        return cursor.rowcount > 0
+
+def admin_approve_service(service_id: int) -> bool:
+    """Admin tomonidan xizmatni tasdiqlash (faol qilish)"""
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("UPDATE services SET is_active = 1 WHERE id = ?", (service_id,))
+        conn.commit()
+        return cursor.rowcount > 0
+
 def toggle_service_status(service_id: int, user_id: int) -> Optional[int]:
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
