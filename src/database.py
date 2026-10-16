@@ -54,6 +54,29 @@ def init_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS service_reviews (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                service_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                rating INTEGER NOT NULL,
+                comment TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(service_id, user_id)
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS service_orders (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                service_id INTEGER NOT NULL,
+                client_user_id INTEGER NOT NULL,
+                client_name TEXT NOT NULL,
+                client_phone TEXT NOT NULL,
+                message TEXT,
+                status TEXT DEFAULT 'new',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
         # Yangi ustunlarni tekshirib qo'shish (migratsiya)
         new_columns = [
             ("referrer_id", "INTEGER"),
@@ -67,6 +90,19 @@ def init_db():
         for col_name, col_type in new_columns:
             try:
                 cursor.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}")
+            except sqlite3.OperationalError:
+                pass
+
+        # services jadvali uchun yangi ustunlar
+        service_new_columns = [
+            ("photo_id", "TEXT"),
+            ("price", "TEXT DEFAULT ''"),
+            ("rating", "REAL DEFAULT 5.0"),
+            ("rating_count", "INTEGER DEFAULT 0")
+        ]
+        for col_name, col_type in service_new_columns:
+            try:
+                cursor.execute(f"ALTER TABLE services ADD COLUMN {col_name} {col_type}")
             except sqlite3.OperationalError:
                 pass
 
@@ -318,14 +354,16 @@ def add_service(
     category: str,
     title: str,
     description: str,
-    region: str = "Barcha hududlar"
+    region: str = "Barcha hududlar",
+    price: str = "",
+    photo_id: Optional[str] = None
 ) -> int:
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO services (user_id, master_name, phone, username, category, title, description, region)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (user_id, master_name, phone, username, category, title, description, region))
+            INSERT INTO services (user_id, master_name, phone, username, category, title, description, region, price, photo_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (user_id, master_name, phone, username, category, title, description, region, price, photo_id))
         conn.commit()
         return cursor.lastrowid
 
@@ -427,3 +465,50 @@ def toggle_service_status(service_id: int, user_id: int) -> Optional[int]:
         cursor.execute("UPDATE services SET is_active = ? WHERE id = ? AND user_id = ?", (new_status, service_id, user_id))
         conn.commit()
         return new_status
+
+def add_service_review(service_id: int, user_id: int, rating: int, comment: str = "") -> Tuple[bool, str]:
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                INSERT INTO service_reviews (service_id, user_id, rating, comment)
+                VALUES (?, ?, ?, ?)
+            """, (service_id, user_id, rating, comment))
+
+            # Yangi o'rtacha reytingni hisoblash
+            cursor.execute("SELECT AVG(rating), COUNT(rating) FROM service_reviews WHERE service_id = ?", (service_id,))
+            avg_r, cnt_r = cursor.fetchone()
+            avg_r = round(avg_r, 1) if avg_r else 5.0
+
+            cursor.execute("""
+                UPDATE services 
+                SET rating = ?, rating_count = ? 
+                WHERE id = ?
+            """, (avg_r, cnt_r, service_id))
+
+            conn.commit()
+            return True, f"Bahoingiz qabul qilindi! O'rtacha reyting: ⭐ {avg_r}"
+        except sqlite3.IntegrityError:
+            return False, "Siz ushbu ustaga allaqachon baho bergansiz!"
+
+def has_user_reviewed(service_id: int, user_id: int) -> bool:
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM service_reviews WHERE service_id = ? AND user_id = ?", (service_id, user_id))
+        return cursor.fetchone() is not None
+
+def add_service_order(
+    service_id: int,
+    client_user_id: int,
+    client_name: str,
+    client_phone: str,
+    message: str = ""
+) -> int:
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO service_orders (service_id, client_user_id, client_name, client_phone, message)
+            VALUES (?, ?, ?, ?, ?)
+        """, (service_id, client_user_id, client_name, client_phone, message))
+        conn.commit()
+        return cursor.lastrowid

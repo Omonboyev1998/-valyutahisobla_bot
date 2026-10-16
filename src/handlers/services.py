@@ -1,11 +1,12 @@
 import logging
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from aiogram import Router, F, Bot
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
+from src.config import ADMIN_ID
 from src.database import (
     add_service,
     get_services,
@@ -13,7 +14,10 @@ from src.database import (
     get_service_by_id,
     get_user_services,
     delete_service,
-    toggle_service_status
+    toggle_service_status,
+    add_service_review,
+    has_user_reviewed,
+    add_service_order
 )
 from src.keyboards.services import (
     SERVICE_CATEGORIES,
@@ -21,9 +25,12 @@ from src.keyboards.services import (
     get_services_menu_keyboard,
     get_categories_keyboard,
     get_regions_keyboard,
-    get_service_card_keyboard,
+    get_services_list_keyboard,
+    get_service_detail_keyboard,
+    get_rating_keyboard,
     get_my_service_item_keyboard,
     get_phone_request_keyboard,
+    get_photo_request_keyboard,
     get_cancel_reply_keyboard
 )
 from src.keyboards.reply import get_main_keyboard
@@ -37,21 +44,62 @@ class AddServiceFSM(StatesGroup):
     category = State()
     title = State()
     region = State()
+    price = State()
     description = State()
+    photo = State()
     phone = State()
 
 class SearchServiceFSM(StatesGroup):
     query = State()
 
-def format_service_card(service: dict, page: int, total_pages: int) -> str:
-    """Xizmat kartochkasini chiroyli matn shaklida chiqarish"""
+class OrderServiceFSM(StatesGroup):
+    service_id = State()
+    master_user_id = State()
+    service_title = State()
+    phone = State()
+    message = State()
+
+def format_service_list_text(
+    services: List[Dict[str, Any]],
+    page: int,
+    total: int,
+    header_title: str
+) -> str:
+    """Ustalar ro'yxati matnini shakllantirish"""
+    text = f"📋 <b>{header_title}</b> (Jami: <b>{total}</b> ta)\n\n"
+    for idx, s in enumerate(services, 1):
+        num = page * 5 + idx
+        master = s.get("master_name", "Usta")
+        title = s.get("title", "")
+        region = s.get("region", "Barcha hududlar")
+        rating = s.get("rating", 5.0)
+        r_cnt = s.get("rating_count", 0)
+        price = s.get("price") or "Kelishilgan holda"
+        desc = s.get("description", "")
+        short_desc = desc[:70] + "..." if len(desc) > 70 else desc
+
+        text += (
+            f"<b>{num}. 🛠 {title}</b>\n"
+            f"   👤 Usta: <b>{master}</b> | 📍 {region}\n"
+            f"   ⭐ <b>{rating:.1f}</b> ({r_cnt} ta baho) | 💰 {price}\n"
+            f"   <i>{short_desc}</i>\n\n"
+        )
+
+    text += "<i>Batafsil ma'lumot va bog'lanish uchun quyidagi tugmalardan birini tanlang:</i>"
+    return text
+
+def format_service_detail_text(service: dict) -> str:
+    """Yagona usta kartochkasi matni"""
     title = service.get("title", "")
     category = service.get("category", "")
     master = service.get("master_name", "")
     phone = service.get("phone", "")
     username = service.get("username", "")
     region = service.get("region", "Barcha hududlar")
+    price = service.get("price") or "Kelishilgan holda"
     desc = service.get("description", "Qo'shimcha ma'lumot kiritilmagan.")
+    rating = service.get("rating", 5.0)
+    r_cnt = service.get("rating_count", 0)
     views = service.get("views_count", 0)
 
     user_link = f"@{username}" if username else "Mavjud emas"
@@ -60,11 +108,13 @@ def format_service_card(service: dict, page: int, total_pages: int) -> str:
         f"🛠 <b>{title}</b>\n\n"
         f"📌 <b>Toifa:</b> {category}\n"
         f"📍 <b>Hudud:</b> {region}\n"
+        f"💰 <b>Xizmat narxi:</b> <b>{price}</b>\n"
+        f"⭐ <b>Reyting:</b> <b>{rating:.1f}</b> ({r_cnt} ta baho)\n"
         f"👤 <b>Usta / Mutaxassis:</b> <b>{master}</b>\n"
         f"📞 <b>Telefon:</b> <code>{phone}</code>\n"
         f"💬 <b>Telegram:</b> {user_link}\n\n"
         f"📝 <b>Batafsil ma'lumot:</b>\n<i>{desc}</i>\n\n"
-        f"👁 <i>Ko'rishlar soni: {views} | Sahifa: {page + 1}/{total_pages}</i>"
+        f"👁 <i>Ko'rishlar soni: {views} marta</i>"
     )
     return text
 
@@ -97,7 +147,7 @@ async def back_to_srv_main_callback(callback: CallbackQuery, state: FSMContext):
         await callback.message.answer(text, parse_mode="HTML", reply_markup=get_services_menu_keyboard())
     await callback.answer()
 
-# ==================== 2. XIZMATLARNI KO'RISH (BROWSE) ====================
+# ==================== 2. RO'YXAT (LIST VIEW) VA KO'RISH ====================
 
 @router.callback_query(F.data == "srv_browse")
 async def browse_categories_callback(callback: CallbackQuery):
@@ -105,7 +155,10 @@ async def browse_categories_callback(callback: CallbackQuery):
         "🗂 <b>Xizmat toifasini tanlang:</b>\n\n"
         "Qaysi soha bo'yicha usta yoki mutaxassis qidiryapsiz?"
     )
-    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=get_categories_keyboard(prefix="srv_cat"))
+    try:
+        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=get_categories_keyboard(prefix="srv_cat"))
+    except Exception:
+        await callback.message.answer(text, parse_mode="HTML", reply_markup=get_categories_keyboard(prefix="srv_cat"))
     await callback.answer()
 
 @router.callback_query(F.data.startswith("srv_cat:"))
@@ -113,25 +166,22 @@ async def select_category_callback(callback: CallbackQuery):
     cat_code = callback.data.split(":")[1]
     category_name = None if cat_code == "all" else SERVICE_CATEGORIES[int(cat_code)]
 
-    # 1-sahifadagi xizmatlarni olamiz
     total = count_services(category=category_name)
     if total == 0:
         cat_disp = category_name or "barcha toifalar"
         await callback.answer(f"{cat_disp} bo'yicha hozircha e'lonlar yo'q.", show_alert=True)
         return
 
-    services = get_services(category=category_name, limit=1, offset=0)
-    if not services:
-        await callback.answer("E'lonlar topilmadi.", show_alert=True)
-        return
+    services = get_services(category=category_name, limit=5, offset=0)
+    total_pages = (total + 4) // 5
+    title = category_name or "Barcha toifalar"
+    text = format_service_list_text(services, 0, total, title)
+    markup = get_services_list_keyboard(services, 0, total_pages, cat_code=cat_code, reg_code="all")
 
-    service = services[0]
-    get_service_by_id(service["id"]) # Ko'rishlar sonini oshirish
-
-    text = format_service_card(service, 0, total)
-    markup = get_service_card_keyboard(service, cat_idx=cat_code, reg_idx="all", page=0, total_pages=total)
-
-    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=markup)
+    try:
+        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=markup)
+    except Exception:
+        await callback.message.answer(text, parse_mode="HTML", reply_markup=markup)
     await callback.answer()
 
 @router.callback_query(F.data.startswith("srv_page:"))
@@ -147,26 +197,21 @@ async def paginate_services_callback(callback: CallbackQuery):
         await callback.answer("Ushbu filtr bo'yicha e'lonlar mavjud emas.", show_alert=True)
         return
 
+    total_pages = (total + 4) // 5
     if page < 0:
         page = 0
-    if page >= total:
-        page = total - 1
+    if page >= total_pages:
+        page = total_pages - 1
 
-    services = get_services(category=category_name, region=region_name, limit=1, offset=page)
-    if not services:
-        await callback.answer("Boshqa e'lon yo'q.", show_alert=True)
-        return
-
-    service = services[0]
-    get_service_by_id(service["id"])
-
-    text = format_service_card(service, page, total)
-    markup = get_service_card_keyboard(service, cat_idx=cat_code, reg_idx=reg_code, page=page, total_pages=total)
+    services = get_services(category=category_name, region=region_name, limit=5, offset=page * 5)
+    title = category_name or (region_name if region_name else "Barcha xizmatlar")
+    text = format_service_list_text(services, page, total, title)
+    markup = get_services_list_keyboard(services, page, total_pages, cat_code=cat_code, reg_code=reg_code)
 
     try:
         await callback.message.edit_text(text, parse_mode="HTML", reply_markup=markup)
     except Exception:
-        pass
+        await callback.message.answer(text, parse_mode="HTML", reply_markup=markup)
     await callback.answer()
 
 # ==================== 3. HUDUD BO'YICHA FILTR ====================
@@ -177,7 +222,10 @@ async def filter_region_callback(callback: CallbackQuery):
         "📍 <b>O'zingizga qulay hududni tanlang:</b>\n\n"
         "Tanlangan viloyatdagi xizmatlar va ustalar ro'yxati ko'rsatiladi:"
     )
-    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=get_regions_keyboard(prefix="srv_filter_reg"))
+    try:
+        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=get_regions_keyboard(prefix="srv_filter_reg"))
+    except Exception:
+        await callback.message.answer(text, parse_mode="HTML", reply_markup=get_regions_keyboard(prefix="srv_filter_reg"))
     await callback.answer()
 
 @router.callback_query(F.data.startswith("srv_filter_reg:"))
@@ -190,17 +238,58 @@ async def apply_region_filter_callback(callback: CallbackQuery):
         await callback.answer(f"{region_name} bo'yicha hozircha e'lonlar yo'q.", show_alert=True)
         return
 
-    services = get_services(region=region_name, limit=1, offset=0)
-    service = services[0]
-    get_service_by_id(service["id"])
+    total_pages = (total + 4) // 5
+    services = get_services(region=region_name, limit=5, offset=0)
+    text = format_service_list_text(services, 0, total, f"{region_name} bo'yicha ustalar")
+    markup = get_services_list_keyboard(services, 0, total_pages, cat_code="all", reg_code=reg_idx)
 
-    text = format_service_card(service, 0, total)
-    markup = get_service_card_keyboard(service, cat_idx="all", reg_idx=reg_idx, page=0, total_pages=total)
-
-    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=markup)
+    try:
+        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=markup)
+    except Exception:
+        await callback.message.answer(text, parse_mode="HTML", reply_markup=markup)
     await callback.answer()
 
-# ==================== 4. O'Z XIZMATINI QO'SHISH (FSM) ====================
+# ==================== 4. USTA DETAIL KO'RINIShI ====================
+
+@router.callback_query(F.data.startswith("srv_view:"))
+async def view_service_detail_callback(callback: CallbackQuery, bot: Bot):
+    parts = callback.data.split(":")
+    s_id = int(parts[1])
+    cat_code = parts[2] if len(parts) > 2 else "all"
+    reg_code = parts[3] if len(parts) > 3 else "all"
+    back_page = int(parts[4]) if len(parts) > 4 else 0
+
+    service = get_service_by_id(s_id)
+    if not service:
+        await callback.answer("Ushbu xizmat topilmadi yoki o'chirilgan.", show_alert=True)
+        return
+
+    text = format_service_detail_text(service)
+    markup = get_service_detail_keyboard(service, cat_code=cat_code, reg_code=reg_code, back_page=back_page)
+    photo_id = service.get("photo_id")
+
+    if photo_id:
+        try:
+            await callback.message.delete()
+            await bot.send_photo(
+                chat_id=callback.message.chat.id,
+                photo=photo_id,
+                caption=text,
+                parse_mode="HTML",
+                reply_markup=markup
+            )
+            await callback.answer()
+            return
+        except Exception:
+            pass
+
+    try:
+        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=markup)
+    except Exception:
+        await callback.message.answer(text, parse_mode="HTML", reply_markup=markup)
+    await callback.answer()
+
+# ==================== 5. O'Z XIZMATINI QO'SHISH (RASM BILAN) ====================
 
 @router.callback_query(F.data == "srv_add")
 async def start_add_service_callback(callback: CallbackQuery, state: FSMContext):
@@ -209,7 +298,10 @@ async def start_add_service_callback(callback: CallbackQuery, state: FSMContext)
         "➕ <b>Yangi xizmat yoki e'lon qo'shish</b>\n\n"
         "1-qadam: Ko'rsatadigan xizmatingiz toifasini tanlang:"
     )
-    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=get_categories_keyboard(prefix="srv_add_cat"))
+    try:
+        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=get_categories_keyboard(prefix="srv_add_cat"))
+    except Exception:
+        await callback.message.answer(text, parse_mode="HTML", reply_markup=get_categories_keyboard(prefix="srv_add_cat"))
     await callback.answer()
 
 @router.callback_query(AddServiceFSM.category, F.data.startswith("srv_add_cat:"))
@@ -222,9 +314,12 @@ async def add_service_category_chosen(callback: CallbackQuery, state: FSMContext
     text = (
         f"✅ Toifa: <b>{category_name}</b>\n\n"
         "2-qadam: <b>Xizmatingiz sarlavhasini yozing.</b>\n"
-        "<i>(Masalan: Tajribali santexnik, kran va nasos o'rnatish yoki Qo'y yungini tez va toza olish xizmati)</i>"
+        "<i>(Masalan: Tajribali santexnik, kran va nasos o'rnatish yoki Qo'y yungini toza va tez olish xizmati)</i>"
     )
-    await callback.message.delete()
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
     await callback.message.answer(text, parse_mode="HTML", reply_markup=get_cancel_reply_keyboard())
 
 @router.message(AddServiceFSM.title, F.text)
@@ -235,8 +330,8 @@ async def add_service_title_entered(message: Message, state: FSMContext):
         return
 
     title = message.text.strip()
-    if len(title) < 5:
-        await message.answer("Sarlavha juda qisqa. Kamida 5 ta belgi kiriting:")
+    if len(title) < 4:
+        await message.answer("Sarlavha juda qisqa. Kamida 4 ta belgi kiriting:")
         return
 
     await state.update_data(title=title)
@@ -253,15 +348,36 @@ async def add_service_region_chosen(callback: CallbackQuery, state: FSMContext):
     reg_idx = int(callback.data.split(":")[1])
     region_name = SERVICE_REGIONS[reg_idx]
     await state.update_data(region=region_name)
-    await state.set_state(AddServiceFSM.description)
+    await state.set_state(AddServiceFSM.price)
 
     text = (
         f"✅ Hudud: <b>{region_name}</b>\n\n"
-        "4-qadam: <b>Xizmatingiz haqida batafsil ma'lumot va narxlarni yozing:</b>\n"
-        "<i>(Tajribangiz, ish vaqti, narxlar va qulayliklar haqida ma'lumot qoldiring)</i>"
+        "4-qadam: <b>Xizmat narxini yozing:</b>\n"
+        "<i>(Masalan: <code>50 000 so'mdan</code>, <code>100 000 so'm / soat</code> yoki <code>Kelishilgan holda</code>)</i>"
     )
-    await callback.message.delete()
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
     await callback.message.answer(text, parse_mode="HTML", reply_markup=get_cancel_reply_keyboard())
+
+@router.message(AddServiceFSM.price, F.text)
+async def add_service_price_entered(message: Message, state: FSMContext):
+    if message.text == "❌ Bekor qilish":
+        await state.clear()
+        await message.answer("E'lon berish bekor qilindi.", reply_markup=get_main_keyboard())
+        return
+
+    price = message.text.strip()
+    await state.update_data(price=price)
+    await state.set_state(AddServiceFSM.description)
+
+    text = (
+        f"✅ Narx: <b>{price}</b>\n\n"
+        "5-qadam: <b>Xizmatingiz haqida batafsil ma'lumot yozing:</b>\n"
+        "<i>(Ish tajribangiz, ish vaqti va mijozlarga taqdim etiladigan qulayliklar)</i>"
+    )
+    await message.answer(text, parse_mode="HTML", reply_markup=get_cancel_reply_keyboard())
 
 @router.message(AddServiceFSM.description, F.text)
 async def add_service_description_entered(message: Message, state: FSMContext):
@@ -272,16 +388,39 @@ async def add_service_description_entered(message: Message, state: FSMContext):
 
     desc = message.text.strip()
     await state.update_data(description=desc)
+    await state.set_state(AddServiceFSM.photo)
+
+    text = (
+        "6-qadam: <b>Xizmatingiz yoki ishlaringizdan bitta rasm yuboring:</b>\n\n"
+        "Rasm mijozlarda ko'proq ishonch uyg'otadi. Agar rasm qo'shishni istamasangiz, pastdagi "
+        "<b>'⏭ O'tkazib yuborish (Rasmsiz)'</b> tugmasini bosing:"
+    )
+    await message.answer(text, parse_mode="HTML", reply_markup=get_photo_request_keyboard())
+
+@router.message(AddServiceFSM.photo)
+async def add_service_photo_received(message: Message, state: FSMContext):
+    if message.text == "❌ Bekor qilish":
+        await state.clear()
+        await message.answer("E'lon berish bekor qilindi.", reply_markup=get_main_keyboard())
+        return
+
+    photo_id = None
+    if message.photo:
+        photo_id = message.photo[-1].file_id
+    elif message.text and "O'tkazib yuborish" in message.text:
+        photo_id = None
+
+    await state.update_data(photo_id=photo_id)
     await state.set_state(AddServiceFSM.phone)
 
     text = (
-        "5-qadam: <b>Mijozlar siz bilan bog'lanishi uchun telefon raqamingizni yuboring:</b>\n\n"
-        "Quyidagi <b>'📞 Telefon raqamimni yuborish'</b> tugmasini bosing yoki raqamingizni matn shaklida yozing (Masalan: +998901234567):"
+        "7-qadam: <b>Mijozlar siz bilan bog'lanishi uchun telefon raqamingizni yuboring:</b>\n\n"
+        "Quyidagi <b>'📞 Telefon raqamimni yuborish'</b> tugmasini bosing yoki raqamingizni matn shaklida yozing (Masalan: <code>+998901234567</code>):"
     )
     await message.answer(text, parse_mode="HTML", reply_markup=get_phone_request_keyboard())
 
 @router.message(AddServiceFSM.phone)
-async def add_service_phone_entered(message: Message, state: FSMContext):
+async def add_service_phone_entered(message: Message, state: FSMContext, bot: Bot):
     if message.text == "❌ Bekor qilish":
         await state.clear()
         await message.answer("E'lon berish bekor qilindi.", reply_markup=get_main_keyboard())
@@ -312,7 +451,9 @@ async def add_service_phone_entered(message: Message, state: FSMContext):
         category=data["category"],
         title=data["title"],
         description=data["description"],
-        region=data["region"]
+        region=data["region"],
+        price=data.get("price", ""),
+        photo_id=data.get("photo_id")
     )
 
     await state.clear()
@@ -322,12 +463,28 @@ async def add_service_phone_entered(message: Message, state: FSMContext):
         f"🛠 <b>Sarlavha:</b> {data['title']}\n"
         f"📌 <b>Toifa:</b> {data['category']}\n"
         f"📍 <b>Hudud:</b> {data['region']}\n"
-        f"📞 <b>Telefon:</b> {phone}\n\n"
-        "Endi boshqa foydalanuvchilar sizning xizmatingizni ko'rib, to'g'ridan-to'g'ri qo'ng'iroq qilishi yoki Telegramingizga yozishi mumkin! 🚀"
+        f"💰 <b>Narx:</b> {data.get('price', 'Kelishilgan holda')}\n"
+        f"📞 <b>Telefon:</b> <code>{phone}</code>\n\n"
+        "Endi boshqa foydalanuvchilar sizning xizmatingizni ko'rib, to'g'ridan-to'g'ri bog'lanishi yoki bot orqali buyurtma qoldirishi mumkin! 🚀"
     )
     await message.answer(congrat_text, parse_mode="HTML", reply_markup=get_main_keyboard())
 
-# ==================== 5. MENING E'LONLARIM ====================
+    # Adminga xabarnoma (moderatsiya uchun)
+    if ADMIN_ID and ADMIN_ID != user.id:
+        try:
+            admin_msg = (
+                "📢 <b>Yangi xizmat e'loni qo'shildi:</b>\n\n"
+                f"🛠 <b>{data['title']}</b>\n"
+                f"📌 Toifa: {data['category']} | 📍 {data['region']}\n"
+                f"👤 Usta: {master_name} (ID: {user.id})\n"
+                f"📞 Tel: {phone}\n"
+                f"💰 Narx: {data.get('price', '')}"
+            )
+            await bot.send_message(chat_id=ADMIN_ID, text=admin_msg, parse_mode="HTML")
+        except Exception:
+            pass
+
+# ==================== 6. MENING E'LONLARIM ====================
 
 @router.callback_query(F.data == "srv_my")
 async def show_my_services_callback(callback: CallbackQuery):
@@ -350,12 +507,12 @@ async def show_my_services_callback(callback: CallbackQuery):
     text = f"👤 <b>Siz joylashtirgan xizmatlar ({len(my_services)} ta):</b>\n\n"
     for s in my_services:
         st_icon = "🟢 Faol" if s["is_active"] == 1 else "⏸ To'xtatilgan"
+        rating = s.get("rating", 5.0)
         text += (
             f"• <b>{s['title']}</b> ({s['category']})\n"
-            f"   └ Holat: {st_icon} | Ko'rishlar: {s['views_count']} ta\n\n"
+            f"   └ Holat: {st_icon} | ⭐ {rating} | Ko'rishlar: {s['views_count']} ta\n\n"
         )
 
-    # Har bir xizmat uchun alohida boshqaruv tugmasi yuboramiz
     await callback.message.delete()
     for s in my_services:
         active_label = "🟢 Faol" if s["is_active"] == 1 else "⏸ To'xtatilgan"
@@ -384,7 +541,6 @@ async def toggle_service_callback(callback: CallbackQuery):
     if new_status is not None:
         status_word = "faollashtirildi 🟢" if new_status == 1 else "to'xtatildi ⏸"
         await callback.answer(f"Xizmat {status_word}!", show_alert=True)
-        # Tugmani yangilaymiz
         try:
             await callback.message.edit_reply_markup(reply_markup=get_my_service_item_keyboard(service_id, new_status))
         except Exception:
@@ -407,7 +563,163 @@ async def delete_service_callback(callback: CallbackQuery):
     else:
         await callback.answer("O'chirishda xatolik.", show_alert=True)
 
-# ==================== 6. QIDIRUV (SEARCH) ====================
+# ==================== 7. BAHOLASH (RATING) ====================
+
+@router.callback_query(F.data.startswith("srv_rate:"))
+async def rate_service_callback(callback: CallbackQuery):
+    s_id = int(callback.data.split(":")[1])
+    user_id = callback.from_user.id
+
+    if has_user_reviewed(s_id, user_id):
+        await callback.answer("Siz bu ustaga allaqachon baho bergansiz! ⭐", show_alert=True)
+        return
+
+    text = "⭐ <b>Usta xizmati sifatini 1 dan 5 gacha baholang:</b>"
+    try:
+        await callback.message.edit_reply_markup(reply_markup=get_rating_keyboard(s_id))
+    except Exception:
+        await callback.message.answer(text, parse_mode="HTML", reply_markup=get_rating_keyboard(s_id))
+    await callback.answer()
+
+@router.callback_query(F.data.startswith("srv_star:"))
+async def give_star_callback(callback: CallbackQuery):
+    parts = callback.data.split(":")
+    s_id = int(parts[1])
+    stars = int(parts[2])
+    user_id = callback.from_user.id
+
+    ok, msg = add_service_review(s_id, user_id, stars)
+    await callback.answer(msg, show_alert=True)
+
+    # Kartochkani yangilangan reyting bilan qayta ko'rsatamiz
+    service = get_service_by_id(s_id)
+    if service:
+        text = format_service_detail_text(service)
+        markup = get_service_detail_keyboard(service)
+        try:
+            await callback.message.edit_text(text, parse_mode="HTML", reply_markup=markup)
+        except Exception:
+            pass
+
+@router.callback_query(F.data.startswith("srv_rate_cancel:"))
+async def cancel_rate_callback(callback: CallbackQuery):
+    s_id = int(callback.data.split(":")[1])
+    service = get_service_by_id(s_id)
+    if service:
+        markup = get_service_detail_keyboard(service)
+        try:
+            await callback.message.edit_reply_markup(reply_markup=markup)
+        except Exception:
+            pass
+    await callback.answer()
+
+# ==================== 8. BOT ICHIDA BUYURTMA QOLDIRISH ====================
+
+@router.callback_query(F.data.startswith("srv_order:"))
+async def start_order_callback(callback: CallbackQuery, state: FSMContext):
+    s_id = int(callback.data.split(":")[1])
+    service = get_service_by_id(s_id)
+    if not service:
+        await callback.answer("Xizmat topilmadi.", show_alert=True)
+        return
+
+    await state.set_state(OrderServiceFSM.phone)
+    await state.update_data(
+        service_id=s_id,
+        master_user_id=service["user_id"],
+        service_title=service["title"]
+    )
+
+    text = (
+        f"📩 <b>«{service['title']}» xizmati uchun buyurtma berish</b>\n\n"
+        "Usta siz bilan bog'lanishi uchun telefon raqamingizni yuboring:\n"
+        "<i>(Quyidagi '📞 Telefon raqamimni yuborish' tugmasini bosing yoki matn qilib yozing)</i>"
+    )
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+    await callback.message.answer(text, parse_mode="HTML", reply_markup=get_phone_request_keyboard())
+    await callback.answer()
+
+@router.message(OrderServiceFSM.phone)
+async def order_phone_received(message: Message, state: FSMContext):
+    if message.text == "❌ Bekor qilish":
+        await state.clear()
+        await message.answer("Buyurtma bekor qilindi.", reply_markup=get_main_keyboard())
+        return
+
+    phone = ""
+    if message.contact:
+        phone = message.contact.phone_number
+        if not phone.startswith("+"):
+            phone = "+" + phone
+    elif message.text:
+        phone = message.text.strip()
+
+    if not phone or len(phone) < 7:
+        await message.answer("Iltimos, to'g'ri telefon raqamini kiriting:")
+        return
+
+    await state.update_data(phone=phone)
+    await state.set_state(OrderServiceFSM.message)
+
+    text = (
+        "📝 <b>Ustaga nima kerakligini qisqacha yozing:</b>\n"
+        "<i>(Masalan: Ertaga ertalab soat 10 da kran o'rnatish kerak edi)</i>"
+    )
+    await message.answer(text, parse_mode="HTML", reply_markup=get_cancel_reply_keyboard())
+
+@router.message(OrderServiceFSM.message, F.text)
+async def order_message_received(message: Message, state: FSMContext, bot: Bot):
+    if message.text == "❌ Bekor qilish":
+        await state.clear()
+        await message.answer("Buyurtma bekor qilindi.", reply_markup=get_main_keyboard())
+        return
+
+    client_msg = message.text.strip()
+    data = await state.get_data()
+    await state.clear()
+
+    client_user = message.from_user
+    client_name = client_user.full_name or "Mijoz"
+    client_phone = data["phone"]
+    service_id = data["service_id"]
+    master_user_id = data["master_user_id"]
+    service_title = data["service_title"]
+
+    add_service_order(
+        service_id=service_id,
+        client_user_id=client_user.id,
+        client_name=client_name,
+        client_phone=client_phone,
+        message=client_msg
+    )
+
+    # 1. Ustaga darhol xabar yuboramiz
+    try:
+        master_alert = (
+            "🔔 <b>Sizga yangi mijozdan buyurtma keldi!</b>\n\n"
+            f"🛠 <b>Xizmat:</b> {service_title}\n"
+            f"👤 <b>Mijoz:</b> <b>{client_name}</b>\n"
+            f"📞 <b>Telefon:</b> <code>{client_phone}</code>\n"
+            f"📝 <b>Xabar:</b> <i>{client_msg}</i>\n\n"
+            "<i>Iltimos, mijoz bilan imkon qadar tezroq bog'laning!</i>"
+        )
+        await bot.send_message(chat_id=master_user_id, text=master_alert, parse_mode="HTML")
+    except Exception as e:
+        logger.warning(f"Ustaga xabar yuborishda xatolik: {e}")
+
+    # 2. Mijozga tasdiq xabari
+    confirm_text = (
+        "✅ <b>Buyurtmangiz ustaga muvaffaqiyatli yetkazildi!</b>\n\n"
+        f"🛠 <b>Xizmat:</b> {service_title}\n"
+        f"📞 <b>Sizning raqamingiz:</b> {client_phone}\n\n"
+        "Usta tez orada siz bilan telefon orqali bog'lanadi. Rahmat!"
+    )
+    await message.answer(confirm_text, parse_mode="HTML", reply_markup=get_main_keyboard())
+
+# ==================== 9. QIDIRUV (SEARCH) ====================
 
 @router.callback_query(F.data == "srv_search")
 async def start_search_callback(callback: CallbackQuery, state: FSMContext):
@@ -416,8 +728,12 @@ async def start_search_callback(callback: CallbackQuery, state: FSMContext):
         "🔍 <b>Xizmat yoki usta qidirish</b>\n\n"
         "Qidirayotgan xizmat turini yozing (Masalan: <i>santexnik</i>, <i>elektr</i>, <i>yung</i>, <i>suv quvuri</i>, <i>klining</i>):"
     )
-    await callback.message.delete()
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
     await callback.message.answer(text, parse_mode="HTML", reply_markup=get_cancel_reply_keyboard())
+    await callback.answer()
 
 @router.message(SearchServiceFSM.query, F.text)
 async def process_search_query(message: Message, state: FSMContext):
@@ -440,16 +756,15 @@ async def process_search_query(message: Message, state: FSMContext):
         await message.answer("Asosiy menyuga qaytildi:", reply_markup=get_main_keyboard())
         return
 
-    services = get_services(search_query=query, limit=1, offset=0)
-    service = services[0]
-    get_service_by_id(service["id"])
+    total_pages = (total + 4) // 5
+    services = get_services(search_query=query, limit=5, offset=0)
+    text = format_service_list_text(services, 0, total, f"'{query}' bo'yicha qidiruv natijalari")
+    markup = get_services_list_keyboard(services, 0, total_pages, cat_code="all", reg_code="all", search_q=query)
 
-    text = f"🔍 <b>'{query}' bo'yicha qidiruv natijalari ({total} ta topildi):</b>\n\n"
-    text += format_service_card(service, 0, total)
-    markup = get_service_card_keyboard(service, cat_idx="all", reg_idx="all", page=0, total_pages=total)
-
-    await message.answer("Qidiruv natijasi:", reply_markup=get_main_keyboard())
+    await message.answer("Qidiruv natijalari:", reply_markup=get_main_keyboard())
     await message.answer(text, parse_mode="HTML", reply_markup=markup)
+
+# ==================== 10. ALOQA VA GLOBAL BEKOR QILISH ====================
 
 @router.callback_query(F.data.startswith("srv_contact:"))
 async def service_contact_callback(callback: CallbackQuery):
@@ -470,7 +785,10 @@ async def global_cancel_reply_message(message: Message, state: FSMContext):
 @router.callback_query(F.data == "srv_cancel")
 async def cancel_srv_callback(callback: CallbackQuery, state: FSMContext):
     await state.clear()
-    await callback.message.delete()
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
     await callback.message.answer("Amal bekor qilindi.", reply_markup=get_main_keyboard())
     await callback.answer()
 
