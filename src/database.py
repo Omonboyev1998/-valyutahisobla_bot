@@ -33,8 +33,11 @@ def get_db():
     else:
         conn = sqlite3.connect(DB_PATH, timeout=20.0)
     try:
-        with conn:
-            yield conn
+        yield conn
+        try:
+            conn.commit()
+        except Exception:
+            pass
     finally:
         try:
             conn.close()
