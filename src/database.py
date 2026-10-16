@@ -1,19 +1,56 @@
-import sqlite3
 import os
 import csv
 import io
 import logging
+from contextlib import contextmanager
 from typing import List, Optional, Dict, Any, Tuple
 
 logger = logging.getLogger(__name__)
 
+TURSO_DATABASE_URL = os.getenv("TURSO_DATABASE_URL")
+TURSO_AUTH_TOKEN = os.getenv("TURSO_AUTH_TOKEN")
+
+if TURSO_DATABASE_URL and TURSO_AUTH_TOKEN:
+    try:
+        import libsql_experimental as sqlite3
+        logger.info("Turso Cloud SQLite drayveri (libsql_experimental) faollashtirildi.")
+    except ImportError:
+        import sqlite3
+        logger.warning("libsql_experimental o'rnatilmagan, standart sqlite3 ishlatilmoqda.")
+else:
+    import sqlite3
+
 DB_PATH = os.getenv("DB_PATH") or os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "bot.db")
 
+@contextmanager
+def get_db():
+    """Turso Cloud yoki Mahalliy SQLite uchun universal ulanish boshqaruvchisi"""
+    if TURSO_DATABASE_URL and TURSO_AUTH_TOKEN:
+        try:
+            conn = sqlite3.connect(TURSO_DATABASE_URL, auth_token=TURSO_AUTH_TOKEN)
+        except TypeError:
+            conn = sqlite3.connect(f"{TURSO_DATABASE_URL}?authToken={TURSO_AUTH_TOKEN}")
+    else:
+        conn = sqlite3.connect(DB_PATH, timeout=20.0)
+    try:
+        with conn:
+            yield conn
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
 def init_db():
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    with sqlite3.connect(DB_PATH, timeout=20.0) as conn:
-        conn.execute("PRAGMA journal_mode=WAL;")
-        conn.execute("PRAGMA busy_timeout = 20000;")
+    if not (TURSO_DATABASE_URL and TURSO_AUTH_TOKEN):
+        os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    with get_db() as conn:
+        if not (TURSO_DATABASE_URL and TURSO_AUTH_TOKEN):
+            try:
+                conn.execute("PRAGMA journal_mode=WAL;")
+                conn.execute("PRAGMA busy_timeout = 20000;")
+            except Exception:
+                pass
         cursor = conn.cursor()
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
@@ -114,7 +151,7 @@ def init_db():
 
 def add_user(user_id: int, full_name: str, username: Optional[str] = None, referrer_id: Optional[int] = None) -> bool:
     is_new_referral = False
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,))
         existing = cursor.fetchone()
@@ -139,7 +176,7 @@ def add_user(user_id: int, full_name: str, username: Optional[str] = None, refer
 
 def get_user_settings(user_id: int) -> Dict[str, Any]:
     """Foydalanuvchining eslatmalar bo'yicha barcha sozlamalarini oladi"""
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT is_subscribed, sub_currency, sub_weather, sub_football, notify_time, weather_city, sub_prayer
@@ -179,7 +216,7 @@ def toggle_user_topic(user_id: int, topic: str) -> bool:
     if not col:
         return False
 
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute(f"SELECT {col} FROM users WHERE user_id = ?", (user_id,))
         row = cursor.fetchone()
@@ -191,41 +228,41 @@ def toggle_user_topic(user_id: int, topic: str) -> bool:
 
 def get_users_for_prayer_alert() -> List[Tuple[int, str]]:
     """Namoz eslatmasini yoqqan barcha foydalanuvchilar (user_id, city)"""
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT user_id, weather_city FROM users WHERE is_subscribed = 1 AND sub_prayer = 1")
         return cursor.fetchall()
 
 def set_user_notify_time(user_id: int, time_str: str):
     """Xabar kelish vaqtini o'rnatish (masalan: '08:00', '09:00')"""
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("UPDATE users SET notify_time = ? WHERE user_id = ?", (time_str, user_id))
         conn.commit()
 
 def set_user_weather_city(user_id: int, city: str):
     """Ob-havo eslatmasi va doimiy hudud uchun shahar nomini o'rnatish"""
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("UPDATE users SET weather_city = ? WHERE user_id = ?", (city, user_id))
         conn.commit()
 
 def get_user_weather_city(user_id: int) -> str:
     """Foydalanuvchining doimiy saqlangan shahrini qaytaradi"""
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT weather_city FROM users WHERE user_id = ?", (user_id,))
         row = cursor.fetchone()
         return row[0] if (row and row[0]) else "Toshkent"
 
 def set_subscription(user_id: int, status: bool):
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("UPDATE users SET is_subscribed = ? WHERE user_id = ?", (1 if status else 0, user_id))
         conn.commit()
 
 def is_user_subscribed(user_id: int) -> bool:
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT is_subscribed FROM users WHERE user_id = ?", (user_id,))
         row = cursor.fetchone()
@@ -233,7 +270,7 @@ def is_user_subscribed(user_id: int) -> bool:
 
 def get_users_for_time(time_str: str) -> List[Dict[str, Any]]:
     """Aynan belgilangan vaqtda xabar oluvchi faol foydalanuvchilar"""
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT user_id, full_name, sub_currency, sub_weather, sub_football, weather_city
@@ -255,20 +292,20 @@ def get_users_for_time(time_str: str) -> List[Dict[str, Any]]:
         return result
 
 def get_all_users() -> List[int]:
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT user_id FROM users")
         rows = cursor.fetchall()
         return [row[0] for row in rows]
 
 def get_referral_count(user_id: int) -> int:
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT COUNT(*) FROM users WHERE referrer_id = ?", (user_id,))
         return cursor.fetchone()[0]
 
 def get_top_referrers(limit: int = 10) -> List[Tuple[str, int]]:
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT u.full_name, COUNT(r.user_id) as ref_count
@@ -282,7 +319,7 @@ def get_top_referrers(limit: int = 10) -> List[Tuple[str, int]]:
 
 def log_conversion(user_id: int, from_ccy: str, to_ccy: str, amount: float):
     try:
-        with sqlite3.connect(DB_PATH) as conn:
+        with get_db() as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 INSERT INTO conversions (user_id, from_ccy, to_ccy, amount)
@@ -293,7 +330,7 @@ def log_conversion(user_id: int, from_ccy: str, to_ccy: str, amount: float):
         logger.error(f"Statistikani yozishda xatolik: {e}")
 
 def get_statistics() -> Dict[str, Any]:
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db() as conn:
         cursor = conn.cursor()
 
         cursor.execute("SELECT COUNT(*) FROM users")
@@ -334,7 +371,7 @@ def get_statistics() -> Dict[str, Any]:
     }
 
 def export_users_csv() -> str:
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT user_id, full_name, username, is_subscribed, referrer_id, notify_time, weather_city, created_at FROM users ORDER BY created_at DESC")
         rows = cursor.fetchall()
@@ -361,7 +398,7 @@ def add_service(
     price: str = "",
     photo_id: Optional[str] = None
 ) -> int:
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO services (user_id, master_name, phone, username, category, title, description, region, price, photo_id)
@@ -377,7 +414,7 @@ def get_services(
     limit: int = 5,
     offset: int = 0
 ) -> List[Dict[str, Any]]:
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db() as conn:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
@@ -409,7 +446,7 @@ def count_services(
     region: Optional[str] = None,
     search_query: Optional[str] = None
 ) -> int:
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db() as conn:
         cursor = conn.cursor()
         query = "SELECT COUNT(*) FROM services WHERE is_active = 1"
         params: List[Any] = []
@@ -431,7 +468,7 @@ def count_services(
         return cursor.fetchone()[0]
 
 def get_service_by_id(service_id: int) -> Optional[Dict[str, Any]]:
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db() as conn:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM services WHERE id = ?", (service_id,))
@@ -443,7 +480,7 @@ def get_service_by_id(service_id: int) -> Optional[Dict[str, Any]]:
         return None
 
 def get_user_services(user_id: int) -> List[Dict[str, Any]]:
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db() as conn:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM services WHERE user_id = ? ORDER BY created_at DESC", (user_id,))
@@ -451,7 +488,7 @@ def get_user_services(user_id: int) -> List[Dict[str, Any]]:
         return [dict(row) for row in rows]
 
 def delete_service(service_id: int, user_id: int) -> bool:
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("DELETE FROM services WHERE id = ? AND user_id = ?", (service_id, user_id))
         conn.commit()
@@ -459,7 +496,7 @@ def delete_service(service_id: int, user_id: int) -> bool:
 
 def admin_delete_service(service_id: int) -> bool:
     """Admin tomonidan xizmatni bazadan o'chirish"""
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("DELETE FROM services WHERE id = ?", (service_id,))
         conn.commit()
@@ -467,14 +504,14 @@ def admin_delete_service(service_id: int) -> bool:
 
 def admin_approve_service(service_id: int) -> bool:
     """Admin tomonidan xizmatni tasdiqlash (faol qilish)"""
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("UPDATE services SET is_active = 1 WHERE id = ?", (service_id,))
         conn.commit()
         return cursor.rowcount > 0
 
 def toggle_service_status(service_id: int, user_id: int) -> Optional[int]:
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT is_active FROM services WHERE id = ? AND user_id = ?", (service_id, user_id))
         row = cursor.fetchone()
@@ -486,7 +523,7 @@ def toggle_service_status(service_id: int, user_id: int) -> Optional[int]:
         return new_status
 
 def add_service_review(service_id: int, user_id: int, rating: int, comment: str = "") -> Tuple[bool, str]:
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db() as conn:
         cursor = conn.cursor()
         try:
             cursor.execute("""
@@ -511,7 +548,7 @@ def add_service_review(service_id: int, user_id: int, rating: int, comment: str 
             return False, "Siz ushbu ustaga allaqachon baho bergansiz!"
 
 def has_user_reviewed(service_id: int, user_id: int) -> bool:
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT id FROM service_reviews WHERE service_id = ? AND user_id = ?", (service_id, user_id))
         return cursor.fetchone() is not None
@@ -523,7 +560,7 @@ def add_service_order(
     client_phone: str,
     message: str = ""
 ) -> int:
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO service_orders (service_id, client_user_id, client_name, client_phone, message)
