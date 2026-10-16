@@ -1,5 +1,6 @@
+import time
 import logging
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple
 import aiohttp
 from datetime import datetime
 
@@ -19,8 +20,20 @@ HEADERS = {
 }
 
 class FootballService:
+    def __init__(self, cache_ttl: int = 300):
+        self.cache_ttl = cache_ttl
+        self._standings_cache: Dict[str, Tuple[float, Dict[str, Any]]] = {}
+        self._matches_cache: Dict[str, Tuple[float, Dict[str, Any]]] = {}
+
     async def get_standings(self, league_code: str = "eng.1", limit: int = 10) -> Optional[Dict[str, Any]]:
-        """Turnir jadvalini oladi"""
+        """Turnir jadvalini oladi (5 daqiqa kesh bilan)"""
+        cache_key = f"{league_code}_{limit}"
+        now = time.time()
+        if cache_key in self._standings_cache:
+            ts, val = self._standings_cache[cache_key]
+            if now - ts < self.cache_ttl:
+                return val
+
         url = f"https://site.api.espn.com/apis/v2/sports/soccer/{league_code}/standings"
         try:
             async with aiohttp.ClientSession(headers=HEADERS) as session:
@@ -54,17 +67,26 @@ class FootballService:
                                 "diff": diff
                             })
 
-                        return {
+                        res = {
                             "league": LEAGUES.get(league_code, {}).get("name", league_code),
                             "flag": LEAGUES.get(league_code, {}).get("flag", "⚽"),
                             "table": table
                         }
+                        self._standings_cache[cache_key] = (now, res)
+                        return res
         except Exception as e:
             logger.error(f"Turnir jadvalini olishda xatolik ({league_code}): {e}")
         return None
 
     async def get_matches(self, league_code: str = "eng.1") -> Optional[Dict[str, Any]]:
-        """Oxirgi va yaqin kunlardagi o'yinlar natijalari va taqvimi"""
+        """Oxirgi va yaqin kunlardagi o'yinlar natijalari va taqvimi (5 daqiqa kesh bilan)"""
+        cache_key = league_code
+        now = time.time()
+        if cache_key in self._matches_cache:
+            ts, val = self._matches_cache[cache_key]
+            if now - ts < self.cache_ttl:
+                return val
+
         url = f"https://site.api.espn.com/apis/site/v2/sports/soccer/{league_code}/scoreboard"
         try:
             async with aiohttp.ClientSession(headers=HEADERS) as session:
@@ -109,11 +131,13 @@ class FootballService:
                                     "status": status
                                 })
 
-                        return {
+                        res = {
                             "league": LEAGUES.get(league_code, {}).get("name", league_code),
                             "flag": LEAGUES.get(league_code, {}).get("flag", "⚽"),
                             "matches": matches
                         }
+                        self._matches_cache[cache_key] = (now, res)
+                        return res
         except Exception as e:
             logger.error(f"O'yinlar natijalarini olishda xatolik ({league_code}): {e}")
         return None

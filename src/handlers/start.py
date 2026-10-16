@@ -34,6 +34,30 @@ async def cmd_start(message: Message, command: CommandObject, bot: Bot):
 
     is_new_referral = add_user(user.id, user.full_name or "Foydalanuvchi", user.username, referrer_id)
 
+    # Agar xizmatni ko'rish havolasi bilan kelgan bo'lsa (masalan: /start srv_5)
+    if command.args and (command.args.startswith("srv_") or command.args.startswith("service_")):
+        try:
+            clean_arg = command.args.replace("service_", "").replace("srv_", "")
+            s_id = int(clean_arg)
+            from src.database import get_service_by_id
+            from src.handlers.services import format_service_detail_text
+            from src.keyboards.services import get_service_detail_keyboard
+            service = get_service_by_id(s_id)
+            if service:
+                detail_text = format_service_detail_text(service)
+                markup = get_service_detail_keyboard(service)
+                photo_id = service.get("photo_id")
+                if photo_id:
+                    try:
+                        await message.answer_photo(photo=photo_id, caption=detail_text, parse_mode="HTML", reply_markup=markup)
+                        return
+                    except Exception:
+                        pass
+                await message.answer(detail_text, parse_mode="HTML", reply_markup=markup)
+                return
+        except Exception:
+            pass
+
     # Agar yangi do'st referal orqali kirgan bo'lsa, taklif qiluvchini tabriklaymiz
     if is_new_referral and referrer_id:
         try:

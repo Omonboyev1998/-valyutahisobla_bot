@@ -1568,14 +1568,20 @@
       haptic();
       try {
         if (tg && typeof tg.openTelegramLink === 'function') {
-          if (command && command.startsWith('/')) {
-            const startParam = command.replace('/', '');
-            tg.openTelegramLink('https://t.me/valyutahisobla_bot?start=' + encodeURIComponent(startParam));
+          if (command) {
+            const startParam = command.replace('/start ', '').replace('/start', '').replace('/', '').trim();
+            if (startParam) {
+              tg.openTelegramLink('https://t.me/valyutahisobla_bot?start=' + encodeURIComponent(startParam));
+            } else {
+              tg.openTelegramLink('https://t.me/valyutahisobla_bot');
+            }
           } else {
             tg.openTelegramLink('https://t.me/valyutahisobla_bot');
           }
         } else {
-          window.open('https://t.me/valyutahisobla_bot', '_blank');
+          const startParam = command ? command.replace('/start ', '').replace('/start', '').replace('/', '').trim() : '';
+          const targetUrl = startParam ? ('https://t.me/valyutahisobla_bot?start=' + encodeURIComponent(startParam)) : 'https://t.me/valyutahisobla_bot';
+          window.open(targetUrl, '_blank');
         }
       } catch (e) {
         window.open('https://t.me/valyutahisobla_bot', '_blank');
@@ -1906,7 +1912,7 @@
         '<div style="display: flex; flex-direction: column; gap: 8px; margin-top: 6px;">' +
           '<a href="tel:' + phone + '" class="btn-action-call" style="padding: 12px; font-size: 14px;">📞 Qo&#39;ng&#39;iroq qilish: ' + phone + '</a>' +
           (username ? '<a href="https://t.me/' + username + '" target="_blank" class="btn-action-tg" style="padding: 12px; font-size: 14px;">💬 Telegram orqali yozish (@' + username + ')</a>' : '') +
-          '<button class="btn-action-view" style="padding: 12px; font-weight: 700; color: var(--ios-blue);" onclick="openTelegramBot()">📩 Bot ichida buyurtma & baholash</button>' +
+          '<button class="btn-action-view" style="padding: 12px; font-weight: 700; color: var(--ios-blue);" onclick="openTelegramBot(\'srv_' + item.id + '\')">📩 Bot ichida buyurtma & baholash</button>' +
         '</div>' +
       '</div>';
 
