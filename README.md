@@ -46,7 +46,13 @@ Bot shunchaki matnli xabarlar bilan cheklanmaydi — unda to'laqonli zamonaviy *
 - Turnir jadvallari (O'rin, Klub, O'yinlar soni, To'plar nisbati, Ochko).
 - Yaqin o'yinlar taqvimi va so'nggi o'yin natijalari.
 
-### 5. 🔔 Moslashuvchan Shaxsiy Eslatmalar (Smart Digest)
+### 5. 🛠 Maishiy Xizmatlar va Ustalar Bozori
+- **Xizmat ko'rsatuvchilar uchun:** Santexnik, elektr montaj, uy ta'miri, qo'y yungini olish & chorva, maishiy texnika, tozalash va boshqa soha ustalari o'z e'lonlarini qulay shaklda joylashtirishi mumkin.
+- **Mijozlar uchun:** Kerakli soha yoki viloyat bo'yicha saralab, ustalarning telefon raqami yoki Telegram profiliga bir bosishda bog'lanish.
+- **Qidiruv:** Kalit so'zlar orqali tezkor qidiruv (masalan: *santexnik*, *yung*, *elektr*).
+- **Mening e'lonlarim:** Usta o'z e'lonlarini to'xtatishi, faollashtirishi yoki o'chirishi mumkin.
+
+### 6. 🔔 Moslashuvchan Shaxsiy Eslatmalar (Smart Digest)
 - Har bir foydalanuvchi qaysi sohalar bo'yicha eslatma olishni o'zi tanlaydi:
   - 💵 Valyuta kurslari (yoqish/o'chirish)
   - 🕌 Namoz vaqtlari (yoqish/o'chirish)
@@ -55,7 +61,7 @@ Bot shunchaki matnli xabarlar bilan cheklanmaydi — unda to'laqonli zamonaviy *
 - **Xabar kelish vaqtini belgilash:** Foydalanuvchi eslatma soatini (06:00 dan 22:00 gacha) o'ziga qulay vaqtga sozlashi mumkin.
 - Barcha tanlangan ma'lumotlar belgilangan vaqtda yagona chiroyli xabar (digest) shaklida yetkaziladi.
 
-### 6. 🎁 Do'stlarni taklif qilish (Viral Referal)
+### 7. 🎁 Do'stlarni taklif qilish (Viral Referal)
 - Har bir foydalanuvchi uchun unikal taklif havolasi (`t.me/valyutahisobla_bot?start=ref_USERID`).
 - **Bir bosishda ulashish:** `t.me/share/url` orqali foydalanuvchi o'z kontaktlari va guruhlariga bitta tugma bilan xabarni ulashishi mumkin.
 - Yangi do'st qo'shilganda taklif etuvchiga avtomatik tabrik xabarnomasi yuboriladi.
@@ -94,6 +100,7 @@ Bot shunchaki matnli xabarlar bilan cheklanmaydi — unda to'laqonli zamonaviy *
 | `/namoz` | 5 mahal namoz vaqtlari va saharlik/iftorlik duolari |
 | `/obhavo` | Viloyatlar yoki GPS bo'yicha ob-havo ma'lumoti |
 | `/futbol` | Top futbol ligalari jadvallari va natijalari |
+| `/xizmatlar` | Maishiy xizmatlar va ustalar bozori |
 | `/ref` | Shaxsiy taklif havolasi va do'stlarga ulashish |
 | `/help` | Botdan foydalanish bo'yicha to'liq qo'llanma |
 | `/admin` | Bot boshqaruv paneli (faqat admin uchun) |

@@ -38,6 +38,22 @@ def init_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS services (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                master_name TEXT NOT NULL,
+                phone TEXT NOT NULL,
+                username TEXT,
+                category TEXT NOT NULL,
+                title TEXT NOT NULL,
+                description TEXT,
+                region TEXT DEFAULT 'Barcha hududlar',
+                is_active INTEGER DEFAULT 1,
+                views_count INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
         # Yangi ustunlarni tekshirib qo'shish (migratsiya)
         new_columns = [
             ("referrer_id", "INTEGER"),
@@ -291,3 +307,123 @@ def export_users_csv() -> str:
         writer.writerow(row)
 
     return output.getvalue()
+
+# ==================== MAISHIY XIZMATLAR (USTALAR BOZORI) ====================
+
+def add_service(
+    user_id: int,
+    master_name: str,
+    phone: str,
+    username: Optional[str],
+    category: str,
+    title: str,
+    description: str,
+    region: str = "Barcha hududlar"
+) -> int:
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO services (user_id, master_name, phone, username, category, title, description, region)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (user_id, master_name, phone, username, category, title, description, region))
+        conn.commit()
+        return cursor.lastrowid
+
+def get_services(
+    category: Optional[str] = None,
+    region: Optional[str] = None,
+    search_query: Optional[str] = None,
+    limit: int = 5,
+    offset: int = 0
+) -> List[Dict[str, Any]]:
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        query = "SELECT * FROM services WHERE is_active = 1"
+        params: List[Any] = []
+
+        if category and category != "Barchasi":
+            query += " AND category = ?"
+            params.append(category)
+
+        if region and region != "Barcha hududlar":
+            query += " AND (region = ? OR region = 'Barcha hududlar')"
+            params.append(region)
+
+        if search_query:
+            query += " AND (title LIKE ? OR description LIKE ? OR master_name LIKE ?)"
+            like_term = f"%{search_query}%"
+            params.extend([like_term, like_term, like_term])
+
+        query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+
+        cursor.execute(query, tuple(params))
+        rows = cursor.fetchall()
+        return [dict(row) for row in rows]
+
+def count_services(
+    category: Optional[str] = None,
+    region: Optional[str] = None,
+    search_query: Optional[str] = None
+) -> int:
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        query = "SELECT COUNT(*) FROM services WHERE is_active = 1"
+        params: List[Any] = []
+
+        if category and category != "Barchasi":
+            query += " AND category = ?"
+            params.append(category)
+
+        if region and region != "Barcha hududlar":
+            query += " AND (region = ? OR region = 'Barcha hududlar')"
+            params.append(region)
+
+        if search_query:
+            query += " AND (title LIKE ? OR description LIKE ? OR master_name LIKE ?)"
+            like_term = f"%{search_query}%"
+            params.extend([like_term, like_term, like_term])
+
+        cursor.execute(query, tuple(params))
+        return cursor.fetchone()[0]
+
+def get_service_by_id(service_id: int) -> Optional[Dict[str, Any]]:
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM services WHERE id = ?", (service_id,))
+        row = cursor.fetchone()
+        if row:
+            cursor.execute("UPDATE services SET views_count = views_count + 1 WHERE id = ?", (service_id,))
+            conn.commit()
+            return dict(row)
+        return None
+
+def get_user_services(user_id: int) -> List[Dict[str, Any]]:
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM services WHERE user_id = ? ORDER BY created_at DESC", (user_id,))
+        rows = cursor.fetchall()
+        return [dict(row) for row in rows]
+
+def delete_service(service_id: int, user_id: int) -> bool:
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM services WHERE id = ? AND user_id = ?", (service_id, user_id))
+        conn.commit()
+        return cursor.rowcount > 0
+
+def toggle_service_status(service_id: int, user_id: int) -> Optional[int]:
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT is_active FROM services WHERE id = ? AND user_id = ?", (service_id, user_id))
+        row = cursor.fetchone()
+        if not row:
+            return None
+        new_status = 0 if row[0] == 1 else 1
+        cursor.execute("UPDATE services SET is_active = ? WHERE id = ? AND user_id = ?", (new_status, service_id, user_id))
+        conn.commit()
+        return new_status

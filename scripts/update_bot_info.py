@@ -22,11 +22,12 @@ async def update_bot_info():
     # 2. Description (shown on 'What can this bot do?' screen before starting, max 512 chars)
     desc = (
         "Universal Yordamchi Botga xush kelibsiz!\n\n"
-        "Ushbu bot sizga har kuni kerak bo'ladigan eng muhim ma'lumotlarni taqdim etadi:\n\n"
-        "• Markaziy Bank rasmiy valyuta kurslari va tezkor hisoblagich\n"
-        "• 5 mahal namoz vaqtlari, duolar va 15 daqiqa oldin eslatmalar\n"
-        "• O'zbekiston viloyatlari bo'yicha aniq ob-havo ma'lumoti\n"
-        "• Top futbol ligalari jadvallari va o'yin natijalari\n"
+        "Ushbu bot sizga har kuni kerak bo'ladigan eng muhim xizmatlarni taqdim etadi:\n\n"
+        "• Markaziy Bank rasmiy valyuta kurslari va hisoblagich\n"
+        "• 5 mahal namoz vaqtlari, duolar va 15 min eslatma\n"
+        "• Viloyatlar bo'yicha aniq ob-havo ma'lumoti\n"
+        "• Top futbol ligalari jadvallari va natijalari\n"
+        "• Maishiy xizmatlar va ustalar bozori (santexnik, elektr, ta'mir)\n"
         "• Shaxsiy eslatmalar va do'stlarni taklif qilish\n\n"
         "Boshlash uchun pastdagi Start tugmasini bosing!"
     )
@@ -38,6 +39,7 @@ async def update_bot_info():
     commands = [
         BotCommand(command="start", description="Botni ishga tushirish"),
         BotCommand(command="app", description="Mini Ilova (Grafiklar & Soat)"),
+        BotCommand(command="xizmatlar", description="Maishiy xizmatlar va ustalar"),
         BotCommand(command="kurslar", description="Valyuta kurslari va hisoblagich"),
         BotCommand(command="namoz", description="Namoz vaqtlari va taqvim"),
         BotCommand(command="obhavo", description="Ob-havo ma'lumotlari"),

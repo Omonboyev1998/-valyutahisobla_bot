@@ -8,11 +8,14 @@ def get_main_keyboard() -> ReplyKeyboardMarkup:
         ],
         [
             KeyboardButton(text="💵 Valyuta kurslari"),
-            KeyboardButton(text="🌤 Ob-havo")
+            KeyboardButton(text="🕌 Namoz vaqtlari")
         ],
         [
-            KeyboardButton(text="🕌 Namoz vaqtlari"),
+            KeyboardButton(text="🌤 Ob-havo"),
             KeyboardButton(text="⚽️ Futbol olami")
+        ],
+        [
+            KeyboardButton(text="🛠 Maishiy xizmatlar (Ustalar)")
         ],
         [
             KeyboardButton(text="🎁 Do'stlarni taklif qilish"),
