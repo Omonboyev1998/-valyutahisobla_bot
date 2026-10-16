@@ -2,7 +2,8 @@ from aiogram import Router, F, Bot
 from aiogram.filters import CommandStart, Command, CommandObject
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 from src.keyboards.reply import get_main_keyboard
-from src.database import add_user, get_referral_count
+from src.keyboards.regions import get_regions_keyboard
+from src.database import add_user, get_referral_count, is_new_user, get_user_weather_city, set_user_weather_city
 from src.config import WEB_APP_URL
 
 router = Router(name="start")
@@ -32,6 +33,7 @@ async def cmd_start(message: Message, command: CommandObject, bot: Bot):
         except ValueError:
             referrer_id = None
 
+    was_new = is_new_user(user.id)
     is_new_referral = add_user(user.id, user.full_name or "Foydalanuvchi", user.username, referrer_id)
 
     # Agar xizmatni ko'rish havolasi bilan kelgan bo'lsa (masalan: /start srv_5)
@@ -75,11 +77,76 @@ async def cmd_start(message: Message, command: CommandObject, bot: Bot):
             pass
 
     name = user.full_name or "Foydalanuvchi"
+
+    # Yangi foydalanuvchi birinchi marta kirganda o'z hududini tanlaydi
+    if was_new:
+        start_region_kb = get_regions_keyboard(callback_prefix="set_reg:")
+        await message.answer(
+            f"Assalomu alaykum, <b>{name}</b>!\n\n"
+            f"🌟 <b>Universal Yordamchi Botga xush kelibsiz!</b>\n\n"
+            f"📍 <b>Iltimos, o'zingiz yashaydigan viloyatni tanlang:</b>\n"
+            f"<i>Bu hudud Namoz vaqtlari va Ob-havo ma'lumotlari uchun doimiy saqlanadi va botdan har foydalanganingizda o'zgarmasdan turadi.</i>",
+            parse_mode="HTML",
+            reply_markup=start_region_kb
+        )
+        return
+
+    saved_city = get_user_weather_city(user.id)
     text = (
         f"Assalomu alaykum, <b>{name}</b>!\n\n"
+        f"📍 <b>Sizning doimiy hududingiz:</b> <b>{saved_city}</b>\n"
+        f"<i>(Namoz vaqtlari va Ob-havo ushbu hudud bo'yicha ko'rsatiladi)</i>\n\n"
         f"{HELP_TEXT}"
     )
+    change_kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=f"📍 Hududni o'zgartirish ({saved_city})", callback_data="start_change_city")]
+    ])
     await message.answer(text, parse_mode="HTML", reply_markup=get_main_keyboard())
+    await message.answer(
+        f"📍 Joriy hududingiz: <b>{saved_city}</b>.\nBoshqa viloyatni tanlash uchun pastdagi tugmani bosing:",
+        parse_mode="HTML",
+        reply_markup=change_kb
+    )
+
+@router.message(Command("hudud"))
+@router.message(Command("shahar"))
+@router.callback_query(F.data == "start_change_city")
+async def cmd_change_region(event: Message | CallbackQuery):
+    text = (
+        "📍 <b>O'z viloyatingizni tanlang:</b>\n\n"
+        "Tanlangan viloyat <b>Namoz vaqtlari</b> va <b>Ob-havo</b> bo'limlari uchun doimiy saqlanadi va qayta o'zgarmaydi."
+    )
+    kb = get_regions_keyboard(callback_prefix="set_reg:")
+    if isinstance(event, CallbackQuery):
+        try:
+            await event.message.edit_text(text, parse_mode="HTML", reply_markup=kb)
+        except Exception:
+            await event.message.answer(text, parse_mode="HTML", reply_markup=kb)
+        await event.answer()
+    else:
+        await event.answer(text, parse_mode="HTML", reply_markup=kb)
+
+@router.callback_query(F.data.startswith("set_reg:"))
+async def process_global_region_callback(callback: CallbackQuery):
+    city = callback.data.split(":")[1]
+    user_id = callback.from_user.id
+    set_user_weather_city(user_id, city)
+
+    text = (
+        f"✅ <b>Sizning doimiy hududingiz: {city}!</b>\n\n"
+        f"🕌 <b>Namoz vaqtlari</b> va 🌤 <b>Ob-havo</b> bo'limlarida har doim <b>{city}</b> ma'lumotlari taqdim etiladi.\n"
+        f"Ushbu hudud bazada doimiy saqlandi va qayta o'zgarmaydi."
+    )
+    try:
+        await callback.message.edit_text(text, parse_mode="HTML")
+    except Exception:
+        pass
+    await callback.message.answer(
+        f"Botdan to'liq foydalanishingiz mumkin:\n\n{HELP_TEXT}",
+        parse_mode="HTML",
+        reply_markup=get_main_keyboard()
+    )
+    await callback.answer(f"{city} doimiy hududingiz qilib belgilandi! ✅", show_alert=True)
 
 @router.message(Command("help"))
 @router.message(F.text == "❓ Yordam")

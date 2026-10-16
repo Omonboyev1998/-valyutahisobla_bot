@@ -24,6 +24,7 @@ def format_prayer_message(data: dict) -> str:
 
     text = (
         f"🕌 <b>Namoz vaqtlari — {city}</b>\n"
+        f"📍 <i>Doimiy belgilangan hududingiz</i>\n\n"
         f"📅 Sana: <b>{greg_date}</b> | Hijriy: <b>{hijri_date}</b>\n\n"
         f"⏳ <b>Keyingi namoz:</b> <b>{next_p.get('name')}</b> ({next_p.get('time')})\n"
         f"   └ <i>{next_p.get('remaining')} qoldi</i>\n\n"
@@ -104,8 +105,8 @@ async def toggle_prayer_alert_callback(callback: CallbackQuery):
 @router.callback_query(F.data == "prayer:change_city")
 async def change_city_callback(callback: CallbackQuery):
     text = (
-        "📍 <b>Namoz vaqtlari uchun hududni tanlang:</b>\n\n"
-        "O'zingiz yashaydigan viloyatni tanlang (u doimiy hududingiz sifatida saqlanadi):"
+        "📍 <b>Hududingizni tanlang:</b>\n\n"
+        "O'zingiz yashaydigan viloyatni tanlang (u <b>Namoz vaqtlari</b> va <b>Ob-havo</b> uchun doimiy saqlanadi):"
     )
     try:
         await callback.message.edit_text(text, parse_mode="HTML", reply_markup=get_prayer_city_keyboard())
@@ -132,4 +133,4 @@ async def set_prayer_city_callback(callback: CallbackQuery):
         await callback.message.edit_text(msg, parse_mode="HTML", reply_markup=get_prayer_keyboard(sub_alert))
     except TelegramBadRequest:
         pass
-    await callback.answer(f"{city} doimiy hudud qilib belgilandi! ✅", show_alert=True)
+    await callback.answer(f"✅ {city} doimiy hudud qilib belgilandi! Namoz va Ob-havo shu hududga sozlandi.", show_alert=True)

@@ -133,8 +133,8 @@ async def set_time_callback(callback: CallbackQuery):
 @router.callback_query(F.data == "notif_choose_city")
 async def choose_city_callback(callback: CallbackQuery):
     text = (
-        "🏙 <b>Ob-havo eslatmasi uchun shahar tanlang:</b>\n\n"
-        "Qaysi shahar ob-havosi kelishini xohlaysiz?"
+        "📍 <b>Hududingizni tanlang:</b>\n\n"
+        "Tanlangan viloyat <b>Namoz vaqtlari</b> va <b>Ob-havo</b> uchun doimiy saqlanadi:"
     )
     try:
         await callback.message.edit_text(text, parse_mode="HTML", reply_markup=get_city_selection_keyboard())
@@ -148,7 +148,7 @@ async def set_city_callback(callback: CallbackQuery):
     user_id = callback.from_user.id
     set_user_weather_city(user_id, city)
 
-    await callback.answer(f"Shahar {city} ga o'zgartirildi! ✅", show_alert=True)
+    await callback.answer(f"✅ {city} doimiy hudud qilib belgilandi! Namoz va Ob-havo shu hududga sozlandi.", show_alert=True)
     settings = get_user_settings(user_id)
     text = build_settings_text(settings)
     try:

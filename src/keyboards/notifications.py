@@ -59,35 +59,8 @@ def get_time_selection_keyboard() -> InlineKeyboardMarkup:
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
+from src.keyboards.regions import get_regions_keyboard
+
 def get_city_selection_keyboard() -> InlineKeyboardMarkup:
-    """Ob-havo eslatmasi uchun shahar tanlash"""
-    buttons = [
-        [
-            InlineKeyboardButton(text="Toshkent", callback_data="set_city:Toshkent"),
-            InlineKeyboardButton(text="Samarqand", callback_data="set_city:Samarqand")
-        ],
-        [
-            InlineKeyboardButton(text="Buxoro", callback_data="set_city:Buxoro"),
-            InlineKeyboardButton(text="Andijon", callback_data="set_city:Andijon")
-        ],
-        [
-            InlineKeyboardButton(text="Farg'ona", callback_data="set_city:Farg'ona"),
-            InlineKeyboardButton(text="Namangan", callback_data="set_city:Namangan")
-        ],
-        [
-            InlineKeyboardButton(text="Qarshi", callback_data="set_city:Qarshi"),
-            InlineKeyboardButton(text="Termiz", callback_data="set_city:Termiz")
-        ],
-        [
-            InlineKeyboardButton(text="Urganch", callback_data="set_city:Urganch"),
-            InlineKeyboardButton(text="Nukus", callback_data="set_city:Nukus")
-        ],
-        [
-            InlineKeyboardButton(text="Navoiy", callback_data="set_city:Navoiy"),
-            InlineKeyboardButton(text="Jizzax", callback_data="set_city:Jizzax")
-        ],
-        [
-            InlineKeyboardButton(text="◀️ Ortga", callback_data="notif_back")
-        ]
-    ]
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
+    """Ob-havo va Namoz eslatmasi uchun shahar tanlash (barcha 14 ta hudud)"""
+    return get_regions_keyboard(callback_prefix="set_city:", back_callback="notif_back")

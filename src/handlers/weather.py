@@ -60,7 +60,8 @@ async def show_weather_menu(message: Message):
             weather_part = f"{format_weather_message(data)}\n"
 
     text = (
-        f"📌 <b>Sizning doimiy hududingiz: {saved_city}</b>\n\n"
+        f"📌 <b>Sizning doimiy hududingiz: {saved_city}</b>\n"
+        f"<i>(Namoz vaqtlari ham ushbu hudud bo'yicha ko'rsatiladi)</i>\n\n"
         f"{weather_part}"
         "<i>Hududni o'zgartirish uchun pastdagi tugmalardan boshqa viloyatni tanlang yoki joylashuvingizni yuboring:</i>"
     )
@@ -91,7 +92,8 @@ async def process_location_weather(message: Message):
         return
 
     msg = (
-        f"✅ <b>{nearest_region} sizning doimiy hududingiz sifatida saqlandi!</b>\n\n"
+        f"✅ <b>{nearest_region}</b> sizning doimiy hududingiz sifatida saqlandi!\n"
+        f"🕌 <i>Namoz vaqtlari ham ushbu hududga moslashtirildi.</i>\n\n"
         f"{format_weather_message(data)}"
     )
     await status_msg.edit_text(msg, parse_mode="HTML")
@@ -118,7 +120,8 @@ async def process_city_weather_callback(callback: CallbackQuery):
         return
 
     msg = (
-        f"✅ <b>{real_name} sizning doimiy hududingiz sifatida saqlandi!</b>\n\n"
+        f"✅ <b>{real_name}</b> sizning doimiy hududingiz sifatida saqlandi!\n"
+        f"🕌 <i>Namoz vaqtlari ham avtomatik ushbu hududga moslashtirildi.</i>\n\n"
         f"{format_weather_message(data)}\n"
         "<i>Hududni o'zgartirish uchun boshqa viloyatni tanlashingiz mumkin:</i>"
     )
@@ -129,3 +132,4 @@ async def process_city_weather_callback(callback: CallbackQuery):
     except Exception as e:
         logger.error(f"Xabarni tahrirlashda xatolik: {e}")
         await callback.message.answer(msg, parse_mode="HTML", reply_markup=get_cities_keyboard())
+    await callback.answer(f"✅ {real_name} doimiy hududingiz qilib belgilandi!", show_alert=False)

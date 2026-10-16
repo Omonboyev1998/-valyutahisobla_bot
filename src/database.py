@@ -171,6 +171,13 @@ def init_db():
         conn.commit()
     logger.info("Ma'lumotlar bazasi (SQLite) muvaffaqiyatli ishga tushirildi.")
 
+def is_new_user(user_id: int) -> bool:
+    """Foydalanuvchi bazada mavjud yoki yo'qligini tekshiradi"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1 FROM users WHERE user_id = ?", (user_id,))
+        return cursor.fetchone() is None
+
 def add_user(user_id: int, full_name: str, username: Optional[str] = None, referrer_id: Optional[int] = None) -> bool:
     is_new_referral = False
     with get_db() as conn:
@@ -252,7 +259,7 @@ def get_users_for_prayer_alert() -> List[Tuple[int, str]]:
     """Namoz eslatmasini yoqqan barcha foydalanuvchilar (user_id, city)"""
     with get_db() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT user_id, weather_city FROM users WHERE is_subscribed = 1 AND sub_prayer = 1")
+        cursor.execute("SELECT user_id, COALESCE(NULLIF(weather_city, ''), 'Toshkent') FROM users WHERE is_subscribed = 1 AND sub_prayer = 1")
         return cursor.fetchall()
 
 def set_user_notify_time(user_id: int, time_str: str):
@@ -266,7 +273,14 @@ def set_user_weather_city(user_id: int, city: str):
     """Ob-havo eslatmasi va doimiy hudud uchun shahar nomini o'rnatish"""
     with get_db() as conn:
         cursor = conn.cursor()
-        cursor.execute("UPDATE users SET weather_city = ? WHERE user_id = ?", (city, user_id))
+        cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,))
+        if cursor.fetchone():
+            cursor.execute("UPDATE users SET weather_city = ? WHERE user_id = ?", (city, user_id))
+        else:
+            cursor.execute("""
+                INSERT INTO users (user_id, full_name, is_subscribed, sub_currency, sub_weather, sub_football, sub_prayer, notify_time, weather_city)
+                VALUES (?, 'Foydalanuvchi', 1, 1, 1, 1, 1, '09:00', ?)
+            """, (user_id, city))
         conn.commit()
 
 def get_user_weather_city(user_id: int) -> str:
