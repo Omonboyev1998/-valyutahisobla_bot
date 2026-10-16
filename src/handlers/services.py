@@ -358,10 +358,11 @@ async def show_my_services_callback(callback: CallbackQuery):
     # Har bir xizmat uchun alohida boshqaruv tugmasi yuboramiz
     await callback.message.delete()
     for s in my_services:
+        active_label = "🟢 Faol" if s["is_active"] == 1 else "⏸ To'xtatilgan"
         s_text = (
             f"🛠 <b>{s['title']}</b>\n"
             f"📌 Toifa: {s['category']} | 📍 Hudud: {s['region']}\n"
-            f"Holati: {'🟢 Faol' if s['is_active'] == 1 else '⏸ To'xtatilgan'}"
+            f"Holati: {active_label}"
         )
         await callback.message.answer(
             s_text,
