@@ -1,6 +1,6 @@
 from aiogram import Router, F, Bot
 from aiogram.filters import CommandStart, Command, CommandObject
-from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 from src.keyboards.reply import get_main_keyboard
 from src.keyboards.regions import get_regions_keyboard
 from src.database import add_user, get_referral_count, is_new_user, get_user_weather_city, set_user_weather_city
