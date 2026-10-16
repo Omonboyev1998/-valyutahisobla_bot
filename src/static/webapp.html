@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Universal Yordamchi</title>
+  <title>Universal Yordamchi - Smartfon Menyusi</title>
   <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <!-- Chart.js -->
@@ -24,8 +24,8 @@
       --accent: #10b981;
       --accent-danger: #ef4444;
       --accent-gold: #f59e0b;
-      --card-radius: 16px;
-      --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      --card-radius: 18px;
+      --transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     * {
@@ -47,16 +47,17 @@
       padding-bottom: 84px;
     }
 
-    /* Header */
+    /* Top App Bar */
     header {
-      padding: 14px 18px 8px;
+      padding: 12px 18px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       position: sticky;
       top: 0;
-      background: var(--bg);
-      backdrop-filter: blur(12px);
+      background: rgba(11, 19, 41, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
       z-index: 50;
       border-bottom: 1px solid var(--card-border);
     }
@@ -80,7 +81,7 @@
     }
 
     .brand-title {
-      font-size: 17px;
+      font-size: 16px;
       font-weight: 700;
       letter-spacing: -0.3px;
     }
@@ -92,14 +93,17 @@
 
     .header-badge {
       font-size: 11px;
-      background: rgba(59, 130, 246, 0.15);
-      color: #60a5fa;
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
       padding: 4px 10px;
       border-radius: 20px;
       font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 5px;
     }
 
-    /* Container */
+    /* Main Container */
     main {
       padding: 14px 16px;
       display: flex;
@@ -110,18 +114,46 @@
 
     .section-view {
       display: none;
-      animation: fadeIn 0.3s ease;
+      animation: fadeIn 0.25s ease;
     }
 
     .section-view.active {
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 14px;
     }
 
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(6px); }
       to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Navigation Breadcrumb / Back Button */
+    .subpage-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2px;
+    }
+
+    .back-home-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--card-border);
+      color: #60a5fa;
+      padding: 7px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .back-home-btn:active {
+      transform: scale(0.96);
+      background: rgba(59, 130, 246, 0.2);
     }
 
     /* Common Card */
@@ -148,7 +180,329 @@
       gap: 8px;
     }
 
-    /* Pills / Tabs */
+    /* ==================== 1. SMARTFON ISH STOLI (HOME LAUNCHER) ==================== */
+    .phone-hero-card {
+      background: linear-gradient(135deg, rgba(30, 58, 138, 0.4), rgba(88, 28, 135, 0.35));
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 24px;
+      padding: 18px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+    }
+
+    .phone-clock-text {
+      font-size: 44px;
+      font-weight: 700;
+      letter-spacing: -1px;
+      color: #ffffff;
+      font-variant-numeric: tabular-nums;
+      text-shadow: 0 2px 14px rgba(59, 130, 246, 0.5);
+    }
+
+    .phone-date-text {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.75);
+      margin-top: 2px;
+      font-weight: 500;
+    }
+
+    /* Quick Glance Mini Widgets */
+    .mini-widgets-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .mini-widget {
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      padding: 10px 8px;
+      text-align: center;
+      cursor: pointer;
+      transition: var(--transition);
+      backdrop-filter: blur(10px);
+    }
+
+    .mini-widget:active {
+      transform: scale(0.96);
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .mw-icon {
+      font-size: 16px;
+      margin-bottom: 2px;
+    }
+
+    .mw-title {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .mw-val {
+      font-size: 12px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Section Title in Launcher */
+    .launcher-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin: 8px 4px 2px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Phone Apps Grid (4 columns) */
+    .phone-apps-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px 8px;
+      padding: 6px 0 10px;
+    }
+
+    .app-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: var(--transition);
+      position: relative;
+    }
+
+    .app-item:active .app-icon-squircle {
+      transform: scale(0.88);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .app-icon-squircle {
+      width: 62px;
+      height: 62px;
+      border-radius: 17px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28);
+      transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.18s ease;
+      position: relative;
+    }
+
+    .app-badge-new {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      background: linear-gradient(135deg, #ef4444, #f59e0b);
+      color: #ffffff;
+      font-size: 8px;
+      font-weight: 700;
+      padding: 2px 5px;
+      border-radius: 10px;
+      border: 2px solid var(--bg);
+      box-shadow: 0 2px 6px rgba(239, 68, 68, 0.5);
+    }
+
+    .app-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text);
+      text-align: center;
+      letter-spacing: -0.2px;
+      max-width: 72px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* App Gradients */
+    .icon-services { background: linear-gradient(135deg, #f59e0b, #ef4444); }
+    .icon-rates { background: linear-gradient(135deg, #10b981, #059669); }
+    .icon-prayer { background: linear-gradient(135deg, #06b6d4, #2563eb); }
+    .icon-football { background: linear-gradient(135deg, #22c55e, #15803d); }
+    .icon-weather { background: linear-gradient(135deg, #38bdf8, #1d4ed8); }
+    .icon-ref { background: linear-gradient(135deg, #ec4899, #8b5cf6); }
+    .icon-bot { background: linear-gradient(135deg, #0284c7, #0369a1); }
+    .icon-help { background: linear-gradient(135deg, #64748b, #475569); }
+
+    /* ==================== 2. USTAR BOZORI (SERVICES) STYLES ==================== */
+    .search-box-wrap {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .search-input {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-size: 14px;
+      color: var(--text);
+      outline: none;
+      font-family: inherit;
+      transition: var(--transition);
+    }
+
+    .search-input:focus {
+      border-color: #3b82f6;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .service-card-item {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--card-radius);
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: var(--transition);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    }
+
+    .service-card-item:hover {
+      border-color: rgba(59, 130, 246, 0.4);
+    }
+
+    .service-top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .service-badge-pill {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 8px;
+      background: rgba(59, 130, 246, 0.15);
+      color: #60a5fa;
+      display: inline-block;
+    }
+
+    .service-region-pill {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .service-item-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #ffffff;
+      line-height: 1.3;
+    }
+
+    .service-master-name {
+      font-size: 13px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .service-rating-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 6px;
+    }
+
+    .service-price-text {
+      font-size: 14px;
+      font-weight: 700;
+      color: #34d399;
+    }
+
+    .service-desc-text {
+      font-size: 13px;
+      color: #cbd5e1;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .service-actions-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .btn-action-call {
+      flex: 1;
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: #ffffff;
+      border: none;
+      border-radius: 10px;
+      padding: 9px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .btn-action-tg {
+      background: rgba(2, 132, 199, 0.2);
+      border: 1px solid rgba(2, 132, 199, 0.4);
+      color: #38bdf8;
+      border-radius: 10px;
+      padding: 9px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .btn-action-view {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 9px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* ==================== 3. OTHER SECTIONS (RATES, PRAYER, FOOTBALL, WEATHER) ==================== */
     .pills {
       display: flex;
       gap: 6px;
@@ -156,7 +510,9 @@
       padding: 4px;
       border-radius: 12px;
       overflow-x: auto;
+      scrollbar-width: none;
     }
+    .pills::-webkit-scrollbar { display: none; }
 
     .pill-btn {
       padding: 6px 14px;
@@ -177,7 +533,6 @@
       box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
     }
 
-    /* Chart Card */
     .chart-container {
       position: relative;
       height: 220px;
@@ -213,7 +568,6 @@
     .trend-up { color: var(--accent); }
     .trend-down { color: var(--accent-danger); }
 
-    /* Currency Converter in App */
     .calc-row {
       display: flex;
       gap: 10px;
@@ -262,13 +616,7 @@
       color: #60a5fa;
     }
 
-    /* Clock & Prayer Card */
-    .clock-hero {
-      text-align: center;
-      padding: 16px 0 10px;
-      position: relative;
-    }
-
+    /* Prayer Clock & Times */
     .digital-clock {
       font-size: 42px;
       font-weight: 700;
@@ -276,12 +624,14 @@
       color: #ffffff;
       text-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
       font-variant-numeric: tabular-nums;
+      text-align: center;
     }
 
     .digital-date {
       font-size: 13px;
       color: var(--text-muted);
       margin-top: 4px;
+      text-align: center;
     }
 
     .next-prayer-banner {
@@ -295,18 +645,7 @@
       box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);
     }
 
-    .next-p-title {
-      font-size: 12px;
-      opacity: 0.85;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .next-p-name {
-      font-size: 20px;
-      font-weight: 700;
-    }
-
+    .next-p-name { font-size: 20px; font-weight: 700; }
     .next-p-timer {
       font-size: 15px;
       font-weight: 600;
@@ -314,10 +653,6 @@
       padding: 6px 12px;
       border-radius: 20px;
       backdrop-filter: blur(4px);
-    }
-
-    .city-select-box {
-      margin-bottom: 12px;
     }
 
     .prayer-grid {
@@ -334,21 +669,12 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      transition: var(--transition);
     }
 
     .prayer-item.active-prayer {
       background: rgba(59, 130, 246, 0.15);
       border-color: #3b82f6;
       box-shadow: 0 0 12px rgba(59, 130, 246, 0.25);
-    }
-
-    .prayer-name {
-      font-size: 14px;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 6px;
     }
 
     .prayer-time {
@@ -358,53 +684,31 @@
       font-variant-numeric: tabular-nums;
     }
 
-    .dua-btn {
-      background: rgba(245, 158, 11, 0.15);
-      color: #fbbf24;
-      border: 1px solid rgba(245, 158, 11, 0.3);
-      border-radius: 12px;
-      padding: 12px;
-      width: 100%;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      margin-top: 10px;
-      transition: var(--transition);
-    }
-
-    .dua-btn:active {
-      transform: scale(0.98);
-    }
-
     /* Football Table */
-    .table-container {
+    .football-table-wrap {
       overflow-x: auto;
-      margin: 8px -4px;
+      margin: 10px -16px -16px;
+      padding: 0 16px 16px;
     }
 
-    .fb-table {
+    .football-table {
       width: 100%;
       border-collapse: collapse;
       font-size: 13px;
     }
 
-    .fb-table th {
+    .football-table th {
       text-align: left;
       padding: 8px 6px;
       color: var(--text-muted);
-      font-weight: 500;
-      font-size: 11px;
+      font-weight: 600;
       border-bottom: 1px solid var(--card-border);
+      font-size: 11px;
     }
 
-    .fb-table td {
+    .football-table td {
       padding: 10px 6px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-      vertical-align: middle;
     }
 
     .team-cell {
@@ -414,89 +718,40 @@
       font-weight: 600;
     }
 
-    .team-logo {
+    .team-badge {
       width: 22px;
       height: 22px;
       object-fit: contain;
-      flex-shrink: 0;
-      border-radius: 50%;
     }
 
-    .rank-badge {
-      width: 20px;
-      height: 20px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 11px;
-      font-weight: 700;
-      border-radius: 6px;
-    }
-
-    .rank-ucl { background: rgba(59, 130, 246, 0.25); color: #60a5fa; }
-    .rank-uel { background: rgba(245, 158, 11, 0.25); color: #fbbf24; }
-    .rank-normal { color: var(--text-muted); }
-
-    /* Matches List */
-    .match-card {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid var(--card-border);
-      border-radius: 12px;
-      padding: 12px;
-      margin-bottom: 8px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .match-team {
-      flex: 1;
-      font-size: 13px;
-      font-weight: 600;
-    }
-
-    .match-team.away {
-      text-align: right;
-    }
-
-    .match-score {
-      padding: 4px 10px;
-      background: rgba(0, 0, 0, 0.3);
-      border-radius: 8px;
-      font-weight: 700;
-      font-size: 14px;
-      color: #60a5fa;
-      margin: 0 10px;
-    }
-
-    /* Weather Card */
+    /* Weather Hero */
     .weather-hero {
       display: flex;
-      align-items: center;
       justify-content: space-between;
-      padding: 10px 0;
+      align-items: center;
+      padding: 8px 0;
     }
 
     .w-temp-box {
       display: flex;
       align-items: flex-start;
-    }
-
-    .w-temp {
-      font-size: 48px;
-      font-weight: 700;
       line-height: 1;
     }
 
-    .w-unit {
-      font-size: 24px;
-      color: var(--text-muted);
-      margin-left: 2px;
+    .w-temp {
+      font-size: 52px;
+      font-weight: 700;
+      letter-spacing: -2px;
     }
 
-    .w-icon {
-      font-size: 54px;
+    .w-unit {
+      font-size: 22px;
+      font-weight: 600;
+      color: #60a5fa;
+      margin-top: 4px;
     }
+
+    .w-icon { font-size: 48px; }
 
     .w-details-grid {
       display: grid;
@@ -507,22 +762,10 @@
       border-top: 1px solid var(--card-border);
     }
 
-    .w-detail-item {
-      text-align: center;
-    }
+    .w-detail-item { text-align: center; }
+    .w-detail-label { font-size: 10px; color: var(--text-muted); margin-bottom: 2px; }
+    .w-detail-val { font-size: 13px; font-weight: 600; }
 
-    .w-detail-label {
-      font-size: 10px;
-      color: var(--text-muted);
-      margin-bottom: 2px;
-    }
-
-    .w-detail-val {
-      font-size: 13px;
-      font-weight: 600;
-    }
-
-    /* Forecast list */
     .forecast-item {
       display: flex;
       justify-content: space-between;
@@ -532,93 +775,14 @@
       font-size: 13px;
     }
 
-    /* Modal */
-    .modal-backdrop {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.7);
-      backdrop-filter: blur(8px);
-      z-index: 100;
-      align-items: flex-end;
-      justify-content: center;
-    }
-
-    .modal-backdrop.open {
-      display: flex;
-      animation: modalFade 0.25s ease;
-    }
-
-    .modal-sheet {
-      background: var(--card-bg);
-      border-top: 1px solid var(--card-border);
-      border-radius: 20px 20px 0 0;
-      padding: 20px;
-      width: 100%;
-      max-height: 85vh;
-      overflow-y: auto;
-      animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
-    @keyframes slideUp {
-      from { transform: translateY(100%); }
-      to { transform: translateY(0); }
-    }
-
-    @keyframes modalFade {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-
-    .modal-close-btn {
-      background: rgba(255, 255, 255, 0.1);
-      border: none;
-      color: var(--text);
-      padding: 6px 12px;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-    }
-
-    .dua-card {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid var(--card-border);
-      border-radius: 14px;
-      padding: 14px;
-      margin-bottom: 12px;
-    }
-
-    .dua-title {
-      font-size: 14px;
-      font-weight: 700;
-      color: #fbbf24;
-      margin-bottom: 8px;
-    }
-
-    .dua-arabic {
-      font-size: 16px;
-      direction: rtl;
-      text-align: right;
-      line-height: 1.8;
-      margin-bottom: 8px;
-      color: #fef08a;
-    }
-
-    .dua-meaning {
-      font-size: 12px;
-      color: var(--text-muted);
-      line-height: 1.5;
-    }
-
-    /* Bottom Nav Bar */
+    /* ==================== 4. SMARTFON DOCK PANELI (BOTTOM DOCK) ==================== */
     nav {
       position: fixed;
       bottom: 0;
       left: 0;
       right: 0;
       height: 68px;
-      background: rgba(11, 19, 41, 0.85);
+      background: rgba(11, 19, 41, 0.88);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
       border-top: 1px solid var(--card-border);
@@ -633,7 +797,7 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 4px;
+      gap: 3px;
       color: var(--text-muted);
       background: transparent;
       border: none;
@@ -662,7 +826,68 @@
       transform: translateY(-2px) scale(1.1);
     }
 
-    /* Spinner */
+    /* Modals */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.72);
+      backdrop-filter: blur(8px);
+      z-index: 100;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+      animation: modalFade 0.22s ease;
+    }
+
+    .modal-sheet {
+      background: var(--card-bg);
+      border-top: 1px solid var(--card-border);
+      border-radius: 24px 24px 0 0;
+      padding: 20px;
+      width: 100%;
+      max-height: 85vh;
+      overflow-y: auto;
+      animation: slideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+
+    @keyframes modalFade {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .modal-close-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: var(--text);
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .dua-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .dua-title { font-size: 14px; font-weight: 700; color: #fbbf24; margin-bottom: 8px; }
+    .dua-arabic { font-size: 16px; direction: rtl; text-align: right; color: #fef08a; line-height: 1.8; margin-bottom: 10px; font-family: serif; }
+    .dua-meaning { font-size: 12px; color: #cbd5e1; line-height: 1.5; }
+
+    /* Loader */
     .loader {
       display: inline-block;
       width: 20px;
@@ -672,21 +897,12 @@
       border-top-color: #3b82f6;
       animation: spin 0.8s linear infinite;
     }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    .center-spinner {
-      display: flex;
-      justify-content: center;
-      padding: 30px;
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
 
-  <!-- Header -->
+  <!-- Top Status Header -->
   <header>
     <div class="brand">
       <div class="brand-icon">⚡️</div>
@@ -695,13 +911,161 @@
         <div class="brand-subtitle">@valyutahisobla_bot</div>
       </div>
     </div>
-    <div class="header-badge" id="onlineBadge">Faol 🟢</div>
+    <div class="header-badge" id="onlineBadge">
+      <span style="display:inline-block; width:7px; height:7px; background:#10b981; border-radius:50%;"></span>
+      Online
+    </div>
   </header>
 
   <main>
-    <!-- 1. VALYUTA BO'LIMI -->
-    <section id="section-rates" class="section-view active">
-      <!-- Valyuta tanlash -->
+    <!-- ==================== 1. SMARTFON ASOSIY MENYUSI (HOME LAUNCHER) ==================== -->
+    <section id="section-home" class="section-view active">
+      <!-- Phone Hero Widget -->
+      <div class="phone-hero-card">
+        <div class="phone-clock-text" id="liveHeroClock">12:00</div>
+        <div class="phone-date-text" id="liveHeroDate">Bugun, 16-oktabr</div>
+
+        <!-- Quick Glance Mini Widgets -->
+        <div class="mini-widgets-grid">
+          <div class="mini-widget" onclick="switchSection('rates')">
+            <div class="mw-icon">💵</div>
+            <div class="mw-title">USD kursi</div>
+            <div class="mw-val" id="miniRateUsd">12 850</div>
+          </div>
+          <div class="mini-widget" onclick="switchSection('prayer')">
+            <div class="mw-icon">🕌</div>
+            <div class="mw-title">Keyingi namoz</div>
+            <div class="mw-val" id="miniPrayerNext">Yuklanmoqda</div>
+          </div>
+          <div class="mini-widget" onclick="switchSection('weather')">
+            <div class="mw-icon">🌤</div>
+            <div class="mw-title">Toshkent</div>
+            <div class="mw-val" id="miniWeatherTemp">+20°C</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Apps Grid (Mobil telefon menyusi) -->
+      <div class="launcher-title">
+        <span>📱 Ilovalar & Xizmatlar</span>
+        <span style="font-size: 11px; color: #60a5fa;">8 ta ilova</span>
+      </div>
+
+      <div class="phone-apps-grid">
+        <!-- 1. Ustalar Bozori -->
+        <div class="app-item" onclick="switchSection('services')">
+          <div class="app-icon-squircle icon-services">
+            🛠
+            <span class="app-badge-new">Yangi 🔥</span>
+          </div>
+          <span class="app-label">Ustalar</span>
+        </div>
+
+        <!-- 2. Valyuta Kurslari -->
+        <div class="app-item" onclick="switchSection('rates')">
+          <div class="app-icon-squircle icon-rates">💱</div>
+          <span class="app-label">Kurslar</span>
+        </div>
+
+        <!-- 3. Namoz Vaqtlari -->
+        <div class="app-item" onclick="switchSection('prayer')">
+          <div class="app-icon-squircle icon-prayer">🕌</div>
+          <span class="app-label">Namoz</span>
+        </div>
+
+        <!-- 4. Futbol Olami -->
+        <div class="app-item" onclick="switchSection('football')">
+          <div class="app-icon-squircle icon-football">⚽️</div>
+          <span class="app-label">Futbol</span>
+        </div>
+
+        <!-- 5. Ob-havo -->
+        <div class="app-item" onclick="switchSection('weather')">
+          <div class="app-icon-squircle icon-weather">🌤</div>
+          <span class="app-label">Ob-havo</span>
+        </div>
+
+        <!-- 6. Do'stlarni taklif qilish (Referal) -->
+        <div class="app-item" onclick="openReferralModal()">
+          <div class="app-icon-squircle icon-ref">🎁</div>
+          <span class="app-label">Bonus</span>
+        </div>
+
+        <!-- 7. Telegram Bot Chat -->
+        <div class="app-item" onclick="openTelegramBot()">
+          <div class="app-icon-squircle icon-bot">💬</div>
+          <span class="app-label">Bot Chat</span>
+        </div>
+
+        <!-- 8. Yordam & Buyruqlar -->
+        <div class="app-item" onclick="openHelpModal()">
+          <div class="app-icon-squircle icon-help">ℹ️</div>
+          <span class="app-label">Qo'llanma</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 2. USTAR BOZORI (SERVICES) ==================== -->
+    <section id="section-services" class="section-view">
+      <div class="subpage-nav">
+        <button class="back-home-btn" onclick="switchSection('home')">‹ Bosh menyu</button>
+        <span style="font-size: 13px; font-weight: 700; color: #f59e0b;">🛠 Ustalar Bozori</span>
+      </div>
+
+      <!-- Qidiruv & Viloyat tanlash -->
+      <div class="card" style="padding: 12px;">
+        <div class="search-box-wrap">
+          <input type="text" id="serviceSearchInput" class="search-input" placeholder="🔍 Usta, santexnik, xizmat izlash..." oninput="debounceServiceSearch()">
+        </div>
+        <div style="display: flex; gap: 8px; margin-top: 10px; align-items: center;">
+          <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;">📍 Hudud:</span>
+          <select id="serviceRegionSelect" class="calc-select" style="padding: 6px 10px; font-size: 13px; flex: 1;" onchange="loadServicesData()">
+            <option value="Barcha hududlar">Barcha hududlar</option>
+            <option value="Toshkent shahri">Toshkent shahri</option>
+            <option value="Toshkent viloyati">Toshkent viloyati</option>
+            <option value="Samarqand">Samarqand</option>
+            <option value="Andijon">Andijon</option>
+            <option value="Farg'ona">Farg'ona</option>
+            <option value="Namangan">Namangan</option>
+            <option value="Buxoro">Buxoro</option>
+            <option value="Qashqadaryo">Qashqadaryo</option>
+            <option value="Surxondaryo">Surxondaryo</option>
+            <option value="Xorazm">Xorazm</option>
+            <option value="Navoiy">Navoiy</option>
+            <option value="Jizzax">Jizzax</option>
+            <option value="Sirdaryo">Sirdaryo</option>
+            <option value="Qoraqalpog'iston">Qoraqalpog'iston</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Toifalar karuseli -->
+      <div class="pills" id="serviceCategoryPills">
+        <button class="pill-btn active" data-cat="Barchasi" onclick="setServiceCategory('Barchasi', this)">Barchasi</button>
+        <button class="pill-btn" data-cat="Usta / Ta'mirlash" onclick="setServiceCategory('Usta / Ta'mirlash', this)">🔨 Ta'mirlash</button>
+        <button class="pill-btn" data-cat="Santexnik" onclick="setServiceCategory('Santexnik', this)">🚿 Santexnik</button>
+        <button class="pill-btn" data-cat="Elektrik" onclick="setServiceCategory('Elektrik', this)">⚡️ Elektrik</button>
+        <button class="pill-btn" data-cat="Qo'y yungi olish" onclick="setServiceCategory('Qo'y yungi olish', this)">🐑 Qo'y yungi</button>
+        <button class="pill-btn" data-cat="Maishiy texnika" onclick="setServiceCategory('Maishiy texnika', this)">📺 Texnika</button>
+        <button class="pill-btn" data-cat="Sartarosh" onclick="setServiceCategory('Sartarosh', this)">✂️ Sartarosh</button>
+        <button class="pill-btn" data-cat="Mebel ta'mirlash" onclick="setServiceCategory('Mebel ta'mirlash', this)">🛋 Mebel</button>
+        <button class="pill-btn" data-cat="Tozalash" onclick="setServiceCategory('Tozalash', this)">🧹 Tozalash</button>
+        <button class="pill-btn" data-cat="Yuk tashish" onclick="setServiceCategory('Yuk tashish', this)">🚚 Yuk tashish</button>
+      </div>
+
+      <!-- Xizmatlar ro'yxati -->
+      <div id="servicesContainer" style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="text-align: center; padding: 30px;"><div class="loader"></div></div>
+      </div>
+    </section>
+
+    <!-- ==================== 3. VALYUTA BO'LIMI ==================== -->
+    <section id="section-rates" class="section-view">
+      <div class="subpage-nav">
+        <button class="back-home-btn" onclick="switchSection('home')">‹ Bosh menyu</button>
+        <span style="font-size: 13px; font-weight: 700; color: #10b981;">💱 Valyuta Kurslari</span>
+      </div>
+
       <div class="pills" id="currencyPills">
         <button class="pill-btn active" data-ccy="USD">🇺🇸 USD</button>
         <button class="pill-btn" data-ccy="EUR">🇪🇺 EUR</button>
@@ -711,7 +1075,6 @@
         <button class="pill-btn" data-ccy="GBP">🇬🇧 GBP</button>
       </div>
 
-      <!-- Dinamika Grafigi -->
       <div class="card">
         <div class="card-header">
           <div class="card-title">
@@ -750,131 +1113,135 @@
       <!-- Tezkor Kalkulyator -->
       <div class="card">
         <div class="card-title" style="margin-bottom: 12px;">
-          <span>🧮</span> Aqlli Konvertor
+          <span>🧮</span> Valyuta Kalkulyatori
         </div>
+
         <div class="calc-row">
-          <input type="number" id="calcAmount" class="calc-input" value="100" placeholder="Miqdor" oninput="calculateRate()">
-          <select id="calcFrom" class="calc-select" onchange="calculateRate()">
-            <option value="USD" selected>USD ($)</option>
-            <option value="EUR">EUR (€)</option>
-            <option value="RUB">RUB (₽)</option>
-            <option value="UZS">UZS (so'm)</option>
+          <input type="number" id="calcAmount" class="calc-input" value="100" placeholder="Miqdorni kiriting" oninput="calculateRate()">
+          <select id="calcFromCcy" class="calc-select" onchange="calculateRate()">
+            <option value="USD" selected>USD</option>
+            <option value="EUR">EUR</option>
+            <option value="RUB">RUB</option>
+            <option value="KZT">KZT</option>
+            <option value="CNY">CNY</option>
+            <option value="UZS">UZS</option>
           </select>
         </div>
+
+        <div style="text-align: center; margin: 4px 0; color: var(--text-muted); font-size: 18px;">⇅</div>
+
         <div class="calc-row">
-          <div style="font-size: 13px; color: var(--text-muted); width: 100%; text-align: center;">⬇️ O'girish:</div>
-        </div>
-        <div class="calc-row">
-          <select id="calcTo" class="calc-select" style="width: 100%;" onchange="calculateRate()">
-            <option value="UZS" selected>UZS — O'zbekiston so'mi</option>
-            <option value="USD">USD — AQSH Dollari</option>
-            <option value="EUR">EUR — Yevro</option>
-            <option value="RUB">RUB — Rossiya Rubli</option>
+          <select id="calcToCcy" class="calc-select" style="width: 100%;" onchange="calculateRate()">
+            <option value="UZS" selected>O'zbek so'mi (UZS)</option>
+            <option value="USD">AQSH Dollari (USD)</option>
+            <option value="EUR">Yevro (EUR)</option>
+            <option value="RUB">Rossiya Rubli (RUB)</option>
+            <option value="KZT">Qozog'iston Tengesi (KZT)</option>
           </select>
         </div>
+
         <div class="calc-result-box">
-          <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">Natija:</div>
+          <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 2px;">Natija:</div>
           <div class="calc-result-num" id="calcResultDisplay">—</div>
         </div>
       </div>
     </section>
 
-    <!-- 2. NAMOZ VAQTLARI BO'LIMI -->
+    <!-- ==================== 4. NAMOZ VAQTLARI ==================== -->
     <section id="section-prayer" class="section-view">
-      <!-- Hudud tanlash -->
+      <div class="subpage-nav">
+        <button class="back-home-btn" onclick="switchSection('home')">‹ Bosh menyu</button>
+        <span style="font-size: 13px; font-weight: 700; color: #06b6d4;">🕌 Namoz Vaqtlari</span>
+      </div>
+
       <div class="card city-select-box" style="padding: 10px 14px;">
         <div style="display: flex; align-items: center; justify-content: space-between;">
-          <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">📍 Hudud:</span>
+          <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">📍 Hududni tanlang:</span>
           <select id="prayerCitySelect" class="calc-select" style="padding: 6px 12px;" onchange="loadPrayerData()">
-            <option value="Toshkent" selected>Toshkent shahri</option>
+            <option value="Toshkent" selected>Toshkent</option>
             <option value="Samarqand">Samarqand</option>
             <option value="Andijon">Andijon</option>
+            <option value="Buxoro">Buxoro</option>
             <option value="Namangan">Namangan</option>
             <option value="Farg'ona">Farg'ona</option>
-            <option value="Buxoro">Buxoro</option>
             <option value="Qarshi">Qarshi</option>
             <option value="Navoiy">Navoiy</option>
             <option value="Urganch">Urganch</option>
             <option value="Nukus">Nukus</option>
             <option value="Termiz">Termiz</option>
-            <option value="Jizzax">Jizzax</option>
             <option value="Guliston">Guliston</option>
+            <option value="Jizzax">Jizzax</option>
           </select>
         </div>
       </div>
 
-      <!-- Soat & Keyingi namoz -->
-      <div class="card clock-hero">
-        <div class="digital-clock" id="liveClock">--:--:--</div>
-        <div class="digital-date" id="liveDate">Yuklanmoqda...</div>
+      <div class="card">
+        <div class="digital-clock" id="prayerLiveClock">12:00:00</div>
+        <div class="digital-date" id="prayerLiveDate">Bugun</div>
 
         <div class="next-prayer-banner">
           <div>
-            <div class="next-p-title">Keyingi namoz</div>
-            <div class="next-p-name" id="nextPrayerName">—</div>
+            <div style="font-size: 11px; opacity: 0.85; text-transform: uppercase;">Keyingi Namoz:</div>
+            <div class="next-p-name" id="nextPrayerName">Yuklanmoqda...</div>
           </div>
-          <div class="next-p-timer" id="nextPrayerRemaining">--:-- qoldi</div>
+          <div class="next-p-timer" id="nextPrayerTimer">--:--</div>
         </div>
-      </div>
 
-      <!-- 5 Mahal Namoz Ro'yxati -->
-      <div class="card">
-        <div class="card-title" style="margin-bottom: 12px;">
-          <span>🕌</span> 5 Mahal Namoz Vaqtlari (Hanafiy)
-        </div>
-        <div class="prayer-grid">
-          <div class="prayer-item" id="p-fajr">
-            <span class="prayer-name">🌌 Tong</span>
-            <span class="prayer-time" id="val-fajr">--:--</span>
+        <div class="prayer-grid" id="prayerTimesGrid" style="margin-top: 12px;">
+          <div class="prayer-item" id="p-tong">
+            <span class="prayer-name">🌅 Tong</span>
+            <span class="prayer-time" id="val-tong">--:--</span>
           </div>
-          <div class="prayer-item" id="p-sunrise">
-            <span class="prayer-name">🌅 Quyosh</span>
-            <span class="prayer-time" id="val-sunrise">--:--</span>
+          <div class="prayer-item" id="p-quyosh">
+            <span class="prayer-name">☀️ Quyosh</span>
+            <span class="prayer-time" id="val-quyosh">--:--</span>
           </div>
-          <div class="prayer-item" id="p-dhuhr">
-            <span class="prayer-name">☀️ Peshin</span>
-            <span class="prayer-time" id="val-dhuhr">--:--</span>
+          <div class="prayer-item" id="p-peshin">
+            <span class="prayer-name">🌤 Peshin</span>
+            <span class="prayer-time" id="val-peshin">--:--</span>
           </div>
           <div class="prayer-item" id="p-asr">
             <span class="prayer-name">⛅️ Asr</span>
             <span class="prayer-time" id="val-asr">--:--</span>
           </div>
-          <div class="prayer-item" id="p-maghrib">
-            <span class="prayer-name">🌇 Shom</span>
-            <span class="prayer-time" id="val-maghrib">--:--</span>
+          <div class="prayer-item" id="p-shom">
+            <span class="prayer-name">🌇 Shom (Iftor)</span>
+            <span class="prayer-time" id="val-shom">--:--</span>
           </div>
-          <div class="prayer-item" id="p-isha">
-            <span class="prayer-name">🌙 Xufton</span>
-            <span class="prayer-time" id="val-isha">--:--</span>
+          <div class="prayer-item" id="p-xufton">
+            <span class="prayer-name">🌌 Xufton</span>
+            <span class="prayer-time" id="val-xufton">--:--</span>
           </div>
         </div>
 
-        <button class="dua-btn" onclick="openDuasModal()">
-          <span>🤲</span> Saharlik va Iftorlik Duolari
+        <button class="back-home-btn" style="width: 100%; justify-content: center; margin-top: 14px; background: rgba(245, 158, 11, 0.15); color: #fbbf24; border-color: rgba(245, 158, 11, 0.3);" onclick="openDuasModal()">
+          🤲 Saharlik va Iftorlik Duolari
         </button>
       </div>
     </section>
 
-    <!-- 3. FUTBOL BO'LIMI -->
+    <!-- ==================== 5. FUTBOL OLAMI ==================== -->
     <section id="section-football" class="section-view">
-      <div class="pills" id="footballPills">
+      <div class="subpage-nav">
+        <button class="back-home-btn" onclick="switchSection('home')">‹ Bosh menyu</button>
+        <span style="font-size: 13px; font-weight: 700; color: #22c55e;">⚽️ Futbol Olami</span>
+      </div>
+
+      <div class="pills" id="footballLeaguePills">
         <button class="pill-btn active" data-league="eng.1">🏴󠁧󠁢󠁥󠁮󠁧󠁿 APL</button>
         <button class="pill-btn" data-league="esp.1">🇪🇸 La Liga</button>
         <button class="pill-btn" data-league="ita.1">🇮🇹 Serie A</button>
         <button class="pill-btn" data-league="ger.1">🇩🇪 Bundesliga</button>
-        <button class="pill-btn" data-league="uefa.champions">🏆 UCL</button>
+        <button class="pill-btn" data-league="fra.1">🇫🇷 Ligue 1</button>
+        <button class="pill-btn" data-league="uefa.champions">🏆 Chempionlar Ligasi</button>
       </div>
 
       <div class="card">
-        <div class="card-header">
-          <div class="card-title">
-            <span>⚽️</span> <span id="fbLeagueTitle">Turnir Jadvali</span>
-          </div>
-          <div style="font-size: 11px; color: var(--text-muted);">Top 10</div>
+        <div class="card-title">
+          <span>🏆</span> <span id="fbLeagueTitle">Premyer-liga Turnir Jadvali</span>
         </div>
-
-        <div class="table-container">
-          <table class="fb-table">
+        <div class="football-table-wrap">
+          <table class="football-table">
             <thead>
               <tr>
                 <th style="width: 28px;">#</th>
@@ -890,20 +1257,15 @@
           </table>
         </div>
       </div>
-
-      <!-- Yaqin / So'nggi O'yinlar -->
-      <div class="card">
-        <div class="card-title" style="margin-bottom: 12px;">
-          <span>⚡️</span> O'yinlar natijalari & taqvim
-        </div>
-        <div id="fbMatchesList">
-          <div style="text-align: center; padding: 15px;"><div class="loader"></div></div>
-        </div>
-      </div>
     </section>
 
-    <!-- 4. OB-HAVO BO'LIMI -->
+    <!-- ==================== 6. OB-HAVO ==================== -->
     <section id="section-weather" class="section-view">
+      <div class="subpage-nav">
+        <button class="back-home-btn" onclick="switchSection('home')">‹ Bosh menyu</button>
+        <span style="font-size: 13px; font-weight: 700; color: #38bdf8;">🌤 Ob-havo</span>
+      </div>
+
       <div class="card city-select-box" style="padding: 10px 14px;">
         <div style="display: flex; align-items: center; justify-content: space-between;">
           <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">📍 Shahar:</span>
@@ -963,6 +1325,7 @@
     </section>
   </main>
 
+  <!-- ==================== MODALLAR ==================== -->
   <!-- Duolar Modali -->
   <div class="modal-backdrop" id="duasModal">
     <div class="modal-sheet">
@@ -991,19 +1354,79 @@
     </div>
   </div>
 
-  <!-- Bottom Nav -->
-  <nav>
-    <button class="nav-item active" onclick="switchSection('rates', this)">
-      <span class="nav-icon">📈</span>
+  <!-- Usta Tafsilotlari Modali -->
+  <div class="modal-backdrop" id="serviceDetailModal">
+    <div class="modal-sheet">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+        <div style="font-size: 17px; font-weight: 700;">🛠 Usta Tafsilotlari</div>
+        <button class="modal-close-btn" onclick="closeServiceDetailModal()">Yopish</button>
+      </div>
+      <div id="serviceDetailBody">
+        <div style="text-align: center; padding: 20px;"><div class="loader"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Referal Modali -->
+  <div class="modal-backdrop" id="referralModal">
+    <div class="modal-sheet">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+        <div style="font-size: 17px; font-weight: 700;">🎁 Do'stlarni taklif qilish</div>
+        <button class="modal-close-btn" onclick="closeReferralModal()">Yopish</button>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 14px; text-align: center; padding: 10px 0;">
+        <div style="font-size: 42px;">🤝</div>
+        <div style="font-size: 15px; font-weight: 600;">Har bir taklif qilingan do'stingiz uchun bonus oling!</div>
+        <div style="font-size: 13px; color: var(--text-muted); line-height: 1.5;">
+          Botga yangi do'stlaringizni taklif qiling. Shaxsiy taklif havolangizni bot chatida <b>/ref</b> buyrug'i orqali olishingiz mumkin.
+        </div>
+        <button class="btn-action-call" style="width: 100%; padding: 12px;" onclick="openTelegramBot('/ref')">
+          📲 Shaxsiy havolani botdan olish
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Qo'llanma Modali -->
+  <div class="modal-backdrop" id="helpModal">
+    <div class="modal-sheet">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+        <div style="font-size: 17px; font-weight: 700;">ℹ️ Bot Imkoniyatlari</div>
+        <button class="modal-close-btn" onclick="closeHelpModal()">Yopish</button>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 10px; font-size: 13px; color: #cbd5e1; line-height: 1.5;">
+        <p>⚡️ <b>Universal Yordamchi Bot</b> barcha kundalik qulayliklarni bitta joyga jamlaydi:</p>
+        <p>• <b>🛠 Maishiy xizmatlar:</b> Usta, santexnik, elektrik va boshqa xizmatlarni topish yoki o'z e'loningizni qo'shish.</p>
+        <p>• <b>💱 Valyuta kurslari:</b> Markaziy bank kurslari, 7 va 30 kunlik grafiklar hamda hisoblagich.</p>
+        <p>• <b>🕌 Namoz vaqtlari:</b> 12 ta viloyat bo'yicha 5 mahal vaqt, iftorlik/saharlik duolari.</p>
+        <p>• <b>⚽️ Futbol:</b> Yevropaning top-5 ligalari jadvallari va natijalari.</p>
+        <p>• <b>🌤 Ob-havo:</b> Kunlik va 3 kunlik aniq prognoz.</p>
+        <div style="margin-top: 10px;">
+          <button class="btn-action-view" style="width: 100%; padding: 11px;" onclick="openTelegramBot('/help')">
+            💬 Botga o'tish (/help)
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== BOTTOM DOCK ==================== -->
+  <nav id="phoneDockNav">
+    <button class="nav-item active" onclick="switchSection('home', this)">
+      <span class="nav-icon">📱</span>
+      <span class="nav-label">Bosh ekran</span>
+    </button>
+    <button class="nav-item" onclick="switchSection('services', this)">
+      <span class="nav-icon">🛠</span>
+      <span class="nav-label">Ustalar</span>
+    </button>
+    <button class="nav-item" onclick="switchSection('rates', this)">
+      <span class="nav-icon">💱</span>
       <span class="nav-label">Kurslar</span>
     </button>
     <button class="nav-item" onclick="switchSection('prayer', this)">
       <span class="nav-icon">🕌</span>
       <span class="nav-label">Namoz</span>
-    </button>
-    <button class="nav-item" onclick="switchSection('football', this)">
-      <span class="nav-icon">⚽️</span>
-      <span class="nav-label">Futbol</span>
     </button>
     <button class="nav-item" onclick="switchSection('weather', this)">
       <span class="nav-icon">🌤</span>
@@ -1021,6 +1444,13 @@
         tg.setHeaderColor('#0b1329');
         tg.setBackgroundColor('#0b1329');
       } catch (e) {}
+
+      // BackButton handler
+      if (tg.BackButton) {
+        tg.BackButton.onClick(() => {
+          switchSection('home');
+        });
+      }
     }
 
     function haptic() {
@@ -1029,32 +1459,272 @@
       } catch (e) {}
     }
 
+    function openTelegramBot(command = '') {
+      haptic();
+      try {
+        if (tg) {
+          tg.close();
+        } else {
+          window.location.href = 'https://t.me/valyutahisobla_bot';
+        }
+      } catch (e) {
+        window.location.href = 'https://t.me/valyutahisobla_bot';
+      }
+    }
+
     // Navigation Switcher
-    function switchSection(secId, btn) {
+    function switchSection(secId, navBtn) {
       haptic();
       document.querySelectorAll('.section-view').forEach(s => s.classList.remove('active'));
-      document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
 
       const target = document.getElementById('section-' + secId);
-      if (target) target.classList.add('active');
-      if (btn) btn.classList.add('active');
+      if (target) {
+        target.classList.add('active');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
 
+      // Update Dock Nav active state
+      document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+      const activeNav = navBtn || document.querySelector(`.nav-item[onclick*="${secId}"]`);
+      if (activeNav) activeNav.classList.add('active');
+
+      // Native BackButton logic
+      if (tg && tg.BackButton) {
+        if (secId === 'home') {
+          tg.BackButton.hide();
+        } else {
+          tg.BackButton.show();
+        }
+      }
+
+      // Lazy Data Loading
+      if (secId === 'services' && !window.servicesLoaded) loadServicesData();
+      if (secId === 'rates' && !window.ratesLoaded) loadCurrencyHistory('USD', 7);
       if (secId === 'prayer' && !window.prayerLoaded) loadPrayerData();
       if (secId === 'football' && !window.footballLoaded) loadFootballData('eng.1');
       if (secId === 'weather' && !window.weatherLoaded) loadWeatherData();
     }
 
-    // Modal
-    function openDuasModal() {
-      haptic();
-      document.getElementById('duasModal').classList.add('open');
+    // Live Clock Engine for Hero Launcher
+    function updateHeroClock() {
+      const now = new Date();
+      const h = String(now.getHours()).padStart(2, '0');
+      const m = String(now.getMinutes()).padStart(2, '0');
+      const clockEl = document.getElementById('liveHeroClock');
+      if (clockEl) clockEl.innerText = `${h}:${m}`;
+
+      const days = ['Yakshanba', 'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba'];
+      const months = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
+      const dateEl = document.getElementById('liveHeroDate');
+      if (dateEl) {
+        dateEl.innerText = `${days[now.getDay()]}, ${now.getDate()}-${months[now.getMonth()]}`;
+      }
     }
-    function closeDuasModal() {
+    setInterval(updateHeroClock, 1000);
+    updateHeroClock();
+
+    // ==================== MODALS ====================
+    function openDuasModal() { haptic(); document.getElementById('duasModal').classList.add('open'); }
+    function closeDuasModal() { haptic(); document.getElementById('duasModal').classList.remove('open'); }
+
+    function openReferralModal() { haptic(); document.getElementById('referralModal').classList.add('open'); }
+    function closeReferralModal() { haptic(); document.getElementById('referralModal').classList.remove('open'); }
+
+    function openHelpModal() { haptic(); document.getElementById('helpModal').classList.add('open'); }
+    function closeHelpModal() { haptic(); document.getElementById('helpModal').classList.remove('open'); }
+
+    function closeServiceDetailModal() { haptic(); document.getElementById('serviceDetailModal').classList.remove('open'); }
+
+    // ==================== 1. USTAR BOZORI (SERVICES) ENGINE ====================
+    let currentServiceCategory = 'Barchasi';
+    let serviceSearchTimer = null;
+    let cachedServices = [];
+
+    function setServiceCategory(cat, btn) {
       haptic();
-      document.getElementById('duasModal').classList.remove('open');
+      currentServiceCategory = cat;
+      document.querySelectorAll('#serviceCategoryPills .pill-btn').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      loadServicesData();
     }
 
-    // 1. CHART.JS & CURRENCY ENGINE
+    function debounceServiceSearch() {
+      clearTimeout(serviceSearchTimer);
+      serviceSearchTimer = setTimeout(() => {
+        loadServicesData();
+      }, 350);
+    }
+
+    async function loadServicesData() {
+      const search = document.getElementById('serviceSearchInput').value.trim();
+      const region = document.getElementById('serviceRegionSelect').value;
+      const container = document.getElementById('servicesContainer');
+
+      container.innerHTML = '<div style="text-align: center; padding: 25px;"><div class="loader"></div></div>';
+
+      try {
+        let url = `/api/services?limit=30`;
+        if (currentServiceCategory && currentServiceCategory !== 'Barchasi') {
+          url += `&category=${encodeURIComponent(currentServiceCategory)}`;
+        }
+        if (region && region !== 'Barcha hududlar') {
+          url += `&region=${encodeURIComponent(region)}`;
+        }
+        if (search) {
+          url += `&search=${encodeURIComponent(search)}`;
+        }
+
+        const res = await fetch(url);
+        const data = await res.json();
+        window.servicesLoaded = true;
+
+        cachedServices = data.services || [];
+        renderServicesList(cachedServices);
+      } catch (err) {
+        console.error('Services error:', err);
+        container.innerHTML = `
+          <div class="card" style="text-align: center; padding: 20px;">
+            <div style="font-size: 28px; margin-bottom: 8px;">⚠️</div>
+            <div style="font-size: 14px; font-weight: 600;">Xizmatlarni yuklab bo'lmadi</div>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Internet aloqasini tekshiring</div>
+          </div>
+        `;
+      }
+    }
+
+    function renderServicesList(list) {
+      const container = document.getElementById('servicesContainer');
+      if (!list || list.length === 0) {
+        container.innerHTML = `
+          <div class="card" style="text-align: center; padding: 30px 16px;">
+            <div style="font-size: 38px; margin-bottom: 10px;">🔍</div>
+            <div style="font-size: 15px; font-weight: 700;">Hozircha xizmatlar topilmadi</div>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px; line-height: 1.4;">
+              Ushbu toifa yoki hududda hali e'lon berilmagan.<br>Bot chatida <b>/xizmatlar</b> orqali o'z xizmatingizni birinchi bo'lib qo'shishingiz mumkin!
+            </div>
+            <button class="btn-action-call" style="margin-top: 14px; width: auto; display: inline-flex;" onclick="openTelegramBot('/xizmatlar')">
+              ➕ Xizmat qo'shish (Botda)
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      let html = '';
+      list.forEach(item => {
+        const rating = item.rating || 5.0;
+        const ratingCount = item.rating_count || 0;
+        const price = item.price || 'Kelishilgan holda';
+        const phone = item.phone || '';
+        const username = item.username ? item.username.replace('@', '') : '';
+
+        html += `
+          <div class="service-card-item">
+            <div class="service-top-row">
+              <span class="service-badge-pill">${item.category}</span>
+              <span class="service-region-pill">📍 ${item.region || 'Barcha hududlar'}</span>
+            </div>
+
+            <div class="service-item-title">${escapeHtml(item.title)}</div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div class="service-master-name">
+                <span>👤</span> <b>${escapeHtml(item.master_name)}</b>
+              </div>
+              <div class="service-rating-badge">
+                ⭐ ${rating} <span style="opacity: 0.8; font-weight: 500;">(${ratingCount})</span>
+              </div>
+            </div>
+
+            <div class="service-price-text">💰 ${escapeHtml(price)}</div>
+
+            ${item.description ? `<div class="service-desc-text">${escapeHtml(item.description)}</div>` : ''}
+
+            <div class="service-actions-row">
+              <a href="tel:${phone}" class="btn-action-call">📞 Qo'ng'iroq</a>
+              ${username ? `<a href="https://t.me/${username}" target="_blank" class="btn-action-tg">💬 Telegram</a>` : ''}
+              <button class="btn-action-view" onclick="openServiceDetail(${item.id})">Batafsil</button>
+            </div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
+    function openServiceDetail(sId) {
+      haptic();
+      const item = cachedServices.find(s => s.id === sId);
+      if (!item) return;
+
+      const body = document.getElementById('serviceDetailBody');
+      const rating = item.rating || 5.0;
+      const ratingCount = item.rating_count || 0;
+      const price = item.price || 'Kelishilgan holda';
+      const phone = item.phone || '';
+      const username = item.username ? item.username.replace('@', '') : '';
+
+      body.innerHTML = `
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="service-top-row">
+            <span class="service-badge-pill">${item.category}</span>
+            <span class="service-region-pill">📍 ${item.region || 'Barcha hududlar'}</span>
+          </div>
+
+          <div style="font-size: 18px; font-weight: 700; color: #ffffff;">${escapeHtml(item.title)}</div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.04); padding: 10px 12px; border-radius: 12px;">
+            <div>
+              <div style="font-size: 11px; color: var(--text-muted);">Usta:</div>
+              <div style="font-size: 14px; font-weight: 600;">👤 ${escapeHtml(item.master_name)}</div>
+            </div>
+            <div class="service-rating-badge" style="font-size: 13px; padding: 4px 10px;">
+              ⭐ ${rating} (${ratingCount} ta baho)
+            </div>
+          </div>
+
+          <div style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 12px; padding: 10px 14px;">
+            <div style="font-size: 11px; color: #34d399; font-weight: 600;">Xizmat narxi:</div>
+            <div style="font-size: 16px; font-weight: 700; color: #ffffff; margin-top: 2px;">💰 ${escapeHtml(price)}</div>
+          </div>
+
+          <div>
+            <div style="font-size: 12px; color: var(--text-muted); font-weight: 600; margin-bottom: 4px;">Xizmat tavsifi:</div>
+            <div style="font-size: 13px; color: #cbd5e1; line-height: 1.6; white-space: pre-wrap; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 12px; border: 1px solid var(--card-border);">
+              ${escapeHtml(item.description || 'Qo'shimcha tavsif berilmagan.')}
+            </div>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 6px;">
+            <a href="tel:${phone}" class="btn-action-call" style="padding: 12px; font-size: 14px;">
+              📞 Qo'ng'iroq qilish: ${phone}
+            </a>
+            ${username ? `
+              <a href="https://t.me/${username}" target="_blank" class="btn-action-tg" style="padding: 12px; font-size: 14px;">
+                💬 Telegram orqali yozish (@${username})
+              </a>
+            ` : ''}
+            <button class="btn-action-view" style="padding: 12px;" onclick="openTelegramBot('/xizmatlar')">
+              📩 Bot ichida buyurtma & baholash
+            </button>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('serviceDetailModal').classList.add('open');
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // ==================== 2. VALYUTA GRAFIGI & KALKULYATOR ====================
     let chartInstance = null;
     let currentCcy = 'USD';
     let currentDays = 7;
@@ -1103,15 +1773,11 @@
           scales: {
             x: {
               grid: { display: false },
-              ticks: { color: '#64748b', font: { size: 11 } }
+              ticks: { color: '#94a3b8', font: { size: 10 } }
             },
             y: {
               grid: { color: 'rgba(255, 255, 255, 0.05)' },
-              ticks: {
-                color: '#64748b',
-                font: { size: 10 },
-                callback: function(v) { return v.toLocaleString(); }
-              }
+              ticks: { color: '#94a3b8', font: { size: 10 } }
             }
           }
         }
@@ -1119,27 +1785,46 @@
     }
 
     async function loadCurrencyHistory(ccy, days) {
-      document.getElementById('chartTitle').innerText = `${ccy} dinamikasi (${days} kun)`;
+      currentCcy = ccy;
+      currentDays = days;
+      document.getElementById('chartTitle').innerText = `${ccy} dinamikasi`;
+
       try {
         const res = await fetch(`/api/rates/history?ccy=${ccy}&days=${days}`);
         const data = await res.json();
-        if (data && data.points) {
-          const labels = data.points.map(p => p.date);
-          const values = data.points.map(p => p.rate);
+        window.ratesLoaded = true;
+
+        if (data.rates && data.rates.length > 0) {
+          const labels = data.rates.map(r => r.date.slice(5));
+          const values = data.rates.map(r => r.rate);
 
           chartInstance.data.labels = labels;
           chartInstance.data.datasets[0].data = values;
           chartInstance.update();
 
-          document.getElementById('statCurrent').innerText = data.current_rate.toLocaleString('uz-UZ') + ' so\'m';
-          
-          const diffEl = document.getElementById('statDiff');
-          const isUp = data.diff >= 0;
-          diffEl.innerText = (isUp ? '+' : '') + data.diff.toLocaleString('uz-UZ') + ` (${data.diff_pct}%)`;
-          diffEl.className = 'stat-val ' + (isUp ? 'trend-up' : 'trend-down');
+          const currentRate = values[values.length - 1];
+          const firstRate = values[0];
+          const diff = currentRate - firstRate;
+          const maxRate = Math.max(...values);
+          const minRate = Math.min(...values);
 
-          document.getElementById('statMax').innerText = data.max_rate.toLocaleString('uz-UZ');
-          document.getElementById('statMin').innerText = data.min_rate.toLocaleString('uz-UZ');
+          document.getElementById('statCurrent').innerText = currentRate.toLocaleString('uz-UZ') + ' UZS';
+          if (ccy === 'USD') {
+            const miniUsd = document.getElementById('miniRateUsd');
+            if (miniUsd) miniUsd.innerText = Math.round(currentRate).toLocaleString('uz-UZ');
+          }
+
+          const statDiffEl = document.getElementById('statDiff');
+          if (diff >= 0) {
+            statDiffEl.innerText = `+${diff.toFixed(1)} UZS`;
+            statDiffEl.className = 'stat-val trend-up';
+          } else {
+            statDiffEl.innerText = `${diff.toFixed(1)} UZS`;
+            statDiffEl.className = 'stat-val trend-down';
+          }
+
+          document.getElementById('statMax').innerText = maxRate.toLocaleString('uz-UZ');
+          document.getElementById('statMin').innerText = minRate.toLocaleString('uz-UZ');
         }
       } catch (err) {
         console.error('Rates history error:', err);
@@ -1148,10 +1833,9 @@
 
     function setChartDays(days) {
       haptic();
-      currentDays = days;
       document.getElementById('btn7Days').classList.toggle('active', days === 7);
       document.getElementById('btn30Days').classList.toggle('active', days === 30);
-      loadCurrencyHistory(currentCcy, currentDays);
+      loadCurrencyHistory(currentCcy, days);
     }
 
     document.querySelectorAll('#currencyPills .pill-btn').forEach(btn => {
@@ -1159,63 +1843,42 @@
         haptic();
         document.querySelectorAll('#currencyPills .pill-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        currentCcy = btn.dataset.ccy;
-        loadCurrencyHistory(currentCcy, currentDays);
+        loadCurrencyHistory(btn.dataset.ccy, currentDays);
       });
     });
 
-    // Converter Calculator
+    // Converter Engine
     async function calculateRate() {
       const amount = parseFloat(document.getElementById('calcAmount').value) || 0;
-      const from = document.getElementById('calcFrom').value;
-      const to = document.getElementById('calcTo').value;
+      const from = document.getElementById('calcFromCcy').value;
+      const to = document.getElementById('calcToCcy').value;
+      const display = document.getElementById('calcResultDisplay');
 
-      if (from === to) {
-        document.getElementById('calcResultDisplay').innerText = amount.toLocaleString('uz-UZ') + ' ' + to;
-        return;
+      if (Object.keys(cachedRates).length === 0) {
+        try {
+          const res = await fetch('/api/rates/current');
+          const data = await res.json();
+          cachedRates = { 'UZS': 1.0 };
+          data.forEach(item => {
+            cachedRates[item.Ccy] = parseFloat(item.Rate);
+          });
+        } catch (e) {
+          display.innerText = 'Xatolik';
+          return;
+        }
       }
 
-      try {
-        if (!cachedRates[from] && from !== 'UZS') {
-          const r = await fetch(`/api/rates/current`);
-          const d = await r.json();
-          cachedRates = d;
-        }
-        
-        let rateInUzs = 1;
-        if (from !== 'UZS') {
-          const item = cachedRates[from];
-          rateInUzs = item ? item.rate / item.nominal : 1;
-        }
-
-        let totalUzs = amount * rateInUzs;
-        let finalVal = 0;
-
-        if (to === 'UZS') {
-          finalVal = totalUzs;
-        } else {
-          const toItem = cachedRates[to];
-          const toUnitRate = toItem ? toItem.rate / toItem.nominal : 1;
-          finalVal = totalUzs / toUnitRate;
-        }
-
-        document.getElementById('calcResultDisplay').innerText = 
-          finalVal.toLocaleString('uz-UZ', { maximumFractionDigits: 2 }) + ' ' + to;
-      } catch (e) {
-        console.error(e);
+      if (cachedRates[from] && cachedRates[to]) {
+        const fromRate = cachedRates[from];
+        const toRate = cachedRates[to];
+        const inUzs = amount * fromRate;
+        const result = inUzs / toRate;
+        display.innerText = `${result.toLocaleString('uz-UZ', { maximumFractionDigits: 2 })} ${to}`;
       }
     }
 
-    // 2. NAMOZ VAQTLARI & LIVE CLOCK
-    function updateLiveClock() {
-      const now = new Date();
-      const h = String(now.getHours()).padStart(2, '0');
-      const m = String(now.getMinutes()).padStart(2, '0');
-      const s = String(now.getSeconds()).padStart(2, '0');
-      document.getElementById('liveClock').innerText = `${h}:${m}:${s}`;
-    }
-    setInterval(updateLiveClock, 1000);
-    updateLiveClock();
+    // ==================== 3. NAMOZ VAQTLARI ====================
+    let prayerTimesCache = null;
 
     async function loadPrayerData() {
       const city = document.getElementById('prayerCitySelect').value;
@@ -1224,135 +1887,118 @@
         const data = await res.json();
         window.prayerLoaded = true;
 
-        if (data) {
-          document.getElementById('liveDate').innerText = `${data.gregorian_date} | Hijriy: ${data.hijri_date}`;
-          document.getElementById('val-fajr').innerText = data.fajr || '--:--';
-          document.getElementById('val-sunrise').innerText = data.sunrise || '--:--';
-          document.getElementById('val-dhuhr').innerText = data.dhuhr || '--:--';
-          document.getElementById('val-asr').innerText = data.asr || '--:--';
-          document.getElementById('val-maghrib').innerText = data.maghrib || '--:--';
-          document.getElementById('val-isha').innerText = data.isha || '--:--';
+        if (data && data.times) {
+          prayerTimesCache = data.times;
+          document.getElementById('val-tong').innerText = data.times.tong || '--:--';
+          document.getElementById('val-quyosh').innerText = data.times.quyosh || '--:--';
+          document.getElementById('val-peshin').innerText = data.times.peshin || '--:--';
+          document.getElementById('val-asr').innerText = data.times.asr || '--:--';
+          document.getElementById('val-shom').innerText = data.times.shom || '--:--';
+          document.getElementById('val-xufton').innerText = data.times.xufton || '--:--';
 
-          if (data.next_prayer) {
-            document.getElementById('nextPrayerName').innerText = data.next_prayer.name + ' (' + data.next_prayer.time + ')';
-            document.getElementById('nextPrayerRemaining').innerText = data.next_prayer.remaining + ' qoldi';
-
-            // Active prayer card highlight
-            document.querySelectorAll('.prayer-item').forEach(el => el.classList.remove('active-prayer'));
-            const map = {
-              'Tong': 'p-fajr',
-              'Quyosh': 'p-sunrise',
-              'Peshin': 'p-dhuhr',
-              'Asr': 'p-asr',
-              'Shom': 'p-maghrib',
-              'Xufton': 'p-isha'
-            };
-            const activeId = map[data.next_prayer.name];
-            if (activeId) {
-              const card = document.getElementById(activeId);
-              if (card) card.classList.add('active-prayer');
-            }
-          }
+          document.getElementById('prayerLiveDate').innerText = `${city} shahri, ${data.date || 'Bugun'}`;
+          highlightNextPrayer(data.times);
         }
       } catch (err) {
         console.error('Prayer error:', err);
       }
     }
 
-    // 3. FUTBOL JADVALLARI & NATIJALAR
-    let currentLeague = 'eng.1';
-    async function loadFootballData(league) {
-      currentLeague = league;
-      const tbody = document.getElementById('fbTableBody');
-      const matchesContainer = document.getElementById('fbMatchesList');
-      tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px;"><div class="loader"></div></td></tr>`;
-      matchesContainer.innerHTML = `<div style="text-align: center; padding: 15px;"><div class="loader"></div></div>`;
-      window.footballLoaded = true;
+    function highlightNextPrayer(times) {
+      const now = new Date();
+      const curMinutes = now.getHours() * 60 + now.getMinutes();
 
-      // 1. Standings
+      function toM(tStr) {
+        if (!tStr) return 9999;
+        const p = tStr.split(':').map(Number);
+        return p[0] * 60 + p[1];
+      }
+
+      const schedule = [
+        { name: 'Tong', key: 'tong', id: 'p-tong', m: toM(times.tong) },
+        { name: 'Quyosh', key: 'quyosh', id: 'p-quyosh', m: toM(times.quyosh) },
+        { name: 'Peshin', key: 'peshin', id: 'p-peshin', m: toM(times.peshin) },
+        { name: 'Asr', key: 'asr', id: 'p-asr', m: toM(times.asr) },
+        { name: 'Shom (Iftor)', key: 'shom', id: 'p-shom', m: toM(times.shom) },
+        { name: 'Xufton', key: 'xufton', id: 'p-xufton', m: toM(times.xufton) },
+      ];
+
+      document.querySelectorAll('.prayer-item').forEach(el => el.classList.remove('active-prayer'));
+
+      let nextP = schedule.find(s => s.m > curMinutes);
+      if (!nextP) nextP = schedule[0];
+
+      const itemEl = document.getElementById(nextP.id);
+      if (itemEl) itemEl.classList.add('active-prayer');
+
+      document.getElementById('nextPrayerName').innerText = nextP.name;
+
+      // Update hero widget mini prayer
+      const miniPrayer = document.getElementById('miniPrayerNext');
+      if (miniPrayer) miniPrayer.innerText = `${nextP.name} ${times[nextP.key] || ''}`;
+
+      let diff = nextP.m - curMinutes;
+      if (diff < 0) diff += 24 * 60;
+      const hRem = Math.floor(diff / 60);
+      const mRem = diff % 60;
+      document.getElementById('nextPrayerTimer').innerText = `${hRem}s ${mRem}d qoldi`;
+    }
+
+    setInterval(() => {
+      const now = new Date();
+      const clockEl = document.getElementById('prayerLiveClock');
+      if (clockEl) {
+        clockEl.innerText = now.toLocaleTimeString('uz-UZ', { hour12: false });
+      }
+      if (prayerTimesCache) {
+        highlightNextPrayer(prayerTimesCache);
+      }
+    }, 1000);
+
+    // ==================== 4. FUTBOL ====================
+    async function loadFootballData(league) {
+      document.getElementById('fbTableBody').innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;"><div class="loader"></div></td></tr>';
       try {
         const res = await fetch(`/api/football/standings?league=${league}`);
         const data = await res.json();
+        window.footballLoaded = true;
 
-        if (data && data.table && data.table.length > 0) {
-          document.getElementById('fbLeagueTitle').innerText = data.league || 'Turnir Jadvali';
-          let html = '';
-          data.table.forEach(row => {
-            let rankClass = 'rank-normal';
-            if (row.rank <= 4) rankClass = 'rank-ucl';
-            else if (row.rank === 5) rankClass = 'rank-uel';
-
-            const logoHtml = row.logo ? 
-              `<img src="${row.logo}" class="team-logo" alt="" onerror="this.style.display='none'">` : '⚽';
-
-            html += `
+        if (data && data.standings) {
+          document.getElementById('fbLeagueTitle').innerText = (data.league_name || 'Turnir') + ' Jadvali';
+          let rowsHtml = '';
+          data.standings.slice(0, 15).forEach((t, i) => {
+            rowsHtml += `
               <tr>
-                <td><span class="rank-badge ${rankClass}">${row.rank}</span></td>
+                <td style="color: var(--text-muted); font-weight: 600;">${i + 1}</td>
                 <td>
                   <div class="team-cell">
-                    ${logoHtml}
-                    <span>${row.team}</span>
+                    ${t.logo ? `<img src="${t.logo}" class="team-badge" loading="lazy" alt="">` : ''}
+                    <span>${t.name}</span>
                   </div>
                 </td>
-                <td style="text-align: center; color: var(--text-muted);">${row.played}</td>
-                <td style="text-align: center; color: ${row.diff >= 0 ? '#10b981' : '#ef4444'};">${row.diff > 0 ? '+' : ''}${row.diff}</td>
-                <td style="text-align: right; font-weight: 700; color: #60a5fa;">${row.points}</td>
+                <td style="text-align: center;">${t.played || t.p || 0}</td>
+                <td style="text-align: center; color: var(--text-muted);">${t.diff || t.gd || 0}</td>
+                <td style="text-align: right; font-weight: 700; color: #60a5fa;">${t.points || t.pts || 0}</td>
               </tr>
             `;
           });
-          tbody.innerHTML = html;
-        } else {
-          tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 15px;">Jadval ma'lumoti topilmadi</td></tr>`;
+          document.getElementById('fbTableBody').innerHTML = rowsHtml;
         }
       } catch (err) {
-        console.error('Standings error:', err);
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #ef4444; padding: 15px;">Turnir jadvalini yuklab bo'lmadi</td></tr>`;
-      }
-
-      // 2. Matches
-      try {
-        const mRes = await fetch(`/api/football/matches?league=${league}`);
-        const mData = await mRes.json();
-        if (mData && mData.matches && mData.matches.length > 0) {
-          let mHtml = '';
-          mData.matches.slice(0, 6).forEach(m => {
-            const hLogo = m.home_logo ? `<img src="${m.home_logo}" class="team-logo" alt="" onerror="this.style.display='none'">` : '';
-            const aLogo = m.away_logo ? `<img src="${m.away_logo}" class="team-logo" alt="" onerror="this.style.display='none'">` : '';
-            mHtml += `
-              <div class="match-card">
-                <div class="match-team" style="display:flex; align-items:center; gap:6px;">
-                  ${hLogo} <span>${m.home_team}</span>
-                </div>
-                <div style="text-align: center;">
-                  <div class="match-score">${m.score || 'vs'}</div>
-                  <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">${m.status || ''}</div>
-                </div>
-                <div class="match-team away" style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">
-                  <span>${m.away_team}</span> ${aLogo}
-                </div>
-              </div>
-            `;
-          });
-          matchesContainer.innerHTML = mHtml;
-        } else {
-          matchesContainer.innerHTML = `<div style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 10px;">Hozircha yaqin o'yinlar ma'lumoti mavjud emas.</div>`;
-        }
-      } catch (mErr) {
-        console.error('Matches error:', mErr);
-        matchesContainer.innerHTML = `<div style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 10px;">O'yinlar ma'lumotini yuklab bo'lmadi</div>`;
+        console.error('Football error:', err);
       }
     }
 
-    document.querySelectorAll('#footballPills .pill-btn').forEach(btn => {
+    document.querySelectorAll('#footballLeaguePills .pill-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         haptic();
-        document.querySelectorAll('#footballPills .pill-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('#footballLeaguePills .pill-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         loadFootballData(btn.dataset.league);
       });
     });
 
-    // 4. OB-HAVO
+    // ==================== 5. OB-HAVO ====================
     async function loadWeatherData() {
       const city = document.getElementById('weatherCitySelect').value;
       try {
@@ -1361,13 +2007,18 @@
         window.weatherLoaded = true;
 
         if (data) {
-          document.getElementById('wTemp').innerText = data.temp !== undefined ? (data.temp > 0 ? '+' : '') + data.temp : '--';
+          const tempStr = data.temp !== undefined ? (data.temp > 0 ? '+' : '') + data.temp : '--';
+          document.getElementById('wTemp').innerText = tempStr;
           document.getElementById('wDesc').innerText = data.desc || '--';
           document.getElementById('wEmoji').innerText = data.emoji || '🌤';
           document.getElementById('wAppTemp').innerText = 'Hiss qilinishi: ' + (data.apparent_temp > 0 ? '+' : '') + data.apparent_temp + '°C';
           document.getElementById('wHumidity').innerText = (data.humidity || '--') + '%';
           document.getElementById('wWind').innerText = (data.wind_speed || '--') + ' m/s';
           document.getElementById('wLocation').innerText = data.location_name || city;
+
+          // Hero widget update
+          const miniWeather = document.getElementById('miniWeatherTemp');
+          if (miniWeather) miniWeather.innerText = `${tempStr}°C, ${data.emoji || ''}`;
 
           const fList = document.getElementById('wForecastList');
           if (data.forecast && data.forecast.length > 0) {
@@ -1392,8 +2043,24 @@
     // Startup
     window.addEventListener('DOMContentLoaded', () => {
       initChart();
-      loadCurrencyHistory('USD', 7);
       calculateRate();
+      // Preload light hero status
+      fetch('/api/rates/current').then(r => r.json()).then(data => {
+        const usd = data.find(c => c.Ccy === 'USD');
+        if (usd) {
+          const el = document.getElementById('miniRateUsd');
+          if (el) el.innerText = Math.round(parseFloat(usd.Rate)).toLocaleString('uz-UZ');
+        }
+      }).catch(() => {});
+      fetch('/api/prayer?city=Toshkent').then(r => r.json()).then(d => {
+        if (d && d.times) highlightNextPrayer(d.times);
+      }).catch(() => {});
+      fetch('/api/weather?city=Toshkent').then(r => r.json()).then(d => {
+        if (d && d.temp !== undefined) {
+          const el = document.getElementById('miniWeatherTemp');
+          if (el) el.innerText = `${d.temp > 0 ? '+' : ''}${d.temp}°C`;
+        }
+      }).catch(() => {});
     });
   </script>
 </body>

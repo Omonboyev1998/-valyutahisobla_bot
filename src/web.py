@@ -88,6 +88,50 @@ async def api_weather(request: web.Request) -> web.Response:
             return web.json_response(data, headers={"Access-Control-Allow-Origin": "*"})
     return web.json_response({"error": "Ob-havo ma'lumoti topilmadi"}, status=404, headers={"Access-Control-Allow-Origin": "*"})
 
+from src.database import get_services, count_services, get_service_by_id
+
+async def api_services(request: web.Request) -> web.Response:
+    """Maishiy xizmatlar va ustalar ro'yxati API"""
+    category = request.query.get("category", "")
+    region = request.query.get("region", "")
+    search = request.query.get("search", "")
+    try:
+        limit = int(request.query.get("limit", "20"))
+    except ValueError:
+        limit = 20
+    try:
+        offset = int(request.query.get("offset", "0"))
+    except ValueError:
+        offset = 0
+
+    services = get_services(
+        category=category if category and category != "Barchasi" else None,
+        region=region if region and region != "Barcha hududlar" else None,
+        search_query=search if search else None,
+        limit=limit,
+        offset=offset
+    )
+    total = count_services(
+        category=category if category and category != "Barchasi" else None,
+        region=region if region and region != "Barcha hududlar" else None,
+        search_query=search if search else None
+    )
+    return web.json_response({
+        "services": services,
+        "total": total
+    }, headers={"Access-Control-Allow-Origin": "*"})
+
+async def api_service_detail(request: web.Request) -> web.Response:
+    """Bitta xizmat tafsilotlari API"""
+    s_id = request.match_info.get("id")
+    try:
+        service = get_service_by_id(int(s_id))
+        if service:
+            return web.json_response(service, headers={"Access-Control-Allow-Origin": "*"})
+    except Exception:
+        pass
+    return web.json_response({"error": "Xizmat topilmadi"}, status=404, headers={"Access-Control-Allow-Origin": "*"})
+
 def create_web_app() -> web.Application:
     app = web.Application()
     # Ping & Health check
@@ -106,5 +150,7 @@ def create_web_app() -> web.Application:
     app.router.add_get("/api/football/standings", api_football_standings)
     app.router.add_get("/api/football/matches", api_football_matches)
     app.router.add_get("/api/weather", api_weather)
+    app.router.add_get("/api/services", api_services)
+    app.router.add_get("/api/services/{id}", api_service_detail)
 
     return app
