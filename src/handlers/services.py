@@ -437,6 +437,7 @@ async def process_search_query(message: Message, state: FSMContext):
             parse_mode="HTML",
             reply_markup=get_services_menu_keyboard()
         )
+        await message.answer("Asosiy menyuga qaytildi:", reply_markup=get_main_keyboard())
         return
 
     services = get_services(search_query=query, limit=1, offset=0)
@@ -447,7 +448,24 @@ async def process_search_query(message: Message, state: FSMContext):
     text += format_service_card(service, 0, total)
     markup = get_service_card_keyboard(service, cat_idx="all", reg_idx="all", page=0, total_pages=total)
 
+    await message.answer("Qidiruv natijasi:", reply_markup=get_main_keyboard())
     await message.answer(text, parse_mode="HTML", reply_markup=markup)
+
+@router.callback_query(F.data.startswith("srv_contact:"))
+async def service_contact_callback(callback: CallbackQuery):
+    s_id = int(callback.data.split(":")[1])
+    service = get_service_by_id(s_id)
+    if service:
+        name = service.get("master_name", "Usta")
+        phone = service.get("phone", "")
+        await callback.answer(f"📞 {name}: {phone}", show_alert=True)
+    else:
+        await callback.answer("Xizmat ma'lumoti topilmadi.", show_alert=True)
+
+@router.message(F.text == "❌ Bekor qilish")
+async def global_cancel_reply_message(message: Message, state: FSMContext):
+    await state.clear()
+    await message.answer("Amal bekor qilindi. Asosiy menyudasiz.", reply_markup=get_main_keyboard())
 
 @router.callback_query(F.data == "srv_cancel")
 async def cancel_srv_callback(callback: CallbackQuery, state: FSMContext):

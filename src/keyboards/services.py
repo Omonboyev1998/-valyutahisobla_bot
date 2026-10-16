@@ -107,17 +107,17 @@ def get_service_card_keyboard(
     # 1. Bog'lanish tugmalari
     contact_row = []
     phone = service.get("phone", "").strip()
+    s_id = service.get("id")
     if phone:
-        clean_phone = phone.replace(" ", "").replace("-", "")
-        contact_row.append(InlineKeyboardButton(text="📞 Qo'ng'iroq", url=f"tel:{clean_phone}"))
+        contact_row.append(InlineKeyboardButton(text="📞 Telefon raqami", callback_data=f"srv_contact:{s_id}"))
 
     username = service.get("username")
-    user_id = service.get("user_id")
     if username:
         clean_user = username.replace("@", "")
         contact_row.append(InlineKeyboardButton(text="💬 Telegram", url=f"https://t.me/{clean_user}"))
-    elif user_id:
-        contact_row.append(InlineKeyboardButton(text="💬 Telegram", url=f"tg://user?id={user_id}"))
+    elif phone:
+        clean_p = phone.replace("+", "").replace(" ", "").replace("-", "")
+        contact_row.append(InlineKeyboardButton(text="💬 Telegram", url=f"https://t.me/+{clean_p}"))
 
     if contact_row:
         buttons.append(contact_row)
