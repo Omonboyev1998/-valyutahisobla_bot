@@ -23,6 +23,7 @@ def init_db():
                 sub_currency INTEGER DEFAULT 1,
                 sub_weather INTEGER DEFAULT 1,
                 sub_football INTEGER DEFAULT 1,
+                sub_prayer INTEGER DEFAULT 1,
                 notify_time TEXT DEFAULT '09:00',
                 weather_city TEXT DEFAULT 'Toshkent',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -119,8 +120,8 @@ def add_user(user_id: int, full_name: str, username: Optional[str] = None, refer
         if not existing:
             valid_referrer = referrer_id if (referrer_id and referrer_id != user_id) else None
             cursor.execute("""
-                INSERT INTO users (user_id, full_name, username, is_subscribed, referrer_id, sub_currency, sub_weather, sub_football, notify_time, weather_city)
-                VALUES (?, ?, ?, 1, ?, 1, 1, 1, '09:00', 'Toshkent')
+                INSERT INTO users (user_id, full_name, username, is_subscribed, referrer_id, sub_currency, sub_weather, sub_football, sub_prayer, notify_time, weather_city)
+                VALUES (?, ?, ?, 1, ?, 1, 1, 1, 1, '09:00', 'Toshkent')
             """, (user_id, full_name, username, valid_referrer))
             conn.commit()
             if valid_referrer:

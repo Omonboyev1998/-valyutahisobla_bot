@@ -48,17 +48,35 @@ async def api_rates_history(request: web.Request) -> web.Response:
         days = 7
 
     data = await cbu_service.get_currency_history(ccy=ccy, days=days)
+    if data and "points" in data:
+        data["rates"] = data["points"]
     return web.json_response(data, headers={"Access-Control-Allow-Origin": "*"})
 
 async def api_rates_current(request: web.Request) -> web.Response:
-    """Barcha valyutalar joriy kursi"""
-    rates = await cbu_service.get_all_rates()
-    return web.json_response(rates, headers={"Access-Control-Allow-Origin": "*"})
+    """Barcha valyutalar joriy kursi (ro'yxat va xarita formatida)"""
+    rates_dict = await cbu_service.get_all_rates()
+    rates_list = []
+    for ccy_code, r in rates_dict.items():
+        item = dict(r)
+        item["Ccy"] = ccy_code
+        item["Rate"] = str(r["rate"])
+        rates_list.append(item)
+    return web.json_response(rates_list, headers={"Access-Control-Allow-Origin": "*"})
 
 async def api_prayer(request: web.Request) -> web.Response:
     """Namoz vaqtlari API"""
     city = request.query.get("city", "Toshkent")
     data = await prayer_service.get_prayer_times(city_name=city)
+    if data:
+        data = dict(data)
+        data["times"] = {
+            "tong": data.get("fajr"),
+            "quyosh": data.get("sunrise"),
+            "peshin": data.get("dhuhr"),
+            "asr": data.get("asr"),
+            "shom": data.get("maghrib"),
+            "xufton": data.get("isha")
+        }
     return web.json_response(data or {}, headers={"Access-Control-Allow-Origin": "*"})
 
 async def api_football_standings(request: web.Request) -> web.Response:
@@ -69,6 +87,16 @@ async def api_football_standings(request: web.Request) -> web.Response:
     except ValueError:
         limit = 15
     data = await football_service.get_standings(league_code=league, limit=limit)
+    if data:
+        data = dict(data)
+        data["league_name"] = data.get("league", "Turnir")
+        table = data.get("table", [])
+        standings = []
+        for row in table:
+            r = dict(row)
+            r["name"] = r.get("team", "")
+            standings.append(r)
+        data["standings"] = standings
     return web.json_response(data or {}, headers={"Access-Control-Allow-Origin": "*"})
 
 async def api_football_matches(request: web.Request) -> web.Response:

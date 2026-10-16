@@ -1800,7 +1800,10 @@
         window.ratesLoaded = true;
 
         if (data.rates && data.rates.length > 0 && chartInstance) {
-          const labels = data.rates.map(function(r) { return r.date.slice(5); });
+          const labels = data.rates.map(function(r) {
+            const d = r.full_date || r.date || "";
+            return d.length > 5 ? d.slice(5) : d;
+          });
           const values = data.rates.map(function(r) { return r.rate; });
 
           chartInstance.data.labels = labels;
@@ -1866,8 +1869,11 @@
           const res = await fetch('/api/rates/current');
           const data = await res.json();
           cachedRates = { 'UZS': 1.0 };
-          data.forEach(function(item) {
-            cachedRates[item.Ccy] = parseFloat(item.Rate);
+          const items = Array.isArray(data) ? data : Object.values(data);
+          items.forEach(function(item) {
+            const code = (item.ccy || item.Ccy || "").toUpperCase();
+            const val = parseFloat(item.rate || item.Rate || item.unit_rate || 0);
+            if (code && val) cachedRates[code] = val;
           });
         } catch (e) {
           display.innerText = 'Xatolik';
@@ -1972,21 +1978,23 @@
         const data = await res.json();
         window.footballLoaded = true;
 
-        if (data && data.standings) {
-          document.getElementById('fbLeagueTitle').innerText = (data.league_name || 'Turnir') + ' Jadvali';
+        const table = (data && (data.standings || data.table)) ? (data.standings || data.table) : [];
+        if (table.length > 0) {
+          document.getElementById('fbLeagueTitle').innerText = (data.league_name || data.league || 'Turnir') + ' Jadvali';
           let rowsHtml = '';
-          data.standings.slice(0, 15).forEach(function(t, i) {
+          table.slice(0, 15).forEach(function(t, i) {
+            const teamName = t.name || t.team || 'Klub';
             rowsHtml += '<tr>' +
               '<td style="color: var(--ios-text-secondary); font-weight: 600;">' + (i + 1) + '</td>' +
               '<td>' +
                 '<div class="team-cell">' +
                   (t.logo ? '<img src="' + t.logo + '" class="team-badge" loading="lazy" alt="">' : '') +
-                  '<span>' + t.name + '</span>' +
+                  '<span>' + teamName + '</span>' +
                 '</div>' +
               '</td>' +
-              '<td style="text-align: center;">' + (t.played || t.p || 0) + '</td>' +
-              '<td style="text-align: center; color: var(--ios-text-secondary);">' + (t.diff || t.gd || 0) + '</td>' +
-              '<td style="text-align: right; font-weight: 700; color: var(--ios-blue);">' + (t.points || t.pts || 0) + '</td>' +
+              '<td style="text-align: center;">' + (t.played !== undefined ? t.played : (t.p || 0)) + '</td>' +
+              '<td style="text-align: center; color: var(--ios-text-secondary);">' + (t.diff !== undefined ? t.diff : (t.gd || 0)) + '</td>' +
+              '<td style="text-align: right; font-weight: 700; color: var(--ios-blue);">' + (t.points !== undefined ? t.points : (t.pts || 0)) + '</td>' +
             '</tr>';
           });
           document.getElementById('fbTableBody').innerHTML = rowsHtml;
@@ -2053,10 +2061,16 @@
       calculateRate();
       // Preload light hero status
       fetch('/api/rates/current').then(function(r) { return r.json(); }).then(function(data) {
-        const usd = data.find(function(c) { return c.Ccy === 'USD'; });
-        if (usd) {
+        let usdVal = null;
+        if (Array.isArray(data)) {
+          const usd = data.find(function(c) { return (c.ccy || c.Ccy) === 'USD'; });
+          if (usd) usdVal = usd.rate || usd.Rate;
+        } else if (data && typeof data === 'object') {
+          if (data.USD) usdVal = data.USD.rate || data.USD.Rate;
+        }
+        if (usdVal) {
           const el = document.getElementById('miniRateUsd');
-          if (el) el.innerText = Math.round(parseFloat(usd.Rate)).toLocaleString('uz-UZ');
+          if (el) el.innerText = Math.round(parseFloat(usdVal)).toLocaleString('uz-UZ');
         }
       }).catch(function() {});
 

@@ -35,19 +35,6 @@ def get_rates_keyboard() -> InlineKeyboardMarkup:
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-def get_subscription_keyboard(is_subscribed: bool) -> InlineKeyboardMarkup:
-    """Eslatmalar sozlamasi tugmalari"""
-    if is_subscribed:
-        toggle_button = InlineKeyboardButton(text="🔕 Eslatmalarni o'chirish", callback_data="sub_toggle:off")
-    else:
-        toggle_button = InlineKeyboardButton(text="🔔 Eslatmalarni yoqish", callback_data="sub_toggle:on")
-
-    buttons = [
-        [toggle_button],
-        [InlineKeyboardButton(text="🧪 Hoziroq sinab ko'rish (Test)", callback_data="sub_test")]
-    ]
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
-
 def get_cancel_keyboard() -> InlineKeyboardMarkup:
     """Bekor qilish tugmasi"""
     return InlineKeyboardMarkup(
