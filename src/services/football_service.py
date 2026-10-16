@@ -75,24 +75,37 @@ class FootballService:
                         matches = []
                         
                         for ev in events[:8]:  # 8 ta o'yin
-                            name = ev.get("name", "")
                             status = ev.get("status", {}).get("type", {}).get("detail", "")
                             competitions = ev.get("competitions", [{}])[0]
                             competitors = competitions.get("competitors", [])
 
                             if len(competitors) >= 2:
-                                home = competitors[0].get("team", {}).get("displayName", "")
+                                home_obj = competitors[0].get("team", {})
+                                home = home_obj.get("displayName", "")
+                                home_logo = home_obj.get("logo", "")
                                 home_score = competitors[0].get("score", "")
-                                away = competitors[1].get("team", {}).get("displayName", "")
+
+                                away_obj = competitors[1].get("team", {})
+                                away = away_obj.get("displayName", "")
+                                away_logo = away_obj.get("logo", "")
                                 away_score = competitors[1].get("score", "")
 
-                                if home_score and away_score:
+                                if home_score != "" and away_score != "":
+                                    score_display = f"{home_score} : {away_score}"
                                     score_str = f"<b>{home}</b> {home_score} : {away_score} <b>{away}</b>"
                                 else:
+                                    score_display = "vs"
                                     score_str = f"<b>{home}</b> vs <b>{away}</b>"
 
                                 matches.append({
                                     "match": score_str,
+                                    "home_team": home,
+                                    "home_logo": home_logo,
+                                    "home_score": home_score,
+                                    "away_team": away,
+                                    "away_logo": away_logo,
+                                    "away_score": away_score,
+                                    "score": score_display,
                                     "status": status
                                 })
 
@@ -104,5 +117,8 @@ class FootballService:
         except Exception as e:
             logger.error(f"O'yinlar natijalarini olishda xatolik ({league_code}): {e}")
         return None
+
+    # Alias for compatibility
+    get_recent_matches = get_matches
 
 football_service = FootballService()

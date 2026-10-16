@@ -74,7 +74,7 @@ async def api_football_standings(request: web.Request) -> web.Response:
 async def api_football_matches(request: web.Request) -> web.Response:
     """Futbol o'yinlari API"""
     league = request.query.get("league", "eng.1")
-    data = await football_service.get_recent_matches(league_code=league)
+    data = await football_service.get_matches(league_code=league)
     return web.json_response(data or {}, headers={"Access-Control-Allow-Origin": "*"})
 
 async def api_weather(request: web.Request) -> web.Response:

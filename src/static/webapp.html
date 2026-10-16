@@ -1264,14 +1264,17 @@
     async function loadFootballData(league) {
       currentLeague = league;
       const tbody = document.getElementById('fbTableBody');
+      const matchesContainer = document.getElementById('fbMatchesList');
       tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px;"><div class="loader"></div></td></tr>`;
+      matchesContainer.innerHTML = `<div style="text-align: center; padding: 15px;"><div class="loader"></div></div>`;
+      window.footballLoaded = true;
 
+      // 1. Standings
       try {
         const res = await fetch(`/api/football/standings?league=${league}`);
         const data = await res.json();
-        window.footballLoaded = true;
 
-        if (data && data.table) {
+        if (data && data.table && data.table.length > 0) {
           document.getElementById('fbLeagueTitle').innerText = data.league || 'Turnir Jadvali';
           let html = '';
           data.table.forEach(row => {
@@ -1298,20 +1301,35 @@
             `;
           });
           tbody.innerHTML = html;
+        } else {
+          tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 15px;">Jadval ma'lumoti topilmadi</td></tr>`;
         }
+      } catch (err) {
+        console.error('Standings error:', err);
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #ef4444; padding: 15px;">Turnir jadvalini yuklab bo'lmadi</td></tr>`;
+      }
 
-        // Matches
+      // 2. Matches
+      try {
         const mRes = await fetch(`/api/football/matches?league=${league}`);
         const mData = await mRes.json();
-        const matchesContainer = document.getElementById('fbMatchesList');
         if (mData && mData.matches && mData.matches.length > 0) {
           let mHtml = '';
-          mData.matches.slice(0, 5).forEach(m => {
+          mData.matches.slice(0, 6).forEach(m => {
+            const hLogo = m.home_logo ? `<img src="${m.home_logo}" class="team-logo" alt="" onerror="this.style.display='none'">` : '';
+            const aLogo = m.away_logo ? `<img src="${m.away_logo}" class="team-logo" alt="" onerror="this.style.display='none'">` : '';
             mHtml += `
               <div class="match-card">
-                <div class="match-team">${m.home_team}</div>
-                <div class="match-score">${m.score || m.status}</div>
-                <div class="match-team away">${m.away_team}</div>
+                <div class="match-team" style="display:flex; align-items:center; gap:6px;">
+                  ${hLogo} <span>${m.home_team}</span>
+                </div>
+                <div style="text-align: center;">
+                  <div class="match-score">${m.score || 'vs'}</div>
+                  <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">${m.status || ''}</div>
+                </div>
+                <div class="match-team away" style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">
+                  <span>${m.away_team}</span> ${aLogo}
+                </div>
               </div>
             `;
           });
@@ -1319,10 +1337,9 @@
         } else {
           matchesContainer.innerHTML = `<div style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 10px;">Hozircha yaqin o'yinlar ma'lumoti mavjud emas.</div>`;
         }
-
-      } catch (err) {
-        console.error('Football error:', err);
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #ef4444; padding: 15px;">Ma'lumot yuklab bo'lmadi</td></tr>`;
+      } catch (mErr) {
+        console.error('Matches error:', mErr);
+        matchesContainer.innerHTML = `<div style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 10px;">O'yinlar ma'lumotini yuklab bo'lmadi</div>`;
       }
     }
 
