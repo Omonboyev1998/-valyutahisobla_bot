@@ -1,3 +1,4 @@
+import sqlite3
 import os
 import csv
 import io
@@ -10,26 +11,24 @@ logger = logging.getLogger(__name__)
 TURSO_DATABASE_URL = os.getenv("TURSO_DATABASE_URL")
 TURSO_AUTH_TOKEN = os.getenv("TURSO_AUTH_TOKEN")
 
+_libsql = None
 if TURSO_DATABASE_URL and TURSO_AUTH_TOKEN:
     try:
-        import libsql_experimental as sqlite3
+        import libsql_experimental as _libsql
         logger.info("Turso Cloud SQLite drayveri (libsql_experimental) faollashtirildi.")
     except ImportError:
-        import sqlite3
         logger.warning("libsql_experimental o'rnatilmagan, standart sqlite3 ishlatilmoqda.")
-else:
-    import sqlite3
 
 DB_PATH = os.getenv("DB_PATH") or os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "bot.db")
 
 @contextmanager
 def get_db():
     """Turso Cloud yoki Mahalliy SQLite uchun universal ulanish boshqaruvchisi"""
-    if TURSO_DATABASE_URL and TURSO_AUTH_TOKEN:
+    if _libsql and TURSO_DATABASE_URL and TURSO_AUTH_TOKEN:
         try:
-            conn = sqlite3.connect(TURSO_DATABASE_URL, auth_token=TURSO_AUTH_TOKEN)
+            conn = _libsql.connect(TURSO_DATABASE_URL, auth_token=TURSO_AUTH_TOKEN)
         except TypeError:
-            conn = sqlite3.connect(f"{TURSO_DATABASE_URL}?authToken={TURSO_AUTH_TOKEN}")
+            conn = _libsql.connect(f"{TURSO_DATABASE_URL}?authToken={TURSO_AUTH_TOKEN}")
     else:
         conn = sqlite3.connect(DB_PATH, timeout=20.0)
     try:
@@ -43,6 +42,26 @@ def get_db():
             conn.close()
         except Exception:
             pass
+
+def to_dict(cols_or_cursor, row):
+    if not row:
+        return None
+    if isinstance(row, dict):
+        return row
+    if hasattr(row, "keys"):
+        try:
+            return dict(row)
+        except Exception:
+            pass
+    if isinstance(cols_or_cursor, list):
+        cols = cols_or_cursor
+    elif hasattr(cols_or_cursor, "description") and cols_or_cursor.description:
+        cols = [col[0] for col in cols_or_cursor.description]
+    else:
+        cols = []
+    if cols and len(cols) == len(row):
+        return dict(zip(cols, row))
+    return {}
 
 def init_db():
     if not (TURSO_DATABASE_URL and TURSO_AUTH_TOKEN):
@@ -133,7 +152,7 @@ def init_db():
         for col_name, col_type in new_columns:
             try:
                 cursor.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}")
-            except sqlite3.OperationalError:
+            except Exception:
                 pass
 
         # services jadvali uchun yangi ustunlar
@@ -146,7 +165,7 @@ def init_db():
         for col_name, col_type in service_new_columns:
             try:
                 cursor.execute(f"ALTER TABLE services ADD COLUMN {col_name} {col_type}")
-            except sqlite3.OperationalError:
+            except Exception:
                 pass
 
         conn.commit()
@@ -418,7 +437,6 @@ def get_services(
     offset: int = 0
 ) -> List[Dict[str, Any]]:
     with get_db() as conn:
-        conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
         query = "SELECT * FROM services WHERE is_active = 1"
@@ -442,7 +460,7 @@ def get_services(
 
         cursor.execute(query, tuple(params))
         rows = cursor.fetchall()
-        return [dict(row) for row in rows]
+        return [to_dict(cursor, row) for row in rows]
 
 def count_services(
     category: Optional[str] = None,
@@ -472,23 +490,22 @@ def count_services(
 
 def get_service_by_id(service_id: int) -> Optional[Dict[str, Any]]:
     with get_db() as conn:
-        conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM services WHERE id = ?", (service_id,))
+        cols = [col[0] for col in cursor.description] if cursor.description else []
         row = cursor.fetchone()
         if row:
             cursor.execute("UPDATE services SET views_count = views_count + 1 WHERE id = ?", (service_id,))
             conn.commit()
-            return dict(row)
+            return to_dict(cols, row)
         return None
 
 def get_user_services(user_id: int) -> List[Dict[str, Any]]:
     with get_db() as conn:
-        conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM services WHERE user_id = ? ORDER BY created_at DESC", (user_id,))
         rows = cursor.fetchall()
-        return [dict(row) for row in rows]
+        return [to_dict(cursor, row) for row in rows]
 
 def delete_service(service_id: int, user_id: int) -> bool:
     with get_db() as conn:
@@ -546,9 +563,11 @@ def add_service_review(service_id: int, user_id: int, rating: int, comment: str 
             """, (avg_r, cnt_r, service_id))
 
             conn.commit()
-            return True, f"Bahoingiz qabul qilindi! O'rtacha reyting: ⭐ {avg_r}"
-        except sqlite3.IntegrityError:
-            return False, "Siz ushbu ustaga allaqachon baho bergansiz!"
+        except Exception as e:
+            if "UNIQUE" in str(e) or "integrity" in str(e).lower() or isinstance(e, sqlite3.IntegrityError):
+                return False, "Siz ushbu ustaga allaqachon baho bergansiz!"
+            logger.error(f"Baho qo'shishda xatolik: {e}")
+            return False, "Baho qo'shishda xatolik yuz berdi."
 
 def has_user_reviewed(service_id: int, user_id: int) -> bool:
     with get_db() as conn:
