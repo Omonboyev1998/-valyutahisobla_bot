@@ -1599,24 +1599,16 @@
         </button>
       </div>
 
-      <!-- 1-TAB: JONLI TRANSLATSIYALAR -->
+            <!-- 1-TAB: FAMELACK TV KANALLARI -->
       <div id="fbTabLive">
-        <!-- Hero Match Card -->
-        <div id="fbHeroMatchContainer"></div>
-
-        <!-- Hozirgi Jonli O'yinlar -->
-        <div style="display: flex; justify-content: space-between; align-items: center; margin: 14px 2px 8px;">
-          <span style="font-size: 14px; font-weight: 700; color: var(--ios-text);">🔴 Jonli O'yinlar Efiri</span>
-          <span style="font-size: 12px; color: var(--ios-blue); font-weight: 600; cursor: pointer;" onclick="loadFootballStreams()">🔄 Yangilash</span>
-        </div>
-        <div id="fbLiveMatchesList">
-          <div style="text-align: center; padding: 20px;"><div class="loader"></div></div>
-        </div>
-
-                <!-- TV Kanallar (Famelack O'zbekiston & Xalqaro) -->
-        <div style="margin: 18px 2px 6px; display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 14px; font-weight: 700; color: var(--ios-text);">📺 TV kanallar (O'zbekiston & Xalqaro)</span>
-          <span style="font-size: 11px; color: var(--ios-blue); font-weight: 600; cursor: pointer;" onclick="openChannelStream('Famelack TV (Barcha kanallar)', 'https://famelack.com/tv/uz', 'Famelack TV')">🇺🇿 Barcha kanallar ↗</span>
+        <div style="margin: 12px 2px 8px; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <span style="font-size: 15px; font-weight: 700; color: var(--ios-text);">📺 Famelack TV Kanallari</span>
+            <div style="font-size: 11px; color: var(--ios-text-secondary); margin-top: 2px;">O'zbekistonning barcha jonli telekanallari</div>
+          </div>
+          <button class="channel-filter-pill" style="background: var(--ios-blue); color: #fff; border-color: var(--ios-blue); font-size: 11px; padding: 6px 12px;" onclick="openExternalUrl('https://famelack.com/tv/uz')">
+            📡 Famelack Portali ↗
+          </button>
         </div>
 
         <!-- Kanallar Filter Tugmalari -->
@@ -1630,7 +1622,7 @@
         </div>
 
         <div class="channels-grid" id="channelsCatalogGrid">
-          <!-- 1. Zo'r TV (Ko'ngilochar) -->
+          <!-- 1. Zo'r TV -->
           <div class="channel-item" data-channel-cat="serial" onclick="openChannelStream('Zo\'r TV', 'https://stream8.cinerama.uz/1016/tracks-v1a1/mono.m3u8', 'Zo\'r TV')">
             <div class="channel-icon" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9);">🎭</div>
             <div>
@@ -1640,7 +1632,7 @@
           </div>
 
           <!-- 2. Sport TV HD -->
-          <div class="channel-item" data-channel-cat="sport" onclick="openChannelStream('Sport TV HD (O\'zbekiston)', 'https://stream.mtrk.uz/sport/index.m3u8', 'Sport TV')">
+          <div class="channel-item" data-channel-cat="sport" onclick="openChannelStream('Sport TV HD', 'https://stream.mtrk.uz/sport/index.m3u8', 'Sport TV')">
             <div class="channel-icon" style="background: linear-gradient(135deg, #10b981, #047857);">⚽️</div>
             <div>
               <div class="channel-name">Sport TV HD</div>
@@ -1648,12 +1640,12 @@
             </div>
           </div>
 
-          <!-- 3. UzReport TV -->
-          <div class="channel-item" data-channel-cat="sport news" onclick="openChannelStream('UzReport TV', 'https://uzreport.news/tv', 'UzReport TV')">
-            <div class="channel-icon" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);">🏆</div>
+          <!-- 3. Futbol TV -->
+          <div class="channel-item" data-channel-cat="sport" onclick="openChannelStream('Futbol TV', 'https://stream.mtrk.uz/sport/index.m3u8', 'Futbol TV')">
+            <div class="channel-icon" style="background: linear-gradient(135deg, #059669, #065f46);">🥅</div>
             <div>
-              <div class="channel-name">UzReport TV</div>
-              <div class="channel-sub">YeCHL & Yangilik</div>
+              <div class="channel-name">Futbol TV</div>
+              <div class="channel-sub">Futbol o'yinlari</div>
             </div>
           </div>
 
@@ -1684,12 +1676,12 @@
             </div>
           </div>
 
-          <!-- 7. Futbol TV -->
-          <div class="channel-item" data-channel-cat="sport" onclick="openChannelStream('Futbol TV (O\'zbekiston)', 'https://stream.mtrk.uz/sport/index.m3u8', 'Futbol TV')">
-            <div class="channel-icon" style="background: linear-gradient(135deg, #059669, #065f46);">🥅</div>
+          <!-- 7. Yoshlar TV -->
+          <div class="channel-item" data-channel-cat="news serial" onclick="openChannelStream('Yoshlar TV', 'https://stream.mtrk.uz/yoshlar/index.m3u8', 'Yoshlar TV')">
+            <div class="channel-icon" style="background: linear-gradient(135deg, #f97316, #c2410c);">🌟</div>
             <div>
-              <div class="channel-name">Futbol TV</div>
-              <div class="channel-sub">Futbol o'yinlari</div>
+              <div class="channel-name">Yoshlar TV</div>
+              <div class="channel-sub">MTRK Yoshlar kanali</div>
             </div>
           </div>
 
@@ -1748,7 +1740,7 @@
           </div>
 
           <!-- 14. O'zbekiston TV -->
-          <div class="channel-item" data-channel-cat="news" onclick="openChannelStream('O\'zbekiston MTRK', 'https://stream.mtrk.uz/uzbekistan/index.m3u8', 'O\'zbekiston TV')">
+          <div class="channel-item" data-channel-cat="news" onclick="openChannelStream('O\'zbekiston TV', 'https://stream.mtrk.uz/uzbekistan/index.m3u8', 'O\'zbekiston TV')">
             <div class="channel-icon" style="background: linear-gradient(135deg, #0284c7, #1e40af);">🇺🇿</div>
             <div>
               <div class="channel-name">O'zbekiston TV</div>
@@ -1774,76 +1766,96 @@
             </div>
           </div>
 
-          <!-- 17. Setanta Sports HD -->
-          <div class="channel-item" data-channel-cat="sport" onclick="openChannelStream('Setanta Sports HD', 'https://setantasports.com', 'Setanta Sports')">
-            <div class="channel-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">⚡️</div>
+          <!-- 17. BIZ TV -->
+          <div class="channel-item" data-channel-cat="serial" onclick="openChannelStream('BIZ TV', 'https://famelack.com/tv/uz', 'BIZ TV')">
+            <div class="channel-icon" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);">💼</div>
             <div>
-              <div class="channel-name">Setanta Sports</div>
-              <div class="channel-sub">Top Ligalar</div>
+              <div class="channel-name">BIZ TV</div>
+              <div class="channel-sub">Biznes & ko'ngilochar</div>
             </div>
           </div>
 
-          <!-- 18. Score808 Live -->
-          <div class="channel-item" data-channel-cat="sport" onclick="openChannelStream('Score808 Jonli Efirlar', 'https://score808.us/', 'Score808')">
-            <div class="channel-icon" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9);">📺</div>
+          <!-- 18. BIZ Cinema -->
+          <div class="channel-item" data-channel-cat="serial" onclick="openChannelStream('BIZ Cinema', 'https://famelack.com/tv/uz', 'BIZ Cinema')">
+            <div class="channel-icon" style="background: linear-gradient(135deg, #6366f1, #3730a3);">🎬</div>
             <div>
-              <div class="channel-name">Score808 Live</div>
-              <div class="channel-sub">Barcha o'yinlar</div>
+              <div class="channel-name">BIZ Cinema</div>
+              <div class="channel-sub">Kino kanali</div>
             </div>
           </div>
 
-          <!-- 19. LiveTV.sx -->
-          <div class="channel-item" data-channel-cat="sport" onclick="openChannelStream('LiveTV Jonli Efirlar', 'https://livetv.sx/enx/', 'LiveTV')">
-            <div class="channel-icon" style="background: linear-gradient(135deg, #ef4444, #b91c1c);">🌐</div>
+          <!-- 19. BIZ Music -->
+          <div class="channel-item" data-channel-cat="music" onclick="openChannelStream('BIZ Music', 'https://famelack.com/tv/uz', 'BIZ Music')">
+            <div class="channel-icon" style="background: linear-gradient(135deg, #ec4899, #9d174d);">🎵</div>
             <div>
-              <div class="channel-name">LiveTV.sx</div>
-              <div class="channel-sub">Yevropa efirlari</div>
+              <div class="channel-name">BIZ Music</div>
+              <div class="channel-sub">Musiqa efiri</div>
             </div>
           </div>
-        </div>
-          </div>
-          <div class="channel-item" onclick="openChannelStream('Sport TV HD (O\'zbekiston)', 'https://stream.mtrk.uz/sport/index.m3u8', 'Sport TV')">
-            <div class="channel-icon" style="background: linear-gradient(135deg, #10b981, #059669);">⚽️</div>
-            <div>
-              <div class="channel-name">Sport TV HD</div>
-              <div class="channel-sub">🔴 MTRK Jonli efir</div>
-            </div>
-          </div>
-          <div class="channel-item" onclick="openChannelStream('UzReport TV', 'https://uzreport.news/tv', 'UzReport TV')">
-            <div class="channel-icon" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);">🏆</div>
-            <div>
-              <div class="channel-name">UzReport TV</div>
-              <div class="channel-sub">YeCHL & APL</div>
-            </div>
-          </div>
-          <div class="channel-item" onclick="openChannelStream('Setanta Sports HD', 'https://setantasports.com', 'Setanta Sports')">
-            <div class="channel-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">⚡️</div>
-            <div>
-              <div class="channel-name">Setanta Sports</div>
-              <div class="channel-sub">Top Ligalar</div>
-            </div>
-          </div>
-          <div class="channel-item" onclick="openChannelStream('Score808 Jonli Efirlar', 'https://score808.us/', 'Score808')">
-            <div class="channel-icon" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9);">📺</div>
-            <div>
-              <div class="channel-name">Score808 Live</div>
-              <div class="channel-sub">Barcha o'yinlar</div>
-            </div>
-          </div>
-          <div class="channel-item" onclick="openChannelStream('LiveTV Jonli Efirlar', 'https://livetv.sx/enx/', 'LiveTV')">
-            <div class="channel-icon" style="background: linear-gradient(135deg, #ef4444, #b91c1c);">🌐</div>
-            <div>
-              <div class="channel-name">LiveTV.sx</div>
-              <div class="channel-sub">Yevropa efirlari</div>
-            </div>
-          </div>
-        </div>
 
-        <!-- Kutilayotgan Translatsiyalar -->
-        <div style="margin: 16px 2px 8px;">
-          <span style="font-size: 14px; font-weight: 700; color: var(--ios-text);">⏰ Bugungi Kutilayotgan O'yinlar</span>
+          <!-- 20. Cheksiz TV -->
+          <div class="channel-item" data-channel-cat="serial" onclick="openChannelStream('Cheksiz TV', 'https://famelack.com/tv/uz', 'Cheksiz TV')">
+            <div class="channel-icon" style="background: linear-gradient(135deg, #8b5cf6, #5b21b6);">📺</div>
+            <div>
+              <div class="channel-name">Cheksiz TV</div>
+              <div class="channel-sub">Seriallar olami</div>
+            </div>
+          </div>
+
+          <!-- 21. Makon TV -->
+          <div class="channel-item" data-channel-cat="news" onclick="openChannelStream('Makon TV', 'https://famelack.com/tv/uz', 'Makon TV')">
+            <div class="channel-icon" style="background: linear-gradient(135deg, #10b981, #065f46);">📍</div>
+            <div>
+              <div class="channel-name">Makon TV</div>
+              <div class="channel-sub">Hududiy yangiliklar</div>
+            </div>
+          </div>
+
+          <!-- 22. Dasturxon TV -->
+          <div class="channel-item" data-channel-cat="serial" onclick="openChannelStream('Dasturxon TV', 'https://famelack.com/tv/uz', 'Dasturxon TV')">
+            <div class="channel-icon" style="background: linear-gradient(135deg, #f59e0b, #92400e);">🍲</div>
+            <div>
+              <div class="channel-name">Dasturxon TV</div>
+              <div class="channel-sub">Pazandachilik sirlari</div>
+            </div>
+          </div>
+
+          <!-- 23. Muz TV Uzbekistan -->
+          <div class="channel-item" data-channel-cat="music" onclick="openChannelStream('Muz TV Uzbekistan', 'https://famelack.com/tv/uz', 'Muz TV')">
+            <div class="channel-icon" style="background: linear-gradient(135deg, #f43f5e, #9f1239);">🎸</div>
+            <div>
+              <div class="channel-name">Muz TV Uz</div>
+              <div class="channel-sub">Xit taronalar</div>
+            </div>
+          </div>
+
+          <!-- 24. Farg'ona MTRK -->
+          <div class="channel-item" data-channel-cat="news" onclick="openChannelStream('Farg\'ona MTRK', 'https://famelack.com/tv/uz', 'Farg\'ona TV')">
+            <div class="channel-icon" style="background: linear-gradient(135deg, #0284c7, #075985);">🏢</div>
+            <div>
+              <div class="channel-name">Farg'ona MTRK</div>
+              <div class="channel-sub">Viloyat telekanali</div>
+            </div>
+          </div>
+
+          <!-- 25. Navoiy MTRK -->
+          <div class="channel-item" data-channel-cat="news" onclick="openChannelStream('Navoiy MTRK', 'https://famelack.com/tv/uz', 'Navoiy TV')">
+            <div class="channel-icon" style="background: linear-gradient(135deg, #0d9488, #115e59);">🏢</div>
+            <div>
+              <div class="channel-name">Navoiy MTRK</div>
+              <div class="channel-sub">Viloyat telekanali</div>
+            </div>
+          </div>
+
+          <!-- 26. Nurafshon TV -->
+          <div class="channel-item" data-channel-cat="news" onclick="openChannelStream('Nurafshon TV', 'https://famelack.com/tv/uz', 'Nurafshon TV')">
+            <div class="channel-icon" style="background: linear-gradient(135deg, #4f46e5, #312e81);">🏢</div>
+            <div>
+              <div class="channel-name">Nurafshon TV</div>
+              <div class="channel-sub">Toshkent viloyati TV</div>
+            </div>
+          </div>
         </div>
-        <div id="fbUpcomingList"></div>
       </div>
 
       <!-- 2-TAB: TURNIR JADVALI -->
