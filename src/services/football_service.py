@@ -1,10 +1,13 @@
+import asyncio
 import time
 import logging
 from typing import Optional, Dict, Any, List, Tuple
 import aiohttp
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 logger = logging.getLogger(__name__)
+
+TASHKENT_TZ = timezone(timedelta(hours=5))
 
 LEAGUES = {
     "eng.1": {"name": "Angliya Premyer-ligasi (APL)", "flag": "🏴󠁧󠁢󠁥󠁮󠁧󠁿"},
@@ -24,6 +27,7 @@ class FootballService:
         self.cache_ttl = cache_ttl
         self._standings_cache: Dict[str, Tuple[float, Dict[str, Any]]] = {}
         self._matches_cache: Dict[str, Tuple[float, Dict[str, Any]]] = {}
+        self._live_matches_cache: Tuple[float, List[Dict[str, Any]]] = (0.0, [])
 
     async def get_standings(self, league_code: str = "eng.1", limit: int = 10) -> Optional[Dict[str, Any]]:
         """Turnir jadvalini oladi (5 daqiqa kesh bilan)"""
@@ -144,5 +148,111 @@ class FootballService:
 
     # Alias for compatibility
     get_recent_matches = get_matches
+
+    async def get_all_live_and_today_matches(self) -> List[Dict[str, Any]]:
+        """Barcha asosiy ligalardan bugungi va jonli real o'yinlarni oladi (60s kesh bilan)"""
+        now = time.time()
+        cached_time, cached_data = self._live_matches_cache
+        if now - cached_time < 60 and cached_data:
+            return cached_data
+
+        ordered_leagues = ["uefa.champions", "eng.1", "esp.1", "ita.1", "ger.1", "fra.1"]
+
+        async def fetch_league_matches(session: aiohttp.ClientSession, l_code: str) -> List[Dict[str, Any]]:
+            url = f"https://site.api.espn.com/apis/site/v2/sports/soccer/{l_code}/scoreboard"
+            league_results = []
+            try:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=8)) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        events = data.get("events", [])
+                        l_info = LEAGUES.get(l_code, {})
+                        l_name = l_info.get("name", l_code)
+                        l_flag = l_info.get("flag", "⚽")
+
+                        for ev in events:
+                            ev_id = ev.get("id", "")
+                            ev_status = ev.get("status", {})
+                            s_type = ev_status.get("type", {})
+                            state = s_type.get("state", "pre")  # 'in', 'pre', 'post'
+                            is_live = 1 if state == "in" else 0
+                            clock = ev_status.get("displayClock", "")
+
+                            # Sana va vaqtni Toshkent vaqtiga o'girish
+                            date_str = ev.get("date", "")
+                            match_time_display = ""
+                            if date_str:
+                                try:
+                                    dt_utc = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+                                    dt_uz = dt_utc.astimezone(TASHKENT_TZ)
+                                    today_uz = datetime.now(TASHKENT_TZ).date()
+                                    if dt_uz.date() == today_uz:
+                                        match_time_display = f"Bugun, {dt_uz.strftime('%H:%M')}"
+                                    elif dt_uz.date() == today_uz + timedelta(days=1):
+                                        match_time_display = f"Ertaga, {dt_uz.strftime('%H:%M')}"
+                                    else:
+                                        match_time_display = dt_uz.strftime("%d-%b, %H:%M")
+                                except Exception:
+                                    match_time_display = s_type.get("detail", "Bugun")
+
+                            if is_live:
+                                status_badge = f"🔴 {clock or 'Jonli'}"
+                            elif state == "post":
+                                status_badge = "Tugagan"
+                            else:
+                                status_badge = match_time_display
+
+                            competitions = ev.get("competitions", [{}])[0]
+                            competitors = competitions.get("competitors", [])
+                            if len(competitors) >= 2:
+                                home_obj = competitors[0].get("team", {})
+                                away_obj = competitors[1].get("team", {})
+                                h_name = home_obj.get("displayName", "")
+                                a_name = away_obj.get("displayName", "")
+                                h_logo = home_obj.get("logo", "")
+                                a_logo = away_obj.get("logo", "")
+                                h_score = competitors[0].get("score", "")
+                                a_score = competitors[1].get("score", "")
+
+                                if h_score != "" and a_score != "":
+                                    score_display = f"{h_score} - {a_score}"
+                                else:
+                                    score_display = "vs"
+
+                                if "champions" in l_code or "eng.1" in l_code:
+                                    channel_name = "UzReport TV"
+                                elif "esp.1" in l_code or "ita.1" in l_code:
+                                    channel_name = "Sport TV HD"
+                                else:
+                                    channel_name = "Setanta Sports"
+
+                                league_results.append({
+                                    "id": f"espn_{ev_id}",
+                                    "title": f"{h_name} vs {a_name}",
+                                    "league": f"{l_flag} {l_name}",
+                                    "channel_name": channel_name,
+                                    "match_time": status_badge,
+                                    "is_live": is_live,
+                                    "state": state,
+                                    "home_team": h_name,
+                                    "away_team": a_name,
+                                    "home_logo": h_logo,
+                                    "away_logo": a_logo,
+                                    "score": score_display,
+                                    "start_time": match_time_display,
+                                    "stream_url": ""
+                                })
+            except Exception as e:
+                logger.warning(f"Error fetching live matches for {l_code}: {e}")
+            return league_results
+
+        async with aiohttp.ClientSession(headers=HEADERS) as session:
+            tasks = [fetch_league_matches(session, lc) for lc in ordered_leagues]
+            nested_results = await asyncio.gather(*tasks)
+
+        all_matches = [m for sublist in nested_results for m in sublist]
+        if all_matches:
+            self._live_matches_cache = (now, all_matches)
+        return all_matches
 
 football_service = FootballService()

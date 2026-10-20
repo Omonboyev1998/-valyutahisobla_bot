@@ -112,11 +112,31 @@ async def api_football_matches(request: web.Request) -> web.Response:
 from src.database import get_football_streams, add_football_stream, delete_football_stream
 
 async def api_football_streams(request: web.Request) -> web.Response:
-    """Futbol jonli translatsiyalari ro'yxati API"""
+    """Futbol jonli translatsiyalari va real o'yinlar ro'yxati API"""
     try:
+        # 1. Barcha real o'yinlar (UEFA Champions League, APL, La Liga, Serie A va b.)
+        real_matches = await football_service.get_all_live_and_today_matches()
+
+        # 2. Baza streams (Telekanallar va admin qo'shgan maxsus oqimlar)
+        db_streams = get_football_streams()
+
+        # Custom stream URL'larni real o'yinlar bilan birlashtiramiz
+        custom_urls = {s["title"].lower(): s["stream_url"] for s in db_streams if s.get("stream_url")}
+        for m in real_matches:
+            t_lower = m["title"].lower()
+            for c_title, c_url in custom_urls.items():
+                if c_title in t_lower or t_lower in c_title:
+                    m["stream_url"] = c_url
+                    break
+
+        # Barcha elementlar: real o'yinlar va telekanallar
+        all_items = real_matches + [s for s in db_streams if not any(s["title"].lower() == m["title"].lower() for m in real_matches)]
+
         live_only = request.query.get("live_only", "0") == "1"
-        streams = get_football_streams(is_live_only=live_only)
-        return web.json_response(streams, headers={"Access-Control-Allow-Origin": "*"})
+        if live_only:
+            all_items = [s for s in all_items if s.get("is_live") == 1]
+
+        return web.json_response(all_items, headers={"Access-Control-Allow-Origin": "*"})
     except Exception as e:
         logger.error(f"Translatsiyalarni olishda xatolik: {e}")
         return web.json_response([], headers={"Access-Control-Allow-Origin": "*"})

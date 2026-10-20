@@ -627,45 +627,21 @@ def add_service_order(
 # ==================== FOOTBALL STREAMS / TRANSLATSIYA ====================
 
 def seed_default_football_streams_if_empty(cursor):
-    """Bazada efirlar bo'lmasa, dastlabki jonli o'yinlar va sport kanallarini qo'shadi"""
+    """Bazada efirlar bo'lmasa, dastlabki sport telekanallarini qo'shadi"""
     try:
+        # Eski soxta o'yinlarni tozalaymiz
+        cursor.execute("DELETE FROM football_streams WHERE title LIKE '%Real Madrid vs Barcelona%' OR title LIKE '%Arsenal vs Manchester City%' OR title LIKE '%Liverpool vs Chelsea%'")
         cursor.execute("SELECT COUNT(*) FROM football_streams")
         row = cursor.fetchone()
         count = row[0] if row else 0
         if count == 0:
-            default_streams = [
+            default_channels = [
                 (
-                    "Real Madrid vs Barcelona | El Clasico",
-                    "🇪🇸 La Liga",
-                    "https://www.youtube.com/embed/live_stream?channel=UC4i_9W_nLoT6853gkltuxOA",
-                    "Sport TV HD",
-                    "🔴 72' Jonli Efir",
-                    1,
-                    "Real Madrid",
-                    "Barcelona",
-                    "https://a.espncdn.com/i/teamlogos/soccer/500/86.png",
-                    "https://a.espncdn.com/i/teamlogos/soccer/500/83.png",
-                    "2 - 1"
-                ),
-                (
-                    "Arsenal vs Manchester City",
-                    "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premyer-liga",
-                    "https://www.youtube.com/embed/5qap5aO4i9A",
-                    "UzReport TV",
-                    "🔴 38' Jonli Efir",
-                    1,
-                    "Arsenal",
-                    "Manchester City",
-                    "https://a.espncdn.com/i/teamlogos/soccer/500/359.png",
-                    "https://a.espncdn.com/i/teamlogos/soccer/500/382.png",
-                    "1 - 1"
-                ),
-                (
-                    "Sport TV HD — Jonli Telekanal",
+                    "Sport TV HD (O'zbekiston)",
                     "📺 Sport Telekanal",
-                    "https://www.youtube.com/embed/jfKfPfyJRdk",
+                    "https://stream.mtrk.uz/sport/index.m3u8",
                     "Sport TV",
-                    "🔴 24/7 Efirda",
+                    "🔴 24/7 Jonli efir",
                     1,
                     "Sport TV",
                     "O'zbekiston",
@@ -674,11 +650,24 @@ def seed_default_football_streams_if_empty(cursor):
                     "HD"
                 ),
                 (
-                    "Setanta Sports HD — Yevropa Top Ligalari",
-                    "🏆 Setanta Sports",
-                    "https://www.youtube.com/embed/live_stream?channel=UC4i_9W_nLoT6853gkltuxOA",
+                    "UzReport TV Jonli Efiri",
+                    "🏆 Chempionlar Ligasi & APL",
+                    "https://uzreport.news/tv",
+                    "UzReport TV",
+                    "🔴 Jonli efir",
+                    1,
+                    "UzReport",
+                    "TV",
+                    "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png",
+                    "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png",
+                    "HD"
+                ),
+                (
+                    "Setanta Sports HD",
+                    "⚡️ Xalqaro Top Futbol",
+                    "https://setantasports.com",
                     "Setanta 1",
-                    "🔴 24/7 Efirda",
+                    "🔴 24/7 Jonli",
                     1,
                     "Setanta",
                     "Sports",
@@ -687,27 +676,40 @@ def seed_default_football_streams_if_empty(cursor):
                     "HD"
                 ),
                 (
-                    "Liverpool vs Chelsea",
-                    "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premyer-liga",
-                    "https://www.youtube.com/embed/5qap5aO4i9A",
-                    "Football TV",
-                    "Bugun, 23:45",
-                    0,
-                    "Liverpool",
-                    "Chelsea",
-                    "https://a.espncdn.com/i/teamlogos/soccer/500/364.png",
-                    "https://a.espncdn.com/i/teamlogos/soccer/500/363.png",
-                    "vs"
+                    "Score808 Jonli O'yinlar Hubi",
+                    "🌐 Xalqaro Translatsiyalar",
+                    "https://score808.us/",
+                    "Score808",
+                    "🔴 Jonli Translatsiyalar",
+                    1,
+                    "Live",
+                    "Match",
+                    "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png",
+                    "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png",
+                    "LIVE"
+                ),
+                (
+                    "LiveTV.sx Bepul Futbol Efirlari",
+                    "⚽️ Yevropa O'yinlari",
+                    "https://livetv.sx/enx/",
+                    "LiveTV",
+                    "🔴 Barcha O'yinlar",
+                    1,
+                    "LiveTV",
+                    "Football",
+                    "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png",
+                    "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png",
+                    "HD"
                 )
             ]
-            for s in default_streams:
+            for s in default_channels:
                 cursor.execute("""
                     INSERT INTO football_streams 
                     (title, league, stream_url, channel_name, match_time, is_live, home_team, away_team, home_logo, away_logo, score)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, s)
     except Exception as e:
-        logger.error(f"Default translatsiyalarni yaratishda xatolik: {e}")
+        logger.error(f"Default telekanallarni yaratishda xatolik: {e}")
 
 def get_football_streams(is_live_only: bool = False) -> List[Dict[str, Any]]:
     """Futbol translatsiyalari va kanallar ro'yxatini oladi"""

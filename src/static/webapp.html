@@ -1585,32 +1585,32 @@
           <span style="font-size: 14px; font-weight: 700; color: var(--ios-text);">📺 Jonli Sport Telekanallari (24/7)</span>
         </div>
         <div class="channels-grid">
-          <div class="channel-item" onclick="openChannelStream('Sport TV HD', 'https://www.youtube.com/embed/jfKfPfyJRdk')">
+          <div class="channel-item" onclick="openChannelStream('Sport TV HD (O\'zbekiston)', 'https://stream.mtrk.uz/sport/index.m3u8', 'Sport TV')">
             <div class="channel-icon" style="background: linear-gradient(135deg, #10b981, #059669);">⚽️</div>
             <div>
               <div class="channel-name">Sport TV HD</div>
-              <div class="channel-sub">🔴 Jonli efir</div>
+              <div class="channel-sub">🔴 MTRK Jonli efir</div>
             </div>
           </div>
-          <div class="channel-item" onclick="openChannelStream('UzReport TV', 'https://www.youtube.com/embed/live_stream?channel=UC4i_9W_nLoT6853gkltuxOA')">
+          <div class="channel-item" onclick="openChannelStream('UzReport TV', 'https://uzreport.news/tv', 'UzReport TV')">
             <div class="channel-icon" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);">🏆</div>
             <div>
               <div class="channel-name">UzReport TV</div>
-              <div class="channel-sub">APL & YeCHL</div>
+              <div class="channel-sub">YeCHL & APL</div>
             </div>
           </div>
-          <div class="channel-item" onclick="openChannelStream('Setanta Sports', 'https://www.youtube.com/embed/live_stream?channel=UC4i_9W_nLoT6853gkltuxOA')">
+          <div class="channel-item" onclick="openChannelStream('Setanta Sports HD', 'https://setantasports.com', 'Setanta Sports')">
             <div class="channel-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">⚡️</div>
             <div>
               <div class="channel-name">Setanta Sports</div>
               <div class="channel-sub">Top Ligalar</div>
             </div>
           </div>
-          <div class="channel-item" onclick="openChannelStream('Football TV HD', 'https://www.youtube.com/embed/5qap5aO4i9A')">
+          <div class="channel-item" onclick="openChannelStream('Score808 Jonli Efirlar', 'https://score808.us/', 'Score808')">
             <div class="channel-icon" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9);">📺</div>
             <div>
-              <div class="channel-name">Football TV</div>
-              <div class="channel-sub">La Liga, A Seriya</div>
+              <div class="channel-name">Score808 Live</div>
+              <div class="channel-sub">Barcha o'yinlar</div>
             </div>
           </div>
         </div>
@@ -2703,6 +2703,10 @@
     }
 
     async function loadFootballStreams() {
+      const liveList = document.getElementById('fbLiveMatchesList');
+      if (liveList && (!footballStreamsCache || footballStreamsCache.length === 0)) {
+        liveList.innerHTML = '<div style="text-align: center; padding: 20px;"><div class="loader"></div></div>';
+      }
       try {
         const res = await fetch('/api/football/streams');
         const streams = await res.json();
@@ -2720,47 +2724,53 @@
 
       if (!streams || streams.length === 0) {
         if (heroContainer) heroContainer.innerHTML = '';
-        if (liveList) liveList.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--ios-text-secondary); font-size: 13px;">Hozircha efirlar mavjud emas. Yuqoridagi "+ Efir qo\'shish" orqali translatsiya kiritishingiz mumkin!</div>';
+        if (liveList) liveList.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--ios-text-secondary); font-size: 13px;">Bugun uchun o\'yinlar yuklanmoqda...</div>';
         if (upcomingList) upcomingList.innerHTML = '';
         return;
       }
 
-      // Hero match (first live match)
+      // Live va Upcoming o'yinlarni ajratamiz
       const liveMatches = streams.filter(function(s) { return s.is_live === 1; });
       const upcomingMatches = streams.filter(function(s) { return s.is_live === 0; });
 
+      // 1. HERO MATCH (Jonli o'yin bo'lsa jonlisi, aks holda bugungi eng asosiy o'yin!)
       if (heroContainer) {
-        if (liveMatches.length > 0) {
-          const hero = liveMatches[0];
+        const hero = (liveMatches.length > 0) ? liveMatches[0] : (upcomingMatches.length > 0 ? upcomingMatches[0] : null);
+        if (hero) {
           const hLogo = hero.home_logo || 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png';
           const aLogo = hero.away_logo || 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png';
-          const hName = hero.home_team || hero.title.split('vs')[0] || '1-Jamoa';
-          const aName = hero.away_team || (hero.title.split('vs')[1] ? hero.title.split('vs')[1].split('|')[0] : '2-Jamoa');
+          const hName = hero.home_team || '1-Jamoa';
+          const aName = hero.away_team || '2-Jamoa';
+          const isRealLive = hero.is_live === 1;
+
+          const badgeHtml = isRealLive ? 
+            `<span class="live-pulse-badge" style="background: rgba(255, 59, 48, 0.25); color: #ff6b6b;"><span class="live-pulse-dot"></span> ${hero.match_time || 'JONLI EFIR'}</span>` :
+            `<span style="font-size: 11px; font-weight: 700; color: #38bdf8; background: rgba(56, 189, 248, 0.15); padding: 3px 8px; border-radius: 10px;">⏰ ${hero.match_time || 'Bugun kutilmoqda'}</span>`;
+
+          const btnText = isRealLive ? '<span>▶️</span> Jonli Efirni Ko\'rish' : '<span>📺</span> O\'yin Tafsilotlari & Translatsiya';
 
           heroContainer.innerHTML = `
             <div class="hero-match-card">
               <div class="hero-match-header">
-                <span class="live-pulse-badge" style="background: rgba(255, 59, 48, 0.25); color: #ff6b6b;">
-                  <span class="live-pulse-dot"></span> ${hero.match_time || 'JONLI EFIR'}
-                </span>
+                ${badgeHtml}
                 <span style="font-size: 12px; font-weight: 600; opacity: 0.9;">📺 ${hero.channel_name || 'Sport TV'}</span>
               </div>
               <div class="hero-match-teams">
                 <div class="hero-team">
-                  <img src="${hLogo}" class="hero-team-logo" alt="">
-                  <span class="hero-team-name">${hName.trim()}</span>
+                  <img src="${hLogo}" class="hero-team-logo" alt="" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png'">
+                  <span class="hero-team-name">${hName}</span>
                 </div>
                 <div class="hero-score-box">
                   <span class="hero-score-text">${hero.score || 'vs'}</span>
                   <span class="hero-match-minute">${hero.league || 'Futbol'}</span>
                 </div>
                 <div class="hero-team">
-                  <img src="${aLogo}" class="hero-team-logo" alt="">
-                  <span class="hero-team-name">${aName.trim()}</span>
+                  <img src="${aLogo}" class="hero-team-logo" alt="" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png'">
+                  <span class="hero-team-name">${aName}</span>
                 </div>
               </div>
-              <button class="btn-watch-live" onclick="openFootballStream(${hero.id}, '${hero.stream_url.replace(/'/g, "\\'")}', '${hero.title.replace(/'/g, "\\'")}', '${hero.channel_name}', ${hero.is_live}, '${hero.score}')">
-                <span>▶️</span> Jonli Efirni Ko'rish
+              <button class="btn-watch-live" onclick="openFootballStream('${hero.id}', '${(hero.stream_url || '').replace(/'/g, "\\'")}', '${hero.title.replace(/'/g, "\\'")}', '${hero.channel_name}', ${hero.is_live}, '${hero.score}', '${hero.match_time}')">
+                ${btnText}
               </button>
             </div>
           `;
@@ -2769,32 +2779,28 @@
         }
       }
 
-      // Live Matches List
+      // 2. LIVE MATCHES LIST
       if (liveList) {
-        let liveHtml = '';
-        const listToRender = liveMatches.length > 1 ? liveMatches.slice(1) : liveMatches;
-        if (listToRender.length > 0) {
-          listToRender.forEach(function(m) {
+        if (liveMatches.length > 0) {
+          let liveHtml = '';
+          liveMatches.forEach(function(m) {
             const hLogo = m.home_logo || 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png';
             const aLogo = m.away_logo || 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png';
-            const hName = m.home_team || m.title.split('vs')[0] || '1-Jamoa';
-            const aName = m.away_team || (m.title.split('vs')[1] ? m.title.split('vs')[1].split('|')[0] : '2-Jamoa');
-
             liveHtml += `
-              <div class="stream-card" onclick="openFootballStream(${m.id}, '${m.stream_url.replace(/'/g, "\\'")}', '${m.title.replace(/'/g, "\\'")}', '${m.channel_name}', ${m.is_live}, '${m.score}')">
+              <div class="stream-card" onclick="openFootballStream('${m.id}', '${(m.stream_url || '').replace(/'/g, "\\'")}', '${m.title.replace(/'/g, "\\'")}', '${m.channel_name}', ${m.is_live}, '${m.score}', '${m.match_time}')">
                 <div class="stream-card-header">
                   <span class="live-pulse-badge"><span class="live-pulse-dot"></span> ${m.match_time || 'JONLI'}</span>
-                  <span style="font-size: 11px; font-weight: 600; color: var(--ios-text-secondary);">${m.league || 'Top Liga'} • ${m.channel_name || 'Sport TV'}</span>
+                  <span style="font-size: 11px; font-weight: 600; color: var(--ios-text-secondary);">${m.league || 'Futbol'} • ${m.channel_name || 'Sport TV'}</span>
                 </div>
                 <div class="stream-match-row">
                   <div class="stream-team-side">
-                    <img src="${hLogo}" class="stream-team-badge" alt="">
-                    <span style="font-size: 13px; font-weight: 700; color: var(--ios-text);">${hName.trim()}</span>
+                    <img src="${hLogo}" class="stream-team-badge" alt="" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png'">
+                    <span style="font-size: 13px; font-weight: 700; color: var(--ios-text);">${m.home_team}</span>
                   </div>
                   <div class="stream-score-pill">${m.score || 'vs'}</div>
                   <div class="stream-team-side right">
-                    <span style="font-size: 13px; font-weight: 700; color: var(--ios-text);">${aName.trim()}</span>
-                    <img src="${aLogo}" class="stream-team-badge" alt="">
+                    <span style="font-size: 13px; font-weight: 700; color: var(--ios-text);">${m.away_team}</span>
+                    <img src="${aLogo}" class="stream-team-badge" alt="" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png'">
                   </div>
                 </div>
               </div>
@@ -2802,94 +2808,202 @@
           });
           liveList.innerHTML = liveHtml;
         } else {
-          liveList.innerHTML = '<div style="text-align: center; padding: 14px; color: var(--ios-text-secondary); font-size: 13px;">Boshqa faol jonli o\'yinlar mavjud emas</div>';
+          liveList.innerHTML = '<div style="background: var(--ios-card-bg); border: 0.5px solid var(--ios-card-border); border-radius: 14px; padding: 14px; text-align: center; color: var(--ios-text-secondary); font-size: 12px; line-height: 1.5;">Hozirda jonli efirdagi o\'yinlar yo\'q.<br>Bugungi asosiy o\'yinlar soat <b>21:45</b> va <b>00:00</b> da boshlanadi (quyida keltirilgan).</div>';
         }
       }
 
-      // Upcoming Matches
+      // 3. UPCOMING MATCHES LIST
       if (upcomingList) {
-        let upHtml = '';
         if (upcomingMatches.length > 0) {
+          let upHtml = '';
           upcomingMatches.forEach(function(u) {
+            const hLogo = u.home_logo || 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png';
+            const aLogo = u.away_logo || 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png';
             upHtml += `
-              <div class="stream-card" onclick="openFootballStream(${u.id}, '${u.stream_url.replace(/'/g, "\\'")}', '${u.title.replace(/'/g, "\\'")}', '${u.channel_name}', ${u.is_live}, '${u.score}')">
+              <div class="stream-card" onclick="openFootballStream('${u.id}', '${(u.stream_url || '').replace(/'/g, "\\'")}', '${u.title.replace(/'/g, "\\'")}', '${u.channel_name}', ${u.is_live}, '${u.score}', '${u.match_time}')">
                 <div class="stream-card-header">
-                  <span style="font-size: 11px; font-weight: 700; color: var(--ios-orange); background: rgba(255, 149, 0, 0.12); padding: 3px 8px; border-radius: 10px;">⏰ ${u.match_time || 'Kutilmoqda'}</span>
-                  <span style="font-size: 11px; font-weight: 600; color: var(--ios-text-secondary);">${u.channel_name || 'Sport TV'}</span>
+                  <span style="font-size: 11px; font-weight: 700; color: var(--ios-blue); background: rgba(0, 122, 255, 0.1); padding: 3px 8px; border-radius: 10px;">⏰ ${u.match_time || 'Bugun'}</span>
+                  <span style="font-size: 11px; font-weight: 600; color: var(--ios-text-secondary);">${u.league || 'Liga'}</span>
                 </div>
-                <div style="font-size: 13px; font-weight: 700; color: var(--ios-text); margin-top: 4px;">${u.title}</div>
+                <div class="stream-match-row" style="margin-top: 6px;">
+                  <div class="stream-team-side">
+                    <img src="${hLogo}" class="stream-team-badge" alt="" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png'">
+                    <span style="font-size: 13px; font-weight: 600; color: var(--ios-text);">${u.home_team || u.title}</span>
+                  </div>
+                  <div style="font-size: 12px; font-weight: 600; color: var(--ios-text-secondary);">📺 ${u.channel_name || 'Sport TV'}</div>
+                  <div class="stream-team-side right">
+                    <span style="font-size: 13px; font-weight: 600; color: var(--ios-text);">${u.away_team || ''}</span>
+                    ${u.away_logo ? '<img src="' + aLogo + '" class="stream-team-badge" alt="" onerror="this.src=\'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png\'">' : ''}
+                  </div>
+                </div>
               </div>
             `;
           });
           upcomingList.innerHTML = upHtml;
         } else {
-          upcomingList.innerHTML = '<div style="text-align: center; padding: 10px; color: var(--ios-text-secondary); font-size: 12px;">Yangi translatsiyalar tez orada e\'lon qilinadi</div>';
+          upcomingList.innerHTML = '<div style="text-align: center; padding: 12px; color: var(--ios-text-secondary); font-size: 12px;">Yangi o\'yinlar jadvali yangilanmoqda</div>';
         }
       }
     }
 
-    function openChannelStream(channelName, streamUrl) {
-      openFootballStream(0, streamUrl, channelName + ' — Jonli Efir', channelName, 1, 'HD');
+    function openChannelStream(channelName, streamUrl, channelTag) {
+      currentActiveStreamUrl = streamUrl;
+      // Agar m3u8 bo'lsa pleyerda ochamiz
+      if (streamUrl.includes('.m3u8')) {
+        openFootballStream(0, streamUrl, channelName, channelTag || 'Sport TV', 1, 'HD', 'JONLI');
+      } else {
+        // Portal yoki tashqi efir bo'lsa
+        haptic();
+        try {
+          if (tg && typeof tg.openLink === 'function') {
+            tg.openLink(streamUrl);
+            return;
+          }
+        } catch (e) {}
+        window.open(streamUrl, '_blank');
+      }
     }
 
-    function openFootballStream(id, streamUrl, title, channel, isLive, score) {
+    function openFootballStream(id, streamUrl, title, channel, isLive, score, startTime) {
       haptic();
-      currentActiveStreamUrl = streamUrl;
+      currentActiveStreamUrl = streamUrl || '';
 
       const titleEl = document.getElementById('playerStreamTitle');
       const channelEl = document.getElementById('playerChannelName');
       const scoreEl = document.getElementById('playerMatchScore');
-      if (titleEl) titleEl.innerText = title || 'Jonli Translatsiya';
+      const badgeEl = document.getElementById('playerLiveBadge');
+
+      if (titleEl) titleEl.innerText = title || 'Futbol Uchrashuvi';
       if (channelEl) channelEl.innerText = channel || 'Sport TV';
       if (scoreEl) scoreEl.innerText = score || 'vs';
+
+      if (badgeEl) {
+        if (isLive === 1) {
+          badgeEl.innerHTML = '<span class="live-pulse-dot"></span> JONLI EFIR';
+          badgeEl.style.display = 'inline-flex';
+        } else {
+          badgeEl.innerHTML = '⏰ ' + (startTime || 'KUTILMOQDA');
+          badgeEl.style.display = 'inline-flex';
+        }
+      }
 
       const playerBox = document.getElementById('streamPlayerBox');
       if (!playerBox) return;
       playerBox.innerHTML = '';
 
-      // Format clean embed URL if YouTube
-      let finalUrl = streamUrl;
-      if (streamUrl.includes('youtube.com/watch?v=')) {
-        const vidId = streamUrl.split('v=')[1].split('&')[0];
-        finalUrl = 'https://www.youtube.com/embed/' + vidId + '?autoplay=1&playsinline=1';
-      } else if (streamUrl.includes('youtu.be/')) {
-        const vidId = streamUrl.split('youtu.be/')[1].split('?')[0];
-        finalUrl = 'https://www.youtube.com/embed/' + vidId + '?autoplay=1&playsinline=1';
-      }
+      // Agar stream_url video/m3u8/youtube bo'lsa, uni pleyerda ko'rsatamiz:
+      if (streamUrl && (streamUrl.includes('.m3u8') || streamUrl.includes('youtube') || streamUrl.includes('youtu.be') || streamUrl.includes('embed'))) {
+        let finalUrl = streamUrl;
+        if (streamUrl.includes('youtube.com/watch?v=')) {
+          const vidId = streamUrl.split('v=')[1].split('&')[0];
+          finalUrl = 'https://www.youtube.com/embed/' + vidId + '?autoplay=1&playsinline=1';
+        } else if (streamUrl.includes('youtu.be/')) {
+          const vidId = streamUrl.split('youtu.be/')[1].split('?')[0];
+          finalUrl = 'https://www.youtube.com/embed/' + vidId + '?autoplay=1&playsinline=1';
+        }
 
-      // Check if HLS m3u8
-      if (finalUrl.includes('.m3u8')) {
-        const videoEl = document.createElement('video');
-        videoEl.controls = true;
-        videoEl.autoplay = true;
-        videoEl.playsInline = true;
-        videoEl.style.width = '100%';
-        videoEl.style.height = '100%';
-        playerBox.appendChild(videoEl);
+        if (finalUrl.includes('.m3u8')) {
+          const videoEl = document.createElement('video');
+          videoEl.controls = true;
+          videoEl.autoplay = true;
+          videoEl.playsInline = true;
+          videoEl.style.width = '100%';
+          videoEl.style.height = '100%';
+          playerBox.appendChild(videoEl);
 
-        if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
-          videoEl.src = finalUrl;
-        } else if (window.Hls && Hls.isSupported()) {
-          if (currentHlsInstance) {
-            currentHlsInstance.destroy();
+          if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
+            videoEl.src = finalUrl;
+          } else if (window.Hls && Hls.isSupported()) {
+            if (currentHlsInstance) {
+              currentHlsInstance.destroy();
+            }
+            currentHlsInstance = new Hls();
+            currentHlsInstance.loadSource(finalUrl);
+            currentHlsInstance.attachMedia(videoEl);
+          } else {
+            videoEl.src = finalUrl;
           }
-          currentHlsInstance = new Hls();
-          currentHlsInstance.loadSource(finalUrl);
-          currentHlsInstance.attachMedia(videoEl);
         } else {
-          videoEl.src = finalUrl;
+          const iframe = document.createElement('iframe');
+          iframe.src = finalUrl;
+          iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen';
+          iframe.allowFullscreen = true;
+          playerBox.appendChild(iframe);
         }
       } else {
-        // Standard iframe embed (YouTube, Twitch, Video Embed)
-        const iframe = document.createElement('iframe');
-        iframe.src = finalUrl;
-        iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen';
-        iframe.allowFullscreen = true;
-        playerBox.appendChild(iframe);
+        // Agar o'yin hali boshlanmagan bo'lsa yoki havola kiritilmagan bo'lsa, soxta video qo'ymaymiz!
+        // Aniq haqiqiy o'yin markazi va translyator havolalarini ko'rsatamiz:
+        playerBox.innerHTML = `
+          <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: linear-gradient(135deg, #0f172a, #1e293b); color: #fff; padding: 20px; text-align: center;">
+            <div style="font-size: 32px; margin-bottom: 6px;">⚽️</div>
+            <div style="font-size: 15px; font-weight: 700; margin-bottom: 4px;">${title}</div>
+            <div style="font-size: 13px; color: #38bdf8; font-weight: 600; margin-bottom: 10px;">⏰ ${startTime || 'Bugun kutilmoqda'}</div>
+            <div style="font-size: 12px; color: #cbd5e1; max-width: 290px; line-height: 1.4; margin-bottom: 14px;">
+              Ushbu uchrashuv translyatori: <b>${channel || 'UzReport TV / Sport TV'}</b>.<br>
+              O\'yin boshlanishi bilan efir to\'g\'ridan-to\'g\'ri namoyish etiladi.
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;">
+              <button onclick="openExternalChannel('${channel}')" style="background: #0284c7; color: #fff; border: none; padding: 9px 14px; border-radius: 10px; font-size: 12px; font-weight: 600; cursor: pointer;">
+                📺 ${channel || 'Telekanal'} Efiriga o\'tish
+              </button>
+              <button onclick="openLiveHub()" style="background: #10b981; color: #fff; border: none; padding: 9px 14px; border-radius: 10px; font-size: 12px; font-weight: 600; cursor: pointer;">
+                🌐 Score808 Onlayn Efir
+              </button>
+              <button onclick="openCustomStreamForMatch('${title.replace(/'/g, "\\'")}')" style="background: rgba(255, 255, 255, 0.15); color: #fff; border: 1px solid rgba(255, 255, 255, 0.3); padding: 9px 14px; border-radius: 10px; font-size: 12px; font-weight: 600; cursor: pointer;">
+                🔗 Maxsus havola qo\'shish
+              </button>
+            </div>
+          </div>
+        `;
       }
 
       const modalEl = document.getElementById('footballStreamModal');
       if (modalEl) modalEl.classList.add('open');
+    }
+
+    function openExternalChannel(channel) {
+      haptic();
+      const chLower = (channel || '').toLowerCase();
+      let targetUrl = 'https://stream.mtrk.uz/sport/index.m3u8';
+      if (chLower.includes('uzreport')) {
+        targetUrl = 'https://uzreport.news/tv';
+      } else if (chLower.includes('setanta')) {
+        targetUrl = 'https://setantasports.com';
+      } else if (chLower.includes('score808')) {
+        targetUrl = 'https://score808.us/';
+      }
+
+      if (targetUrl.includes('.m3u8')) {
+        openFootballStream(0, targetUrl, 'Sport TV HD (O\'zbekiston)', 'Sport TV', 1, 'HD', 'JONLI');
+      } else {
+        try {
+          if (tg && typeof tg.openLink === 'function') {
+            tg.openLink(targetUrl);
+            return;
+          }
+        } catch (e) {}
+        window.open(targetUrl, '_blank');
+      }
+    }
+
+    function openLiveHub() {
+      haptic();
+      try {
+        if (tg && typeof tg.openLink === 'function') {
+          tg.openLink('https://score808.us/');
+          return;
+        }
+      } catch (e) {}
+      window.open('https://score808.us/', '_blank');
+    }
+
+    function openCustomStreamForMatch(title) {
+      closeFootballStream();
+      openAddStreamModal();
+      const titleInput = document.getElementById('newStreamTitle');
+      if (titleInput && title) {
+        titleInput.value = title;
+      }
     }
 
     function closeFootballStream() {
@@ -2907,7 +3021,15 @@
 
     function openStreamInNewTab() {
       if (currentActiveStreamUrl) {
+        try {
+          if (tg && typeof tg.openLink === 'function') {
+            tg.openLink(currentActiveStreamUrl);
+            return;
+          }
+        } catch (e) {}
         window.open(currentActiveStreamUrl, '_blank');
+      } else {
+        openLiveHub();
       }
     }
 
@@ -2984,7 +3106,7 @@
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                   <div style="display: flex; align-items: center; gap: 8px; width: 40%;">
-                    ${m.home_logo ? '<img src="' + m.home_logo + '" style="width: 22px; height: 22px; object-fit: contain;">' : ''}
+                    ${m.home_logo ? '<img src="' + m.home_logo + '" style="width: 22px; height: 22px; object-fit: contain;" onerror="this.src=\'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png\'">' : ''}
                     <span style="font-size: 13px; font-weight: 700; color: var(--ios-text);">${m.home_team}</span>
                   </div>
                   <div style="font-size: 14px; font-weight: 800; color: var(--ios-text); background: rgba(142, 142, 147, 0.12); padding: 4px 10px; border-radius: 8px;">
@@ -2992,7 +3114,7 @@
                   </div>
                   <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px; width: 40%; text-align: right;">
                     <span style="font-size: 13px; font-weight: 700; color: var(--ios-text);">${m.away_team}</span>
-                    ${m.away_logo ? '<img src="' + m.away_logo + '" style="width: 22px; height: 22px; object-fit: contain;">' : ''}
+                    ${m.away_logo ? '<img src="' + m.away_logo + '" style="width: 22px; height: 22px; object-fit: contain;" onerror="this.src=\'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png\'">' : ''}
                   </div>
                 </div>
               </div>
