@@ -1556,7 +1556,7 @@
       <!-- Futbol Segment Tablari -->
       <div class="fb-segment-bar">
         <button class="fb-segment-btn active" data-fbtab="live" onclick="switchFbTab('live')">
-          <span>🔴</span> Jonli Translatsiya
+          <span>📺</span> TV kanallar
         </button>
         <button class="fb-segment-btn" data-fbtab="table" onclick="switchFbTab('table')">
           <span>📊</span> Jadval
@@ -1580,11 +1580,19 @@
           <div style="text-align: center; padding: 20px;"><div class="loader"></div></div>
         </div>
 
-        <!-- Sport Telekanallari -->
-        <div style="margin: 18px 2px 8px;">
-          <span style="font-size: 14px; font-weight: 700; color: var(--ios-text);">📺 Jonli Sport Telekanallari (24/7)</span>
+        <!-- TV Kanallar (Famelack & Boshqalar) -->
+        <div style="margin: 18px 2px 8px; display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 14px; font-weight: 700; color: var(--ios-text);">📺 TV kanallar (O'zbekiston va Xalqaro)</span>
+          <span style="font-size: 11px; color: var(--ios-blue); font-weight: 600; cursor: pointer;" onclick="openChannelStream('Famelack TV (O\'zbekiston telekanallari)', 'https://famelack.com/tv/uz', 'Famelack TV')">🇺🇿 O'zbek TV ↗</span>
         </div>
         <div class="channels-grid">
+          <div class="channel-item" onclick="openChannelStream('Famelack TV (O\'zbekiston telekanallari)', 'https://famelack.com/tv/uz', 'Famelack TV')">
+            <div class="channel-icon" style="background: linear-gradient(135deg, #0284c7, #0369a1);">📡</div>
+            <div>
+              <div class="channel-name">Famelack TV</div>
+              <div class="channel-sub">🇺🇿 O'zbek TV 24/7</div>
+            </div>
+          </div>
           <div class="channel-item" onclick="openChannelStream('Sport TV HD (O\'zbekiston)', 'https://stream.mtrk.uz/sport/index.m3u8', 'Sport TV')">
             <div class="channel-icon" style="background: linear-gradient(135deg, #10b981, #059669);">⚽️</div>
             <div>
@@ -1611,6 +1619,13 @@
             <div>
               <div class="channel-name">Score808 Live</div>
               <div class="channel-sub">Barcha o'yinlar</div>
+            </div>
+          </div>
+          <div class="channel-item" onclick="openChannelStream('LiveTV Jonli Efirlar', 'https://livetv.sx/enx/', 'LiveTV')">
+            <div class="channel-icon" style="background: linear-gradient(135deg, #ef4444, #b91c1c);">🌐</div>
+            <div>
+              <div class="channel-name">LiveTV.sx</div>
+              <div class="channel-sub">Yevropa efirlari</div>
             </div>
           </div>
         </div>
@@ -1916,7 +1931,7 @@
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
         <div style="display: flex; align-items: center; gap: 8px;">
           <span class="live-pulse-badge" id="playerLiveBadge"><span class="live-pulse-dot"></span> JONLI EFIR</span>
-          <span style="font-size: 14px; font-weight: 700; color: var(--ios-text);" id="playerStreamTitle">Jonli Translatsiya</span>
+          <span style="font-size: 14px; font-weight: 700; color: var(--ios-text);" id="playerStreamTitle">TV Kanal / Efir</span>
         </div>
         <button class="modal-close-btn" onclick="closeFootballStream()">✕ Yopish</button>
       </div>
@@ -2729,9 +2744,15 @@
         return;
       }
 
-      // Live va Upcoming o'yinlarni ajratamiz
-      const liveMatches = streams.filter(function(s) { return s.is_live === 1; });
-      const upcomingMatches = streams.filter(function(s) { return s.is_live === 0; });
+      // Telekanallar va real o'yinlarni ajratamiz
+      const isChannel = function(s) {
+        return (s.league && (s.league.includes('Telekanal') || s.league.includes('Kanallar') || s.league.includes('Xalqaro') || s.league.includes('O\'zbekiston'))) || 
+               (s.score === 'HD' || s.score === 'LIVE') ||
+               (s.channel_name && (s.channel_name.includes('Famelack') || s.channel_name.includes('LiveTV')));
+      };
+      const matchItems = streams.filter(function(s) { return !isChannel(s); });
+      const liveMatches = matchItems.filter(function(s) { return s.is_live === 1; });
+      const upcomingMatches = matchItems.filter(function(s) { return s.is_live === 0; });
 
       // 1. HERO MATCH (Jonli o'yin bo'lsa jonlisi, aks holda bugungi eng asosiy o'yin!)
       if (heroContainer) {
@@ -2848,9 +2869,11 @@
 
     function openChannelStream(channelName, streamUrl, channelTag) {
       currentActiveStreamUrl = streamUrl;
-      // Agar m3u8 bo'lsa pleyerda ochamiz
+      // Agar m3u8 yoki famelack bo'lsa pleyer modalida ochamiz
       if (streamUrl.includes('.m3u8')) {
         openFootballStream(0, streamUrl, channelName, channelTag || 'Sport TV', 1, 'HD', 'JONLI');
+      } else if (streamUrl.includes('famelack.com')) {
+        openFootballStream(0, streamUrl, channelName, channelTag || 'Famelack TV', 1, 'O\'zbek TV', '24/7 EFIR');
       } else {
         // Portal yoki tashqi efir bo'lsa
         haptic();
@@ -2891,8 +2914,25 @@
       if (!playerBox) return;
       playerBox.innerHTML = '';
 
+      // Agar Famelack O'zbekiston TV portali bo'lsa
+      if (streamUrl && streamUrl.includes('famelack.com')) {
+        playerBox.style.paddingTop = '0';
+        playerBox.style.height = '68vh';
+        playerBox.style.minHeight = '420px';
+        const iframe = document.createElement('iframe');
+        iframe.src = streamUrl;
+        iframe.style.width = '100%';
+        iframe.style.height = '100%';
+        iframe.style.border = 'none';
+        iframe.setAttribute('allowfullscreen', 'true');
+        iframe.setAttribute('loading', 'lazy');
+        playerBox.appendChild(iframe);
+      }
       // Agar stream_url video/m3u8/youtube bo'lsa, uni pleyerda ko'rsatamiz:
-      if (streamUrl && (streamUrl.includes('.m3u8') || streamUrl.includes('youtube') || streamUrl.includes('youtu.be') || streamUrl.includes('embed'))) {
+      else if (streamUrl && (streamUrl.includes('.m3u8') || streamUrl.includes('youtube') || streamUrl.includes('youtu.be') || streamUrl.includes('embed'))) {
+        playerBox.style.paddingTop = '56.25%';
+        playerBox.style.height = 'auto';
+        playerBox.style.minHeight = 'auto';
         let finalUrl = streamUrl;
         if (streamUrl.includes('youtube.com/watch?v=')) {
           const vidId = streamUrl.split('v=')[1].split('&')[0];
@@ -2964,6 +3004,10 @@
     function openExternalChannel(channel) {
       haptic();
       const chLower = (channel || '').toLowerCase();
+      if (chLower.includes('famelack')) {
+        openFootballStream(0, 'https://famelack.com/tv/uz', 'Famelack TV (O\'zbekiston)', 'Famelack TV', 1, 'O\'zbek TV', '24/7 EFIR');
+        return;
+      }
       let targetUrl = 'https://stream.mtrk.uz/sport/index.m3u8';
       if (chLower.includes('uzreport')) {
         targetUrl = 'https://uzreport.news/tv';
@@ -3009,7 +3053,12 @@
     function closeFootballStream() {
       haptic();
       const playerBox = document.getElementById('streamPlayerBox');
-      if (playerBox) playerBox.innerHTML = '';
+      if (playerBox) {
+        playerBox.innerHTML = '';
+        playerBox.style.paddingTop = '';
+        playerBox.style.height = '';
+        playerBox.style.minHeight = '';
+      }
       if (currentHlsInstance) {
         try { currentHlsInstance.destroy(); } catch (e) {}
         currentHlsInstance = null;

@@ -637,6 +637,19 @@ def seed_default_football_streams_if_empty(cursor):
         if count == 0:
             default_channels = [
                 (
+                    "Famelack – O'zbekiston TV Kanallari",
+                    "📺 O'zbekiston TV Kanallari (Jonli)",
+                    "https://famelack.com/tv/uz",
+                    "Famelack TV",
+                    "🔴 24/7 Jonli efir",
+                    1,
+                    "Famelack",
+                    "Uzbekistan",
+                    "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png",
+                    "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png",
+                    "HD"
+                ),
+                (
                     "Sport TV HD (O'zbekiston)",
                     "📺 Sport Telekanal",
                     "https://stream.mtrk.uz/sport/index.m3u8",

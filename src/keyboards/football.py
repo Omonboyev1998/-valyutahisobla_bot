@@ -5,7 +5,7 @@ def get_leagues_keyboard() -> InlineKeyboardMarkup:
     """Chempionatlar ro'yxati inline tugmalari"""
     buttons = [
         [
-            InlineKeyboardButton(text="🔴 Jonli Translatsiyalar", callback_data="fb_streams"),
+            InlineKeyboardButton(text="📺 TV kanallar", callback_data="fb_streams"),
             InlineKeyboardButton(text="📱 Mini Appda Ko'rish", web_app=WebAppInfo(url=WEB_APP_URL))
         ],
         [
@@ -49,7 +49,7 @@ def get_league_actions_keyboard(league_code: str) -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="⚽️ O'yinlar & Natijalar", callback_data=f"fb_matches:{league_code}")
         ],
         [
-            InlineKeyboardButton(text="🔴 Jonli Translatsiya", callback_data="fb_streams")
+            InlineKeyboardButton(text="📺 TV kanallar", callback_data="fb_streams")
         ],
         [
             InlineKeyboardButton(text="◀️ Boshqa chempionatlar", callback_data="fb_leagues")

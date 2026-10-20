@@ -108,14 +108,15 @@ async def show_matches_callback(callback: CallbackQuery):
         reply_markup=get_football_back_keyboard(league_code)
     )
 
+@router.message(Command("tv"))
 @router.message(Command("translatsiya"))
 @router.message(Command("stream"))
 @router.callback_query(F.data == "fb_streams")
 async def show_streams_callback(event: Message | CallbackQuery):
     streams = get_football_streams()
     text = (
-        "🔴 <b>Jonli Futbol Translatsiyalari:</b>\n\n"
-        "Quyidagi o'yinlar va sport telekanallarini to'g'ridan-to'g'ri tomosha qilishingiz mumkin:\n\n"
+        "📺 <b>Jonli TV kanallar va Futbol Translatsiyalari:</b>\n\n"
+        "Quyidagi telekanallar va jonli sport efirlarini to'g'ridan-to'g'ri tomosha qilishingiz mumkin:\n\n"
     )
     if streams:
         for s in streams:
