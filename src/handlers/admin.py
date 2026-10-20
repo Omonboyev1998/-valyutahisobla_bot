@@ -7,13 +7,14 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
 
-from src.config import ADMIN_ID
+from src.config import ADMIN_ID, ADMIN_IDS, WEB_APP_URL
 from src.database import get_statistics, export_users_csv, get_all_users, set_subscription
 from src.keyboards.admin import (
     get_admin_main_keyboard,
     get_broadcast_confirm_keyboard,
     get_admin_back_keyboard
 )
+from src.keyboards.reply import get_main_keyboard
 from src.services.cbu_service import cbu_service
 
 logger = logging.getLogger(__name__)
@@ -25,7 +26,7 @@ class BroadcastState(StatesGroup):
     confirm = State()
 
 def is_admin(user_id: int) -> bool:
-    return user_id == ADMIN_ID
+    return user_id in ADMIN_IDS
 
 ADMIN_DASHBOARD_TEXT = (
     "👨‍💼 <b>Assalomu alaykum, Admin!</b>\n\n"
@@ -34,6 +35,7 @@ ADMIN_DASHBOARD_TEXT = (
 )
 
 @router.message(Command("admin"))
+@router.message(F.text == "👨‍💼 Admin Panel")
 async def cmd_admin(message: Message, state: FSMContext):
     if not is_admin(message.from_user.id):
         # Oddiy foydalanuvchilarga bildirmaslik
@@ -44,6 +46,21 @@ async def cmd_admin(message: Message, state: FSMContext):
         ADMIN_DASHBOARD_TEXT,
         parse_mode="HTML",
         reply_markup=get_admin_main_keyboard()
+    )
+
+@router.message(F.text == "📢 E'lon yuborish")
+@router.message(Command("elon"))
+@router.message(Command("broadcast"))
+async def cmd_direct_broadcast(message: Message, state: FSMContext):
+    if not is_admin(message.from_user.id):
+        return
+    await state.set_state(BroadcastState.waiting_for_message)
+    await message.answer(
+        "📢 <b>Bot foydalanuvchilariga e'lon yuborish bo'limi</b>\n\n"
+        "Barcha foydalanuvchilarga yubormoqchi bo'lgan e'loningizni yuboring.\n"
+        "<i>(Matn, Rasm, Video yoki Forward qilingan xabar bo'lishi mumkin)</i>\n\n"
+        "❌ Bekor qilish uchun: /cancel",
+        parse_mode="HTML"
     )
 
 @router.callback_query(F.data == "admin:back")
@@ -158,7 +175,7 @@ async def cmd_cancel_broadcast(message: Message, state: FSMContext):
     if not is_admin(message.from_user.id):
         return
     await state.clear()
-    await message.answer("Amal bekor qilindi. Boshqaruv paneliga qaytdingiz.", reply_markup=get_admin_main_keyboard())
+    await message.answer("Amal bekor qilindi. Asosiy menyudasiz.", reply_markup=get_main_keyboard(message.from_user.id))
 
 @router.message(BroadcastState.waiting_for_message)
 async def process_broadcast_message(message: Message, state: FSMContext):
@@ -168,17 +185,30 @@ async def process_broadcast_message(message: Message, state: FSMContext):
     # Xabar parametrlarini saqlab olamiz
     await state.update_data(
         from_chat_id=message.chat.id,
-        message_id=message.message_id
+        message_id=message.message_id,
+        with_app_btn=False
     )
     await state.set_state(BroadcastState.confirm)
 
     # Foydalanuvchiga preview (ko'rinish) yuboramiz
     await message.reply(
         "👆 <b>Xabaringiz yuqoridagidek ko'rinishda yuboriladi.</b>\n\n"
-        "Uni barcha foydalanuvchilarga tarqatishni tasdiqlaysizmi?",
+        "Xabar ostiga '📱 Mini App' tugmasini qo'shishingiz yoki darhol yuborishingiz mumkin:",
         parse_mode="HTML",
-        reply_markup=get_broadcast_confirm_keyboard()
+        reply_markup=get_broadcast_confirm_keyboard(with_app_btn=False)
     )
+
+@router.callback_query(BroadcastState.confirm, F.data == "broadcast:toggle_btn")
+async def callback_toggle_broadcast_btn(callback: CallbackQuery, state: FSMContext):
+    if not is_admin(callback.from_user.id):
+        return
+    data = await state.get_data()
+    current_val = data.get("with_app_btn", False)
+    new_val = not current_val
+    await state.update_data(with_app_btn=new_val)
+    await callback.message.edit_reply_markup(reply_markup=get_broadcast_confirm_keyboard(new_val))
+    status_text = "Mini App tugmasi qo'shildi! ✅" if new_val else "Mini App tugmasi olib tashlandi. ❌"
+    await callback.answer(status_text)
 
 @router.callback_query(BroadcastState.confirm, F.data == "broadcast:cancel")
 async def callback_cancel_confirm(callback: CallbackQuery, state: FSMContext):
@@ -195,6 +225,7 @@ async def callback_execute_broadcast(callback: CallbackQuery, state: FSMContext,
     data = await state.get_data()
     from_chat_id = data.get("from_chat_id")
     msg_id = data.get("message_id")
+    with_app_btn = data.get("with_app_btn", False)
     await state.clear()
 
     user_ids = get_all_users()
@@ -210,6 +241,11 @@ async def callback_execute_broadcast(callback: CallbackQuery, state: FSMContext,
         parse_mode="HTML"
     )
 
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
+    app_markup = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📱 Mini Appni ochish", web_app=WebAppInfo(url=WEB_APP_URL))]
+    ]) if with_app_btn else None
+
     sent = 0
     blocked = 0
 
@@ -218,7 +254,8 @@ async def callback_execute_broadcast(callback: CallbackQuery, state: FSMContext,
             await bot.copy_message(
                 chat_id=uid,
                 from_chat_id=from_chat_id,
-                message_id=msg_id
+                message_id=msg_id,
+                reply_markup=app_markup
             )
             sent += 1
             await asyncio.sleep(0.04)  # Telegram sekundiga ~30 ta xabar limitiga rioya qilish

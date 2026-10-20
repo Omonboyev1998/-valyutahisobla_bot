@@ -101,7 +101,7 @@ async def cmd_start(message: Message, command: CommandObject, bot: Bot):
     change_kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=f"📍 Hududni o'zgartirish ({saved_city})", callback_data="start_change_city")]
     ])
-    await message.answer(text, parse_mode="HTML", reply_markup=get_main_keyboard())
+    await message.answer(text, parse_mode="HTML", reply_markup=get_main_keyboard(user.id))
     await message.answer(
         f"📍 Joriy hududingiz: <b>{saved_city}</b>.\nBoshqa viloyatni tanlash uchun pastdagi tugmani bosing:",
         parse_mode="HTML",
@@ -144,14 +144,14 @@ async def process_global_region_callback(callback: CallbackQuery):
     await callback.message.answer(
         f"Botdan to'liq foydalanishingiz mumkin:\n\n{HELP_TEXT}",
         parse_mode="HTML",
-        reply_markup=get_main_keyboard()
+        reply_markup=get_main_keyboard(callback.from_user.id)
     )
     await callback.answer(f"{city} doimiy hududingiz qilib belgilandi! ✅", show_alert=True)
 
 @router.message(Command("help"))
 @router.message(F.text == "❓ Yordam")
 async def cmd_help(message: Message):
-    await message.answer(HELP_TEXT, parse_mode="HTML", reply_markup=get_main_keyboard())
+    await message.answer(HELP_TEXT, parse_mode="HTML", reply_markup=get_main_keyboard(message.from_user.id))
 
 @router.message(Command("app"))
 @router.message(F.text.contains("Mini Ilova"))

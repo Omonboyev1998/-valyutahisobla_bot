@@ -17,11 +17,15 @@ def get_admin_main_keyboard() -> InlineKeyboardMarkup:
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-def get_broadcast_confirm_keyboard() -> InlineKeyboardMarkup:
+def get_broadcast_confirm_keyboard(with_app_btn: bool = False) -> InlineKeyboardMarkup:
     """Xabar tarqatishni tasdiqlash tugmalari"""
+    toggle_text = "📱 Mini App tugmasi: ✅ Qo'shilgan" if with_app_btn else "📱 Mini App tugmasi: ❌ Qo'shilmagan"
     buttons = [
         [
-            InlineKeyboardButton(text="✅ Ha, barchaga yuborilsin", callback_data="broadcast:confirm"),
+            InlineKeyboardButton(text=toggle_text, callback_data="broadcast:toggle_btn")
+        ],
+        [
+            InlineKeyboardButton(text="🚀 Ha, barchaga yuborilsin", callback_data="broadcast:confirm"),
             InlineKeyboardButton(text="❌ Bekor qilish", callback_data="broadcast:cancel")
         ]
     ]

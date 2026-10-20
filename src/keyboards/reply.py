@@ -1,7 +1,9 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, WebAppInfo
 from src.config import WEB_APP_URL
 
-def get_main_keyboard() -> ReplyKeyboardMarkup:
+def get_main_keyboard(user_id: int = None) -> ReplyKeyboardMarkup:
+    from src.config import ADMIN_IDS
+    is_admin = bool(user_id and user_id in ADMIN_IDS)
     keyboard = [
         [
             KeyboardButton(text="📱 Mini Ilova (Grafiklar & Soat)", web_app=WebAppInfo(url=WEB_APP_URL))
@@ -25,6 +27,11 @@ def get_main_keyboard() -> ReplyKeyboardMarkup:
             KeyboardButton(text="❓ Yordam")
         ]
     ]
+    if is_admin:
+        keyboard.append([
+            KeyboardButton(text="📢 E'lon yuborish"),
+            KeyboardButton(text="👨‍💼 Admin Panel")
+        ])
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 def get_weather_location_keyboard() -> ReplyKeyboardMarkup:
