@@ -2,10 +2,12 @@ from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
 from src.services.football_service import football_service, LEAGUES
+from src.database import get_football_streams
 from src.keyboards.football import (
     get_leagues_keyboard,
     get_league_actions_keyboard,
-    get_football_back_keyboard
+    get_football_back_keyboard,
+    get_streams_keyboard
 )
 
 router = Router(name="football")
@@ -105,3 +107,29 @@ async def show_matches_callback(callback: CallbackQuery):
         parse_mode="HTML",
         reply_markup=get_football_back_keyboard(league_code)
     )
+
+@router.message(Command("translatsiya"))
+@router.message(Command("stream"))
+@router.callback_query(F.data == "fb_streams")
+async def show_streams_callback(event: Message | CallbackQuery):
+    streams = get_football_streams()
+    text = (
+        "🔴 <b>Jonli Futbol Translatsiyalari:</b>\n\n"
+        "Quyidagi o'yinlar va sport telekanallarini to'g'ridan-to'g'ri tomosha qilishingiz mumkin:\n\n"
+    )
+    if streams:
+        for s in streams:
+            badge = "🔴 <b>[JONLI EFIR]</b>" if s.get("is_live") == 1 else f"⏰ {s.get('match_time', '')}"
+            text += f"• {badge} <b>{s.get('title')}</b>\n   └ 📺 Kanal: <i>{s.get('channel_name', 'Sport TV')}</i> | Hisob: <code>{s.get('score', 'vs')}</code>\n\n"
+    else:
+        text += "<i>Hozircha faol translatsiyalar mavjud emas.</i>\n\n"
+
+    text += "<i>💡 Barcha o'yinlarni qotmasdan, zamonaviy video playerda tomosha qilish uchun pastdagi '📱 Mini Appda Jonli Tomosha Qilish' tugmasini bosing!</i>"
+
+    kb = get_streams_keyboard(streams)
+    if isinstance(event, CallbackQuery):
+        await event.message.edit_text(text, parse_mode="HTML", reply_markup=kb)
+        await event.answer()
+    else:
+        await event.answer(text, parse_mode="HTML", reply_markup=kb)
+

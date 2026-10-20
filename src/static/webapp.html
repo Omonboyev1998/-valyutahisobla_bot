@@ -8,6 +8,9 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Hls.js for Live Football Streams -->
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -915,6 +918,310 @@
       animation: spin 0.8s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ==================== FOOTBALL STREAMING & LIVE UI ==================== */
+    .fb-segment-bar {
+      display: flex;
+      background: rgba(142, 142, 147, 0.12);
+      padding: 3px;
+      border-radius: 12px;
+      margin-bottom: 14px;
+      gap: 4px;
+    }
+
+    .fb-segment-btn {
+      flex: 1;
+      border: none;
+      background: transparent;
+      padding: 8px 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ios-text-secondary);
+      border-radius: 9px;
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+    }
+
+    .fb-segment-btn.active {
+      background: var(--ios-card-bg);
+      color: var(--ios-text);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      font-weight: 700;
+    }
+
+    .live-pulse-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(255, 59, 48, 0.12);
+      color: #ff3b30;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
+
+    .live-pulse-dot {
+      width: 7px;
+      height: 7px;
+      background: #ff3b30;
+      border-radius: 50%;
+      animation: livePulse 1.4s infinite;
+    }
+
+    @keyframes livePulse {
+      0% { transform: scale(0.9); opacity: 1; box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.7); }
+      70% { transform: scale(1.1); opacity: 0.8; box-shadow: 0 0 0 6px rgba(255, 59, 48, 0); }
+      100% { transform: scale(0.9); opacity: 1; }
+    }
+
+    .hero-match-card {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0369a1 100%);
+      color: #ffffff;
+      border-radius: 20px;
+      padding: 18px;
+      margin-bottom: 14px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 8px 24px rgba(3, 105, 161, 0.28);
+    }
+
+    .hero-match-card::before {
+      content: "";
+      position: absolute;
+      top: -30px;
+      right: -30px;
+      width: 140px;
+      height: 140px;
+      background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .hero-match-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .hero-match-teams {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 10px 0 16px;
+    }
+
+    .hero-team {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 38%;
+      text-align: center;
+    }
+
+    .hero-team-logo {
+      width: 44px;
+      height: 44px;
+      object-fit: contain;
+      filter: drop-shadow(0 4px 6px rgba(0,0,0,0.25));
+      margin-bottom: 6px;
+    }
+
+    .hero-team-name {
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    .hero-score-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 24%;
+    }
+
+    .hero-score-text {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: 1px;
+    }
+
+    .hero-match-minute {
+      font-size: 11px;
+      opacity: 0.85;
+      margin-top: 2px;
+    }
+
+    .btn-watch-live {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      background: #34c759;
+      color: #ffffff;
+      border: none;
+      padding: 12px;
+      border-radius: 14px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(52, 199, 89, 0.4);
+      transition: var(--transition);
+    }
+
+    .btn-watch-live:active {
+      transform: scale(0.98);
+      background: #2ea84b;
+    }
+
+    .stream-card {
+      background: var(--ios-card-bg);
+      border: 0.5px solid var(--ios-card-border);
+      border-radius: 16px;
+      padding: 14px;
+      margin-bottom: 10px;
+      box-shadow: var(--ios-shadow);
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .stream-card:active {
+      transform: scale(0.99);
+      background: #f8f8fa;
+    }
+
+    .stream-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .stream-match-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .stream-team-side {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 40%;
+    }
+
+    .stream-team-side.right {
+      justify-content: flex-end;
+      text-align: right;
+    }
+
+    .stream-team-badge {
+      width: 26px;
+      height: 26px;
+      object-fit: contain;
+    }
+
+    .stream-score-pill {
+      background: rgba(142, 142, 147, 0.12);
+      padding: 4px 10px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ios-text);
+      min-width: 44px;
+      text-align: center;
+    }
+
+    .channels-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .channel-item {
+      background: var(--ios-card-bg);
+      border: 0.5px solid var(--ios-card-border);
+      border-radius: 14px;
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: var(--transition);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+    }
+
+    .channel-item:active {
+      transform: scale(0.97);
+      background: #f8f8fa;
+    }
+
+    .channel-icon {
+      width: 38px;
+      height: 38px;
+      background: linear-gradient(135deg, #007aff, #5856d6);
+      color: #fff;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .channel-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ios-text);
+      line-height: 1.2;
+    }
+
+    .channel-sub {
+      font-size: 11px;
+      color: var(--ios-text-secondary);
+      margin-top: 2px;
+    }
+
+    .stream-player-container {
+      position: relative;
+      width: 100%;
+      padding-top: 56.25%; /* 16:9 */
+      background: #000000;
+      border-radius: 14px;
+      overflow: hidden;
+      margin-bottom: 12px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .stream-player-container iframe,
+    .stream-player-container video {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    .match-scorecard {
+      background: var(--ios-card-bg);
+      border: 0.5px solid var(--ios-card-border);
+      border-radius: 14px;
+      padding: 12px;
+      margin-bottom: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
   </style>
 </head>
 <body>
@@ -1243,36 +1550,124 @@
       <div class="subpage-nav">
         <button class="back-home-btn" onclick="switchSection('home')">‹ Bosh menyu</button>
         <span style="font-size: 13px; font-weight: 700; color: #15803d;">⚽️ Futbol Olami</span>
+        <button class="btn-action-call" style="width: auto; padding: 5px 12px; font-size: 12px;" onclick="openAddStreamModal()">➕ Efir qo'shish</button>
       </div>
 
-      <div class="pills" id="footballLeaguePills">
-        <button class="pill-btn active" data-league="eng.1">🏴󠁧󠁢󠁥󠁮󠁧󠁿 APL</button>
-        <button class="pill-btn" data-league="esp.1">🇪🇸 La Liga</button>
-        <button class="pill-btn" data-league="ita.1">🇮🇹 Serie A</button>
-        <button class="pill-btn" data-league="ger.1">🇩🇪 Bundesliga</button>
-        <button class="pill-btn" data-league="fra.1">🇫🇷 Ligue 1</button>
-        <button class="pill-btn" data-league="uefa.champions">🏆 Chempionlar Ligasi</button>
+      <!-- Futbol Segment Tablari -->
+      <div class="fb-segment-bar">
+        <button class="fb-segment-btn active" data-fbtab="live" onclick="switchFbTab('live')">
+          <span>🔴</span> Jonli Translatsiya
+        </button>
+        <button class="fb-segment-btn" data-fbtab="table" onclick="switchFbTab('table')">
+          <span>📊</span> Jadval
+        </button>
+        <button class="fb-segment-btn" data-fbtab="matches" onclick="switchFbTab('matches')">
+          <span>📅</span> O'yinlar
+        </button>
       </div>
 
-      <div class="card">
-        <div class="card-title">
-          <span>🏆</span> <span id="fbLeagueTitle">Premyer-liga Turnir Jadvali</span>
+      <!-- 1-TAB: JONLI TRANSLATSIYALAR -->
+      <div id="fbTabLive">
+        <!-- Hero Match Card -->
+        <div id="fbHeroMatchContainer"></div>
+
+        <!-- Hozirgi Jonli O'yinlar -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin: 14px 2px 8px;">
+          <span style="font-size: 14px; font-weight: 700; color: var(--ios-text);">🔴 Jonli O'yinlar Efiri</span>
+          <span style="font-size: 12px; color: var(--ios-blue); font-weight: 600; cursor: pointer;" onclick="loadFootballStreams()">🔄 Yangilash</span>
         </div>
-        <div class="football-table-wrap">
-          <table class="football-table">
-            <thead>
-              <tr>
-                <th style="width: 28px;">#</th>
-                <th>Klub</th>
-                <th style="text-align: center; width: 34px;">O'</th>
-                <th style="text-align: center; width: 38px;">+/-</th>
-                <th style="text-align: right; width: 38px;">Och</th>
-              </tr>
-            </thead>
-            <tbody id="fbTableBody">
-              <tr><td colspan="5" style="text-align: center; padding: 20px;"><div class="loader"></div></td></tr>
-            </tbody>
-          </table>
+        <div id="fbLiveMatchesList">
+          <div style="text-align: center; padding: 20px;"><div class="loader"></div></div>
+        </div>
+
+        <!-- Sport Telekanallari -->
+        <div style="margin: 18px 2px 8px;">
+          <span style="font-size: 14px; font-weight: 700; color: var(--ios-text);">📺 Jonli Sport Telekanallari (24/7)</span>
+        </div>
+        <div class="channels-grid">
+          <div class="channel-item" onclick="openChannelStream('Sport TV HD', 'https://www.youtube.com/embed/jfKfPfyJRdk')">
+            <div class="channel-icon" style="background: linear-gradient(135deg, #10b981, #059669);">⚽️</div>
+            <div>
+              <div class="channel-name">Sport TV HD</div>
+              <div class="channel-sub">🔴 Jonli efir</div>
+            </div>
+          </div>
+          <div class="channel-item" onclick="openChannelStream('UzReport TV', 'https://www.youtube.com/embed/live_stream?channel=UC4i_9W_nLoT6853gkltuxOA')">
+            <div class="channel-icon" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);">🏆</div>
+            <div>
+              <div class="channel-name">UzReport TV</div>
+              <div class="channel-sub">APL & YeCHL</div>
+            </div>
+          </div>
+          <div class="channel-item" onclick="openChannelStream('Setanta Sports', 'https://www.youtube.com/embed/live_stream?channel=UC4i_9W_nLoT6853gkltuxOA')">
+            <div class="channel-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">⚡️</div>
+            <div>
+              <div class="channel-name">Setanta Sports</div>
+              <div class="channel-sub">Top Ligalar</div>
+            </div>
+          </div>
+          <div class="channel-item" onclick="openChannelStream('Football TV HD', 'https://www.youtube.com/embed/5qap5aO4i9A')">
+            <div class="channel-icon" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9);">📺</div>
+            <div>
+              <div class="channel-name">Football TV</div>
+              <div class="channel-sub">La Liga, A Seriya</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Kutilayotgan Translatsiyalar -->
+        <div style="margin: 16px 2px 8px;">
+          <span style="font-size: 14px; font-weight: 700; color: var(--ios-text);">⏰ Bugungi Kutilayotgan O'yinlar</span>
+        </div>
+        <div id="fbUpcomingList"></div>
+      </div>
+
+      <!-- 2-TAB: TURNIR JADVALI -->
+      <div id="fbTabTable" style="display: none;">
+        <div class="pills" id="footballLeaguePills">
+          <button class="pill-btn active" data-league="eng.1">🏴󠁧󠁢󠁥󠁮󠁧󠁿 APL</button>
+          <button class="pill-btn" data-league="esp.1">🇪🇸 La Liga</button>
+          <button class="pill-btn" data-league="ita.1">🇮🇹 Serie A</button>
+          <button class="pill-btn" data-league="ger.1">🇩🇪 Bundesliga</button>
+          <button class="pill-btn" data-league="fra.1">🇫🇷 Ligue 1</button>
+          <button class="pill-btn" data-league="uefa.champions">🏆 Chempionlar Ligasi</button>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span>🏆</span> <span id="fbLeagueTitle">Premyer-liga Turnir Jadvali</span>
+          </div>
+          <div class="football-table-wrap">
+            <table class="football-table">
+              <thead>
+                <tr>
+                  <th style="width: 28px;">#</th>
+                  <th>Klub</th>
+                  <th style="text-align: center; width: 34px;">O'</th>
+                  <th style="text-align: center; width: 38px;">+/-</th>
+                  <th style="text-align: right; width: 38px;">Och</th>
+                </tr>
+              </thead>
+              <tbody id="fbTableBody">
+                <tr><td colspan="5" style="text-align: center; padding: 20px;"><div class="loader"></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3-TAB: O'YINLAR VA NATIJALAR -->
+      <div id="fbTabMatches" style="display: none;">
+        <div class="pills" id="fbMatchesLeaguePills">
+          <button class="pill-btn active" data-league="eng.1" onclick="setMatchesLeague('eng.1', this)">🏴󠁧󠁢󠁥󠁮󠁧󠁿 APL</button>
+          <button class="pill-btn" data-league="esp.1" onclick="setMatchesLeague('esp.1', this)">🇪🇸 La Liga</button>
+          <button class="pill-btn" data-league="ita.1" onclick="setMatchesLeague('ita.1', this)">🇮🇹 Serie A</button>
+          <button class="pill-btn" data-league="ger.1" onclick="setMatchesLeague('ger.1', this)">🇩🇪 Bundesliga</button>
+          <button class="pill-btn" data-league="uefa.champions" onclick="setMatchesLeague('uefa.champions', this)">🏆 YeCHL</button>
+        </div>
+
+        <div id="fbMatchesList">
+          <div style="text-align: center; padding: 20px;"><div class="loader"></div></div>
         </div>
       </div>
     </section>
@@ -1514,6 +1909,109 @@
     </div>
   </div>
 
+
+  <!-- ==================== VIDEO TRANSLATSIYA MODALI ==================== -->
+  <div class="modal-backdrop" id="footballStreamModal">
+    <div class="modal-sheet" style="padding: 16px; max-height: 92vh;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span class="live-pulse-badge" id="playerLiveBadge"><span class="live-pulse-dot"></span> JONLI EFIR</span>
+          <span style="font-size: 14px; font-weight: 700; color: var(--ios-text);" id="playerStreamTitle">Jonli Translatsiya</span>
+        </div>
+        <button class="modal-close-btn" onclick="closeFootballStream()">✕ Yopish</button>
+      </div>
+
+      <!-- Player Box -->
+      <div class="stream-player-container" id="streamPlayerBox">
+        <!-- Dynamic iframe or video element injected here -->
+      </div>
+
+      <!-- Stream Details & Channels -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 8px 12px; background: rgba(142, 142, 147, 0.08); border-radius: 12px;">
+        <div>
+          <span style="font-size: 11px; color: var(--ios-text-secondary); display: block;">Telekanal:</span>
+          <span style="font-size: 13px; font-weight: 700; color: var(--ios-blue);" id="playerChannelName">Sport TV HD</span>
+        </div>
+        <div>
+          <span style="font-size: 11px; color: var(--ios-text-secondary); display: block; text-align: right;">Hisob:</span>
+          <span style="font-size: 14px; font-weight: 800; color: var(--ios-text);" id="playerMatchScore">vs</span>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 8px;">
+        <button class="btn-action-view" style="flex: 1; padding: 10px; font-size: 13px; font-weight: 600;" onclick="openStreamInNewTab()">
+          🌐 Tashqi oynada ochish
+        </button>
+        <button class="btn-action-call" style="flex: 1; padding: 10px; font-size: 13px; font-weight: 600;" onclick="closeFootballStream()">
+          ✅ Tushunarli
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== YANGI TRANSLATSIYA QO'SHISH MODALI ==================== -->
+  <div class="modal-backdrop" id="addStreamModal">
+    <div class="modal-sheet">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+        <div style="font-size: 17px; font-weight: 700; color: var(--ios-text);">➕ Yangi Translatsiya Qo'shish</div>
+        <button class="modal-close-btn" onclick="closeAddStreamModal()">Yopish</button>
+      </div>
+      <form id="addStreamForm" onsubmit="submitNewStream(event)" style="display: flex; flex-direction: column; gap: 12px;">
+        <div>
+          <label style="display: block; font-size: 12px; font-weight: 600; color: var(--ios-text-secondary); margin-bottom: 4px;">O'yin nomi / Sarlavha *</label>
+          <input type="text" id="newStreamTitle" class="calc-input" placeholder="Masalan: Real Madrid vs Barcelona" style="width: 100%; box-sizing: border-box;" required maxlength="120">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div>
+            <label style="display: block; font-size: 12px; font-weight: 600; color: var(--ios-text-secondary); margin-bottom: 4px;">Liga / Turnir *</label>
+            <select id="newStreamLeague" class="calc-select" style="width: 100%; padding: 10px; font-size: 13px;">
+              <option value="🏴󠁧󠁢󠁥󠁮󠁧󠁿 APL">🏴󠁧󠁢󠁥󠁮󠁧󠁿 APL</option>
+              <option value="🇪🇸 La Liga">🇪🇸 La Liga</option>
+              <option value="🇮🇹 Serie A">🇮🇹 Serie A</option>
+              <option value="🇩🇪 Bundesliga">🇩🇪 Bundesliga</option>
+              <option value="🏆 Chempionlar Ligasi">🏆 Chempionlar Ligasi</option>
+              <option value="🇺🇿 O'zbekiston Superligasi">🇺🇿 O'zbekiston Superligasi</option>
+              <option value="📺 Sport Telekanal">📺 Sport Telekanal</option>
+            </select>
+          </div>
+          <div>
+            <label style="display: block; font-size: 12px; font-weight: 600; color: var(--ios-text-secondary); margin-bottom: 4px;">Telekanal / Manba *</label>
+            <input type="text" id="newStreamChannel" class="calc-input" placeholder="Sport TV / UzReport" style="width: 100%; box-sizing: border-box;" required value="Sport TV HD">
+          </div>
+        </div>
+
+        <div>
+          <label style="display: block; font-size: 12px; font-weight: 600; color: var(--ios-text-secondary); margin-bottom: 4px;">Translatsiya havolasi (Stream URL yoki YouTube/m3u8) *</label>
+          <input type="url" id="newStreamUrl" class="calc-input" placeholder="https://www.youtube.com/embed/... yoki .m3u8 link" style="width: 100%; box-sizing: border-box;" required>
+          <span style="font-size: 11px; color: var(--ios-text-secondary); margin-top: 3px; display: block;">YouTube link, m3u8 HLS oqimi yoki video embed kiritishingiz mumkin.</span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div>
+            <label style="display: block; font-size: 12px; font-weight: 600; color: var(--ios-text-secondary); margin-bottom: 4px;">Vaqt yoki Holat</label>
+            <input type="text" id="newStreamTime" class="calc-input" placeholder="🔴 Jonli yoki 23:45" style="width: 100%; box-sizing: border-box;" value="🔴 Jonli efir">
+          </div>
+          <div>
+            <label style="display: block; font-size: 12px; font-weight: 600; color: var(--ios-text-secondary); margin-bottom: 4px;">Joriy hisob</label>
+            <input type="text" id="newStreamScore" class="calc-input" placeholder="Masalan: 1 - 0 yoki vs" style="width: 100%; box-sizing: border-box;" value="vs">
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 8px; margin: 4px 0;">
+          <input type="checkbox" id="newStreamIsLive" checked style="width: 18px; height: 18px; accent-color: #ff3b30;">
+          <label for="newStreamIsLive" style="font-size: 13px; font-weight: 600; color: var(--ios-text);">Hozir jonli efirdami? (Live)</label>
+        </div>
+
+        <div style="margin-top: 8px;">
+          <button type="submit" class="btn-action-call" style="width: 100%; padding: 12px; font-size: 14px; font-weight: 700;">
+            🚀 Translatsiyani e'lon qilish
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- ==================== BOTTOM DOCK (iOS FROSTED GLASS BAR) ==================== -->
   <nav id="phoneDockNav">
     <button class="nav-item active" onclick="switchSection('home', this)">
@@ -1623,7 +2121,7 @@
       if (secId === 'services' && !window.servicesLoaded) loadServicesData();
       if (secId === 'rates' && !window.ratesLoaded) loadCurrencyHistory('USD', 7);
       if (secId === 'prayer' && !window.prayerLoaded) loadPrayerData();
-      if (secId === 'football' && !window.footballLoaded) loadFootballData('eng.1');
+      if (secId === 'football') { loadFootballStreams(); if (!window.footballLoaded) loadFootballData('eng.1'); }
       if (secId === 'weather' && !window.weatherLoaded) loadWeatherData();
     }
 
@@ -2176,6 +2674,347 @@
         highlightNextPrayer(prayerTimesCache);
       }
     }, 1000);
+
+
+    // ==================== FOOTBALL STREAMING & TAB ENGINE ====================
+    let currentActiveStreamUrl = '';
+    let currentHlsInstance = null;
+    let footballStreamsCache = [];
+
+    function switchFbTab(tabName) {
+      haptic();
+      document.querySelectorAll('.fb-segment-btn').forEach(function(b) {
+        b.classList.remove('active');
+      });
+      const activeBtn = document.querySelector('.fb-segment-btn[data-fbtab="' + tabName + '"]');
+      if (activeBtn) activeBtn.classList.add('active');
+
+      document.getElementById('fbTabLive').style.display = (tabName === 'live') ? 'block' : 'none';
+      document.getElementById('fbTabTable').style.display = (tabName === 'table') ? 'block' : 'none';
+      document.getElementById('fbTabMatches').style.display = (tabName === 'matches') ? 'block' : 'none';
+
+      if (tabName === 'live') {
+        loadFootballStreams();
+      } else if (tabName === 'table') {
+        if (!window.footballLoaded) loadFootballData('eng.1');
+      } else if (tabName === 'matches') {
+        loadFootballMatches('eng.1');
+      }
+    }
+
+    async function loadFootballStreams() {
+      try {
+        const res = await fetch('/api/football/streams');
+        const streams = await res.json();
+        footballStreamsCache = streams || [];
+        renderFootballStreams(footballStreamsCache);
+      } catch (err) {
+        console.error('Streams load error:', err);
+      }
+    }
+
+    function renderFootballStreams(streams) {
+      const heroContainer = document.getElementById('fbHeroMatchContainer');
+      const liveList = document.getElementById('fbLiveMatchesList');
+      const upcomingList = document.getElementById('fbUpcomingList');
+
+      if (!streams || streams.length === 0) {
+        if (heroContainer) heroContainer.innerHTML = '';
+        if (liveList) liveList.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--ios-text-secondary); font-size: 13px;">Hozircha efirlar mavjud emas. Yuqoridagi "+ Efir qo\'shish" orqali translatsiya kiritishingiz mumkin!</div>';
+        if (upcomingList) upcomingList.innerHTML = '';
+        return;
+      }
+
+      // Hero match (first live match)
+      const liveMatches = streams.filter(function(s) { return s.is_live === 1; });
+      const upcomingMatches = streams.filter(function(s) { return s.is_live === 0; });
+
+      if (heroContainer) {
+        if (liveMatches.length > 0) {
+          const hero = liveMatches[0];
+          const hLogo = hero.home_logo || 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png';
+          const aLogo = hero.away_logo || 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png';
+          const hName = hero.home_team || hero.title.split('vs')[0] || '1-Jamoa';
+          const aName = hero.away_team || (hero.title.split('vs')[1] ? hero.title.split('vs')[1].split('|')[0] : '2-Jamoa');
+
+          heroContainer.innerHTML = `
+            <div class="hero-match-card">
+              <div class="hero-match-header">
+                <span class="live-pulse-badge" style="background: rgba(255, 59, 48, 0.25); color: #ff6b6b;">
+                  <span class="live-pulse-dot"></span> ${hero.match_time || 'JONLI EFIR'}
+                </span>
+                <span style="font-size: 12px; font-weight: 600; opacity: 0.9;">📺 ${hero.channel_name || 'Sport TV'}</span>
+              </div>
+              <div class="hero-match-teams">
+                <div class="hero-team">
+                  <img src="${hLogo}" class="hero-team-logo" alt="">
+                  <span class="hero-team-name">${hName.trim()}</span>
+                </div>
+                <div class="hero-score-box">
+                  <span class="hero-score-text">${hero.score || 'vs'}</span>
+                  <span class="hero-match-minute">${hero.league || 'Futbol'}</span>
+                </div>
+                <div class="hero-team">
+                  <img src="${aLogo}" class="hero-team-logo" alt="">
+                  <span class="hero-team-name">${aName.trim()}</span>
+                </div>
+              </div>
+              <button class="btn-watch-live" onclick="openFootballStream(${hero.id}, '${hero.stream_url.replace(/'/g, "\\'")}', '${hero.title.replace(/'/g, "\\'")}', '${hero.channel_name}', ${hero.is_live}, '${hero.score}')">
+                <span>▶️</span> Jonli Efirni Ko'rish
+              </button>
+            </div>
+          `;
+        } else {
+          heroContainer.innerHTML = '';
+        }
+      }
+
+      // Live Matches List
+      if (liveList) {
+        let liveHtml = '';
+        const listToRender = liveMatches.length > 1 ? liveMatches.slice(1) : liveMatches;
+        if (listToRender.length > 0) {
+          listToRender.forEach(function(m) {
+            const hLogo = m.home_logo || 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png';
+            const aLogo = m.away_logo || 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png';
+            const hName = m.home_team || m.title.split('vs')[0] || '1-Jamoa';
+            const aName = m.away_team || (m.title.split('vs')[1] ? m.title.split('vs')[1].split('|')[0] : '2-Jamoa');
+
+            liveHtml += `
+              <div class="stream-card" onclick="openFootballStream(${m.id}, '${m.stream_url.replace(/'/g, "\\'")}', '${m.title.replace(/'/g, "\\'")}', '${m.channel_name}', ${m.is_live}, '${m.score}')">
+                <div class="stream-card-header">
+                  <span class="live-pulse-badge"><span class="live-pulse-dot"></span> ${m.match_time || 'JONLI'}</span>
+                  <span style="font-size: 11px; font-weight: 600; color: var(--ios-text-secondary);">${m.league || 'Top Liga'} • ${m.channel_name || 'Sport TV'}</span>
+                </div>
+                <div class="stream-match-row">
+                  <div class="stream-team-side">
+                    <img src="${hLogo}" class="stream-team-badge" alt="">
+                    <span style="font-size: 13px; font-weight: 700; color: var(--ios-text);">${hName.trim()}</span>
+                  </div>
+                  <div class="stream-score-pill">${m.score || 'vs'}</div>
+                  <div class="stream-team-side right">
+                    <span style="font-size: 13px; font-weight: 700; color: var(--ios-text);">${aName.trim()}</span>
+                    <img src="${aLogo}" class="stream-team-badge" alt="">
+                  </div>
+                </div>
+              </div>
+            `;
+          });
+          liveList.innerHTML = liveHtml;
+        } else {
+          liveList.innerHTML = '<div style="text-align: center; padding: 14px; color: var(--ios-text-secondary); font-size: 13px;">Boshqa faol jonli o\'yinlar mavjud emas</div>';
+        }
+      }
+
+      // Upcoming Matches
+      if (upcomingList) {
+        let upHtml = '';
+        if (upcomingMatches.length > 0) {
+          upcomingMatches.forEach(function(u) {
+            upHtml += `
+              <div class="stream-card" onclick="openFootballStream(${u.id}, '${u.stream_url.replace(/'/g, "\\'")}', '${u.title.replace(/'/g, "\\'")}', '${u.channel_name}', ${u.is_live}, '${u.score}')">
+                <div class="stream-card-header">
+                  <span style="font-size: 11px; font-weight: 700; color: var(--ios-orange); background: rgba(255, 149, 0, 0.12); padding: 3px 8px; border-radius: 10px;">⏰ ${u.match_time || 'Kutilmoqda'}</span>
+                  <span style="font-size: 11px; font-weight: 600; color: var(--ios-text-secondary);">${u.channel_name || 'Sport TV'}</span>
+                </div>
+                <div style="font-size: 13px; font-weight: 700; color: var(--ios-text); margin-top: 4px;">${u.title}</div>
+              </div>
+            `;
+          });
+          upcomingList.innerHTML = upHtml;
+        } else {
+          upcomingList.innerHTML = '<div style="text-align: center; padding: 10px; color: var(--ios-text-secondary); font-size: 12px;">Yangi translatsiyalar tez orada e\'lon qilinadi</div>';
+        }
+      }
+    }
+
+    function openChannelStream(channelName, streamUrl) {
+      openFootballStream(0, streamUrl, channelName + ' — Jonli Efir', channelName, 1, 'HD');
+    }
+
+    function openFootballStream(id, streamUrl, title, channel, isLive, score) {
+      haptic();
+      currentActiveStreamUrl = streamUrl;
+
+      const titleEl = document.getElementById('playerStreamTitle');
+      const channelEl = document.getElementById('playerChannelName');
+      const scoreEl = document.getElementById('playerMatchScore');
+      if (titleEl) titleEl.innerText = title || 'Jonli Translatsiya';
+      if (channelEl) channelEl.innerText = channel || 'Sport TV';
+      if (scoreEl) scoreEl.innerText = score || 'vs';
+
+      const playerBox = document.getElementById('streamPlayerBox');
+      if (!playerBox) return;
+      playerBox.innerHTML = '';
+
+      // Format clean embed URL if YouTube
+      let finalUrl = streamUrl;
+      if (streamUrl.includes('youtube.com/watch?v=')) {
+        const vidId = streamUrl.split('v=')[1].split('&')[0];
+        finalUrl = 'https://www.youtube.com/embed/' + vidId + '?autoplay=1&playsinline=1';
+      } else if (streamUrl.includes('youtu.be/')) {
+        const vidId = streamUrl.split('youtu.be/')[1].split('?')[0];
+        finalUrl = 'https://www.youtube.com/embed/' + vidId + '?autoplay=1&playsinline=1';
+      }
+
+      // Check if HLS m3u8
+      if (finalUrl.includes('.m3u8')) {
+        const videoEl = document.createElement('video');
+        videoEl.controls = true;
+        videoEl.autoplay = true;
+        videoEl.playsInline = true;
+        videoEl.style.width = '100%';
+        videoEl.style.height = '100%';
+        playerBox.appendChild(videoEl);
+
+        if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
+          videoEl.src = finalUrl;
+        } else if (window.Hls && Hls.isSupported()) {
+          if (currentHlsInstance) {
+            currentHlsInstance.destroy();
+          }
+          currentHlsInstance = new Hls();
+          currentHlsInstance.loadSource(finalUrl);
+          currentHlsInstance.attachMedia(videoEl);
+        } else {
+          videoEl.src = finalUrl;
+        }
+      } else {
+        // Standard iframe embed (YouTube, Twitch, Video Embed)
+        const iframe = document.createElement('iframe');
+        iframe.src = finalUrl;
+        iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen';
+        iframe.allowFullscreen = true;
+        playerBox.appendChild(iframe);
+      }
+
+      const modalEl = document.getElementById('footballStreamModal');
+      if (modalEl) modalEl.classList.add('open');
+    }
+
+    function closeFootballStream() {
+      haptic();
+      const playerBox = document.getElementById('streamPlayerBox');
+      if (playerBox) playerBox.innerHTML = '';
+      if (currentHlsInstance) {
+        try { currentHlsInstance.destroy(); } catch (e) {}
+        currentHlsInstance = null;
+      }
+      currentActiveStreamUrl = '';
+      const modalEl = document.getElementById('footballStreamModal');
+      if (modalEl) modalEl.classList.remove('open');
+    }
+
+    function openStreamInNewTab() {
+      if (currentActiveStreamUrl) {
+        window.open(currentActiveStreamUrl, '_blank');
+      }
+    }
+
+    function openAddStreamModal() {
+      haptic();
+      const modalEl = document.getElementById('addStreamModal');
+      if (modalEl) modalEl.classList.add('open');
+    }
+
+    function closeAddStreamModal() {
+      haptic();
+      const modalEl = document.getElementById('addStreamModal');
+      if (modalEl) modalEl.classList.remove('open');
+    }
+
+    async function submitNewStream(event) {
+      event.preventDefault();
+      haptic();
+
+      const title = document.getElementById('newStreamTitle').value.trim();
+      const league = document.getElementById('newStreamLeague').value;
+      const channel = document.getElementById('newStreamChannel').value.trim();
+      const url = document.getElementById('newStreamUrl').value.trim();
+      const timeStr = document.getElementById('newStreamTime').value.trim();
+      const score = document.getElementById('newStreamScore').value.trim();
+      const isLive = document.getElementById('newStreamIsLive').checked ? 1 : 0;
+
+      const payload = {
+        title: title,
+        stream_url: url,
+        league: league,
+        channel_name: channel,
+        match_time: timeStr,
+        is_live: isLive,
+        score: score
+      };
+
+      try {
+        const res = await fetch('/api/football/streams', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          closeAddStreamModal();
+          document.getElementById('addStreamForm').reset();
+          loadFootballStreams();
+          alert('✅ Translatsiya muvaffaqiyatli e\'lon qilindi!');
+        } else {
+          alert('Xatolik: ' + (data.error || 'Noma\'lum xatolik'));
+        }
+      } catch (err) {
+        alert('Tarmoq xatoligi: ' + err.message);
+      }
+    }
+
+    async function loadFootballMatches(league) {
+      const listEl = document.getElementById('fbMatchesList');
+      if (!listEl) return;
+      listEl.innerHTML = '<div style="text-align: center; padding: 20px;"><div class="loader"></div></div>';
+      try {
+        const res = await fetch('/api/football/matches?league=' + league);
+        const data = await res.json();
+        const matches = (data && data.matches) ? data.matches : [];
+        if (matches.length > 0) {
+          let html = '';
+          matches.forEach(function(m) {
+            html += `
+              <div class="match-scorecard">
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--ios-text-secondary); margin-bottom: 4px;">
+                  <span>${data.league || 'Liga'}</span>
+                  <span style="font-weight: 600; color: var(--ios-blue);">${m.status || 'Tugagan'}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <div style="display: flex; align-items: center; gap: 8px; width: 40%;">
+                    ${m.home_logo ? '<img src="' + m.home_logo + '" style="width: 22px; height: 22px; object-fit: contain;">' : ''}
+                    <span style="font-size: 13px; font-weight: 700; color: var(--ios-text);">${m.home_team}</span>
+                  </div>
+                  <div style="font-size: 14px; font-weight: 800; color: var(--ios-text); background: rgba(142, 142, 147, 0.12); padding: 4px 10px; border-radius: 8px;">
+                    ${m.score || 'vs'}
+                  </div>
+                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px; width: 40%; text-align: right;">
+                    <span style="font-size: 13px; font-weight: 700; color: var(--ios-text);">${m.away_team}</span>
+                    ${m.away_logo ? '<img src="' + m.away_logo + '" style="width: 22px; height: 22px; object-fit: contain;">' : ''}
+                  </div>
+                </div>
+              </div>
+            `;
+          });
+          listEl.innerHTML = html;
+        } else {
+          listEl.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--ios-text-secondary); font-size: 13px;">Ushbu liga bo\'yicha o\'yinlar topilmadi</div>';
+        }
+      } catch (err) {
+        listEl.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--ios-red); font-size: 13px;">O\'yinlar yuklanmadi</div>';
+      }
+    }
+
+    function setMatchesLeague(league, btn) {
+      haptic();
+      document.querySelectorAll('#fbMatchesLeaguePills .pill-btn').forEach(function(b) {
+        b.classList.remove('active');
+      });
+      btn.classList.add('active');
+      loadFootballMatches(league);
+    }
 
     // ==================== 4. FUTBOL ====================
     async function loadFootballData(league) {

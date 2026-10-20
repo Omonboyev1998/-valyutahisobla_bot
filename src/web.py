@@ -109,6 +109,66 @@ async def api_football_matches(request: web.Request) -> web.Response:
     data = await football_service.get_matches(league_code=league)
     return web.json_response(data or {}, headers={"Access-Control-Allow-Origin": "*"})
 
+from src.database import get_football_streams, add_football_stream, delete_football_stream
+
+async def api_football_streams(request: web.Request) -> web.Response:
+    """Futbol jonli translatsiyalari ro'yxati API"""
+    try:
+        live_only = request.query.get("live_only", "0") == "1"
+        streams = get_football_streams(is_live_only=live_only)
+        return web.json_response(streams, headers={"Access-Control-Allow-Origin": "*"})
+    except Exception as e:
+        logger.error(f"Translatsiyalarni olishda xatolik: {e}")
+        return web.json_response([], headers={"Access-Control-Allow-Origin": "*"})
+
+async def api_add_football_stream(request: web.Request) -> web.Response:
+    """Yangi translatsiya qo'shish API"""
+    try:
+        data = await request.json()
+        title = data.get("title", "").strip()
+        stream_url = data.get("stream_url", "").strip()
+        if not title or not stream_url:
+            return web.json_response({"success": False, "error": "Sarlavha va stream havolasi majburiy!"}, status=400, headers={"Access-Control-Allow-Origin": "*"})
+        
+        league = data.get("league", "APL")
+        channel_name = data.get("channel_name", "Sport TV")
+        match_time = data.get("match_time", "🔴 Jonli efir")
+        is_live = int(data.get("is_live", 1))
+        home_team = data.get("home_team", "")
+        away_team = data.get("away_team", "")
+        home_logo = data.get("home_logo", "")
+        away_logo = data.get("away_logo", "")
+        score = data.get("score", "vs")
+
+        s_id = add_football_stream(
+            title=title,
+            stream_url=stream_url,
+            league=league,
+            channel_name=channel_name,
+            match_time=match_time,
+            is_live=is_live,
+            home_team=home_team,
+            away_team=away_team,
+            home_logo=home_logo,
+            away_logo=away_logo,
+            score=score
+        )
+        return web.json_response({"success": True, "id": s_id}, headers={"Access-Control-Allow-Origin": "*"})
+    except Exception as e:
+        logger.error(f"Translatsiya qo'shishda xatolik: {e}")
+        return web.json_response({"success": False, "error": str(e)}, status=500, headers={"Access-Control-Allow-Origin": "*"})
+
+async def api_delete_football_stream(request: web.Request) -> web.Response:
+    """Translatsiyani o'chirish API"""
+    try:
+        s_id = request.match_info.get("id")
+        if s_id:
+            delete_football_stream(int(s_id))
+            return web.json_response({"success": True}, headers={"Access-Control-Allow-Origin": "*"})
+    except Exception as e:
+        logger.error(f"Translatsiyani o'chirishda xatolik: {e}")
+    return web.json_response({"success": False}, status=400, headers={"Access-Control-Allow-Origin": "*"})
+
 async def api_weather(request: web.Request) -> web.Response:
     """Ob-havo API"""
     city = request.query.get("city", "Toshkent")
@@ -261,6 +321,9 @@ def create_web_app(bot: Optional[Any] = None) -> web.Application:
     app.router.add_get("/api/prayer", api_prayer)
     app.router.add_get("/api/football/standings", api_football_standings)
     app.router.add_get("/api/football/matches", api_football_matches)
+    app.router.add_get("/api/football/streams", api_football_streams)
+    app.router.add_post("/api/football/streams", api_add_football_stream)
+    app.router.add_delete("/api/football/streams/{id}", api_delete_football_stream)
     app.router.add_get("/api/weather", api_weather)
     app.router.add_get("/api/services", api_services)
     app.router.add_post("/api/services", api_add_service)

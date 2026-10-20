@@ -139,6 +139,24 @@ def init_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS football_streams (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                league TEXT DEFAULT 'APL',
+                stream_url TEXT NOT NULL,
+                channel_name TEXT DEFAULT 'Sport TV',
+                match_time TEXT DEFAULT '🔴 Jonli efir',
+                is_live INTEGER DEFAULT 1,
+                home_team TEXT,
+                away_team TEXT,
+                home_logo TEXT,
+                away_logo TEXT,
+                score TEXT DEFAULT 'vs',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        seed_default_football_streams_if_empty(cursor)
         # Yangi ustunlarni tekshirib qo'shish (migratsiya)
         new_columns = [
             ("referrer_id", "INTEGER"),
@@ -605,3 +623,160 @@ def add_service_order(
         """, (service_id, client_user_id, client_name, client_phone, message))
         conn.commit()
         return cursor.lastrowid
+
+# ==================== FOOTBALL STREAMS / TRANSLATSIYA ====================
+
+def seed_default_football_streams_if_empty(cursor):
+    """Bazada efirlar bo'lmasa, dastlabki jonli o'yinlar va sport kanallarini qo'shadi"""
+    try:
+        cursor.execute("SELECT COUNT(*) FROM football_streams")
+        row = cursor.fetchone()
+        count = row[0] if row else 0
+        if count == 0:
+            default_streams = [
+                (
+                    "Real Madrid vs Barcelona | El Clasico",
+                    "🇪🇸 La Liga",
+                    "https://www.youtube.com/embed/live_stream?channel=UC4i_9W_nLoT6853gkltuxOA",
+                    "Sport TV HD",
+                    "🔴 72' Jonli Efir",
+                    1,
+                    "Real Madrid",
+                    "Barcelona",
+                    "https://a.espncdn.com/i/teamlogos/soccer/500/86.png",
+                    "https://a.espncdn.com/i/teamlogos/soccer/500/83.png",
+                    "2 - 1"
+                ),
+                (
+                    "Arsenal vs Manchester City",
+                    "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premyer-liga",
+                    "https://www.youtube.com/embed/5qap5aO4i9A",
+                    "UzReport TV",
+                    "🔴 38' Jonli Efir",
+                    1,
+                    "Arsenal",
+                    "Manchester City",
+                    "https://a.espncdn.com/i/teamlogos/soccer/500/359.png",
+                    "https://a.espncdn.com/i/teamlogos/soccer/500/382.png",
+                    "1 - 1"
+                ),
+                (
+                    "Sport TV HD — Jonli Telekanal",
+                    "📺 Sport Telekanal",
+                    "https://www.youtube.com/embed/jfKfPfyJRdk",
+                    "Sport TV",
+                    "🔴 24/7 Efirda",
+                    1,
+                    "Sport TV",
+                    "O'zbekiston",
+                    "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png",
+                    "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png",
+                    "HD"
+                ),
+                (
+                    "Setanta Sports HD — Yevropa Top Ligalari",
+                    "🏆 Setanta Sports",
+                    "https://www.youtube.com/embed/live_stream?channel=UC4i_9W_nLoT6853gkltuxOA",
+                    "Setanta 1",
+                    "🔴 24/7 Efirda",
+                    1,
+                    "Setanta",
+                    "Sports",
+                    "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png",
+                    "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png",
+                    "HD"
+                ),
+                (
+                    "Liverpool vs Chelsea",
+                    "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premyer-liga",
+                    "https://www.youtube.com/embed/5qap5aO4i9A",
+                    "Football TV",
+                    "Bugun, 23:45",
+                    0,
+                    "Liverpool",
+                    "Chelsea",
+                    "https://a.espncdn.com/i/teamlogos/soccer/500/364.png",
+                    "https://a.espncdn.com/i/teamlogos/soccer/500/363.png",
+                    "vs"
+                )
+            ]
+            for s in default_streams:
+                cursor.execute("""
+                    INSERT INTO football_streams 
+                    (title, league, stream_url, channel_name, match_time, is_live, home_team, away_team, home_logo, away_logo, score)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, s)
+    except Exception as e:
+        logger.error(f"Default translatsiyalarni yaratishda xatolik: {e}")
+
+def get_football_streams(is_live_only: bool = False) -> List[Dict[str, Any]]:
+    """Futbol translatsiyalari va kanallar ro'yxatini oladi"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        if is_live_only:
+            cursor.execute("""
+                SELECT id, title, league, stream_url, channel_name, match_time, is_live, 
+                       home_team, away_team, home_logo, away_logo, score, created_at 
+                FROM football_streams 
+                WHERE is_live = 1 
+                ORDER BY id DESC
+            """)
+        else:
+            cursor.execute("""
+                SELECT id, title, league, stream_url, channel_name, match_time, is_live, 
+                       home_team, away_team, home_logo, away_logo, score, created_at 
+                FROM football_streams 
+                ORDER BY is_live DESC, id DESC
+            """)
+        rows = cursor.fetchall()
+        result = []
+        for r in rows:
+            result.append({
+                "id": r[0],
+                "title": r[1],
+                "league": r[2] or "Futbol",
+                "stream_url": r[3],
+                "channel_name": r[4] or "Sport TV",
+                "match_time": r[5] or "🔴 Jonli efir",
+                "is_live": int(r[6]) if r[6] is not None else 1,
+                "home_team": r[7] or "",
+                "away_team": r[8] or "",
+                "home_logo": r[9] or "",
+                "away_logo": r[10] or "",
+                "score": r[11] or "vs",
+                "created_at": str(r[12]) if r[12] else ""
+            })
+        return result
+
+def add_football_stream(
+    title: str,
+    stream_url: str,
+    league: str = "APL",
+    channel_name: str = "Sport TV",
+    match_time: str = "🔴 Jonli efir",
+    is_live: int = 1,
+    home_team: str = "",
+    away_team: str = "",
+    home_logo: str = "",
+    away_logo: str = "",
+    score: str = "vs"
+) -> int:
+    """Yangi translatsiya yoki kanal qo'shish"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO football_streams 
+            (title, league, stream_url, channel_name, match_time, is_live, home_team, away_team, home_logo, away_logo, score)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (title, league, stream_url, channel_name, match_time, is_live, home_team, away_team, home_logo, away_logo, score))
+        conn.commit()
+        return cursor.lastrowid
+
+def delete_football_stream(stream_id: int) -> bool:
+    """Translatsiyani o'chirish"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM football_streams WHERE id = ?", (stream_id,))
+        conn.commit()
+        return cursor.rowcount > 0
+
