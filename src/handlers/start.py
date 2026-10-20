@@ -17,6 +17,7 @@ HELP_TEXT = (
     "• 🌤 <b>Ob-havo</b> — Siz turgan joy yoki istalgan shahar bo'yicha aniq harorat va prognoz.\n"
     "• ⚽️ <b>Futbol olami</b> — APL, La Liga, Serie A va Chempionlar ligasi turnir jadvallari hamda o'yinlar natijalari.\n"
     "• 🛠 <b>Maishiy xizmatlar (Ustalar)</b> — Santexnik, elektrchi, uy ta'miri, qo'y yungini olish va boshqa xizmatlarni topish yoki o'z e'loningizni joylashtirish.\n"
+    "• 🤖 <b>Shaxsiy Kotib</b> — Shaxsiy akkauntingiz uchun avto-javoblar, rejimlar va shoshilinch xabar filtri.\n"
     "• 🎁 <b>Do'stlarni taklif qilish</b> — O'z havolangizni do'stlarga ulashish va reytingda ko'tarilish.\n"
     "• 🔔 <b>Eslatmalar</b> — O'zingiz belgilagan vaqtda shaxsiy xabarlarni avtomatik olish.\n\n"
     "💡 <b>Tezkor hisoblash:</b>\n"

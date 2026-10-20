@@ -20,6 +20,7 @@ from src.keyboards.secretary import (
     get_secretary_logs_keyboard,
     get_secretary_back_keyboard
 )
+from src.keyboards.reply import get_main_keyboard
 
 logger = logging.getLogger(__name__)
 
@@ -62,11 +63,21 @@ def format_secretary_menu_text(settings: dict) -> str:
 @router.message(Command("kotib"))
 @router.message(F.text == "🤖 Shaxsiy Kotib")
 @router.message(F.text == "💼 Sekretar Rejim")
+@router.message(F.text.contains("Kotib"))
+@router.message(F.text.contains("kotib"))
+@router.message(F.text.contains("Sekretar"))
+@router.message(F.text.contains("sekretar"))
 async def show_secretary_menu(message: Message, state: FSMContext):
     await state.clear()
     settings = get_secretary_settings(message.from_user.id)
     text = format_secretary_menu_text(settings)
-    await message.answer(text, parse_mode="HTML", reply_markup=get_secretary_main_keyboard(settings))
+    # Telefon klaviaturasini yangilash
+    await message.answer("🤖 <b>Shaxsiy Kotib menyusi:</b>", reply_markup=get_main_keyboard(message.from_user.id), parse_mode="HTML")
+    await message.answer(
+        text,
+        parse_mode="HTML",
+        reply_markup=get_secretary_main_keyboard(settings)
+    )
 
 @router.callback_query(F.data == "sec:back")
 async def callback_secretary_back(callback: CallbackQuery, state: FSMContext):

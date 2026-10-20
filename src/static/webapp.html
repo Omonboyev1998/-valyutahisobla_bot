@@ -352,6 +352,7 @@
     .icon-football { background: linear-gradient(135deg, #30d158, #15803d); }
     .icon-weather  { background: linear-gradient(135deg, #5ac8fa, #007aff); }
     .icon-ref      { background: linear-gradient(135deg, #af52de, #ff2d55); }
+    .icon-secretary{ background: linear-gradient(135deg, #6366f1, #4338ca); color: #fff; }
     .icon-bot      { background: linear-gradient(135deg, #007aff, #0056b3); }
     .icon-help     { background: linear-gradient(135deg, #8e8e93, #636366); }
 
@@ -857,7 +858,8 @@
       justify-content: center;
     }
 
-    .modal-backdrop.open {
+    .modal-backdrop.open,
+    .modal-backdrop.active {
       display: flex;
       animation: modalFade 0.22s ease;
     }
@@ -1413,7 +1415,7 @@
 
         <!-- 8. Shaxsiy Kotib / Sekretar Rejim -->
         <div class="app-item" onclick="openSecretaryModal()">
-          <div class="app-icon-squircle" style="background: linear-gradient(135deg, #6366f1, #4338ca); color: #fff;">
+          <div class="app-icon-squircle icon-secretary">
             🤖
             <span class="app-badge-new">Kotib</span>
           </div>
@@ -2091,7 +2093,7 @@
   </div>
 
   <!-- ==================== SHAXSIY KOTIB / SEKRETAR MODALI ==================== -->
-  <div class="modal-backdrop" id="secretaryModal">
+  <div class="modal-backdrop" id="secretaryModal" onclick="if(event.target === this) closeSecretaryModal()">
     <div class="modal-sheet" style="padding: 18px; max-height: 88vh; overflow-y: auto;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
         <div style="display: flex; align-items: center; gap: 8px;">
@@ -3712,10 +3714,14 @@
     // ==================== SHAXSIY KOTIB JAVASCRIPT ====================
     let currentSelectedSecMode = 'busy';
 
-    async function openSecretaryModal() {
+    function openSecretaryModal() {
       haptic();
       const modal = document.getElementById('secretaryModal');
-      if (modal) modal.classList.add('active');
+      if (modal) {
+        modal.classList.add('open');
+        modal.classList.add('active');
+        modal.style.display = 'flex';
+      }
       loadSecretarySettings();
       loadSecretaryLogs();
     }
@@ -3723,7 +3729,11 @@
     function closeSecretaryModal() {
       haptic();
       const modal = document.getElementById('secretaryModal');
-      if (modal) modal.classList.remove('active');
+      if (modal) {
+        modal.classList.remove('open');
+        modal.classList.remove('active');
+        modal.style.display = 'none';
+      }
     }
 
     async function loadSecretarySettings() {

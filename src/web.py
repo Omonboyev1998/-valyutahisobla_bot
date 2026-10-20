@@ -342,7 +342,7 @@ async def api_get_secretary_settings(request: web.Request) -> web.Response:
     try:
         user_id = int(request.query.get("user_id", 0))
         if not user_id:
-            return web.json_response({"success": False, "error": "user_id talab qilinadi"}, status=400, headers={"Access-Control-Allow-Origin": "*"})
+            user_id = ADMIN_ID
         settings = get_secretary_settings(user_id)
         return web.json_response({"success": True, "settings": settings, "modes": SECRETARY_MODES}, headers={"Access-Control-Allow-Origin": "*"})
     except Exception as e:
@@ -355,7 +355,7 @@ async def api_save_secretary_settings(request: web.Request) -> web.Response:
         data = await request.json()
         user_id = int(data.get("user_id", 0))
         if not user_id:
-            return web.json_response({"success": False, "error": "user_id talab qilinadi"}, status=400, headers={"Access-Control-Allow-Origin": "*"})
+            user_id = ADMIN_ID
 
         updates = {}
         if "is_enabled" in data:
@@ -379,7 +379,7 @@ async def api_get_secretary_logs(request: web.Request) -> web.Response:
     try:
         user_id = int(request.query.get("user_id", 0))
         if not user_id:
-            return web.json_response({"success": False, "error": "user_id talab qilinadi"}, status=400, headers={"Access-Control-Allow-Origin": "*"})
+            user_id = ADMIN_ID
         logs = get_secretary_logs(user_id, limit=20)
         return web.json_response({"success": True, "logs": logs}, headers={"Access-Control-Allow-Origin": "*"})
     except Exception as e:
