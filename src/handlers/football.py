@@ -7,7 +7,8 @@ from src.keyboards.football import (
     get_leagues_keyboard,
     get_league_actions_keyboard,
     get_football_back_keyboard,
-    get_streams_keyboard
+    get_streams_keyboard,
+    get_tv_sub_keyboard
 )
 
 router = Router(name="football")
@@ -113,24 +114,52 @@ async def show_matches_callback(callback: CallbackQuery):
 @router.message(Command("stream"))
 @router.callback_query(F.data == "fb_streams")
 async def show_streams_callback(event: Message | CallbackQuery):
-    streams = get_football_streams()
     text = (
-        "📺 <b>Jonli TV kanallar va Futbol Translatsiyalari:</b>\n\n"
-        "Quyidagi telekanallar va jonli sport efirlarini to'g'ridan-to'g'ri tomosha qilishingiz mumkin:\n\n"
+        "📺 <b>Famelack Jonli TV Kanallar Katalogi (205 ta kanal)</b>\n\n"
+        "Dunyoning istalgan joyidan turib telekanallarni uzluksiz tomosha qiling:\n\n"
+        "🇺🇿 <b>O'zbekiston telekanallari (35 ta):</b>\n"
+        "• ⚽️ Sport: <i>Futbol TV, Sport TV, UzReport TV</i>\n"
+        "• 🎬 Kinolar: <i>Zo'r TV, Sevimli TV, Milliy TV, MY5, Kinoteatr, BIZ Cinema...</i>\n"
+        "• 👶 Bolalar: <i>Bolajon, Aqlvoy, MiMi TV</i>\n"
+        "• 🎵 Musiqa: <i>FTV, Navo, BIZ Music, Muz TV Uz...</i>\n"
+        "• 📰 Yangiliklar: <i>O'zbekiston 24, O'zbekiston, Dunyo bo'ylab...</i>\n"
+        "• 📍 Hududiy: <i>Toshkent TV, Yoshlar, Makon TV, MTRK...</i>\n\n"
+        "⚽️ <b>Dunyo sport kanallari (170 ta):</b>\n"
+        "• 🇪🇸 Ispaniya: <i>Real Madrid TV, Esport3, Teledeporte...</i>\n"
+        "• 🇮🇹 Italiya: <i>Inter TV, Lazio Style, Sportitalia...</i>\n"
+        "• 🇹🇷 Turkiya: <i>beIN Sports 1-5, A Spor, Eurosport...</i>\n"
+        "• 🇷🇺 Rossiya: <i>Match! Ultra 4K, Sportivnyy, viju+...</i>\n"
+        "• 🇺🇸 AQSH: <i>ESPN 1-8, CBS Sports Golazo, NBA TV, F1...</i>\n"
+        "• 🇦🇷 Lotin Amerikasi: <i>TyC Sports, ESPN Premium...</i>\n"
+        "• 🇬🇧 Jahon: <i>MUTV (Manchester United), QazSport...</i>\n\n"
+        "<i>💡 Mini App ichidagi qulay pleyer orqali to'liq ekranda, qotmasdan tomosha qilishingiz mumkin!</i>"
     )
-    if streams:
-        for s in streams:
-            badge = "🔴 <b>[JONLI EFIR]</b>" if s.get("is_live") == 1 else f"⏰ {s.get('match_time', '')}"
-            text += f"• {badge} <b>{s.get('title')}</b>\n   └ 📺 Kanal: <i>{s.get('channel_name', 'Sport TV')}</i> | Hisob: <code>{s.get('score', 'vs')}</code>\n\n"
-    else:
-        text += "<i>Hozircha faol translatsiyalar mavjud emas.</i>\n\n"
-
-    text += "<i>💡 Barcha o'yinlarni qotmasdan, zamonaviy video playerda tomosha qilish uchun pastdagi '📱 Mini Appda Jonli Tomosha Qilish' tugmasini bosing!</i>"
-
-    kb = get_streams_keyboard(streams)
+    kb = get_streams_keyboard()
     if isinstance(event, CallbackQuery):
         await event.message.edit_text(text, parse_mode="HTML", reply_markup=kb)
         await event.answer()
     else:
         await event.answer(text, parse_mode="HTML", reply_markup=kb)
+
+@router.callback_query(F.data.startswith("tv_sub:"))
+async def show_tv_sub_callback(callback: CallbackQuery):
+    sub_type = callback.data.split(":")[1]
+    if sub_type == "uz":
+        text = (
+            "🇺🇿 <b>O'zbekistonning Barcha Jonli Telekanallari (35 ta):</b>\n\n"
+            "Quyidagi mashhur kanallarni to'g'ridan-to'g'ri ochishingiz yoki pastdagi "
+            "<b>'📱 Mini Appda Jonli Pleyerni Ochish'</b> tugmasi orqali barcha 35 ta kanalni "
+            "(Zo'r TV, Sevimli, Milliy, MY5, Kinoteatr, Bolajon, O'zbekiston 24 va h.k.) "
+            "uzluksiz tomosha qilishingiz mumkin:"
+        )
+    else:
+        text = (
+            "⚽️ <b>Dunyo Davlatlarining Sport Telekanallari (170 ta):</b>\n\n"
+            "Turkiya, Rossiya, Ispaniya, Italiya, AQSH, Angliya va boshqa barcha davlatlarning "
+            "jonli sport kanallari jamlangan.\n\n"
+            "<i>💡 Mini Appda kanallarni davlatlar bo'yicha saralash va tezkor qidiruv mavjud!</i>"
+        )
+    kb = get_tv_sub_keyboard(sub_type)
+    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=kb)
+    await callback.answer()
 

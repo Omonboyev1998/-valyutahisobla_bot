@@ -141,6 +141,20 @@ async def api_football_streams(request: web.Request) -> web.Response:
         logger.error(f"Translatsiyalarni olishda xatolik: {e}")
         return web.json_response([], headers={"Access-Control-Allow-Origin": "*"})
 
+async def api_tv_channels(request: web.Request) -> web.Response:
+    """Famelack barcha telekanallar (O'zbekiston + Dunyo sport) katalogi API"""
+    try:
+        json_path = os.path.join(STATIC_DIR, "tv_channels.json")
+        if not os.path.exists(json_path):
+            json_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "tv_channels.json")
+        if os.path.exists(json_path):
+            with open(json_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return web.json_response(data, headers={"Access-Control-Allow-Origin": "*"})
+    except Exception as e:
+        logger.error(f"Telekanallar JSON faylini o'qishda xatolik: {e}")
+    return web.json_response({"uz_channels": [], "sports_channels": []}, headers={"Access-Control-Allow-Origin": "*"})
+
 async def api_add_football_stream(request: web.Request) -> web.Response:
     """Yangi translatsiya qo'shish API"""
     try:
@@ -342,6 +356,7 @@ def create_web_app(bot: Optional[Any] = None) -> web.Application:
     app.router.add_get("/api/football/standings", api_football_standings)
     app.router.add_get("/api/football/matches", api_football_matches)
     app.router.add_get("/api/football/streams", api_football_streams)
+    app.router.add_get("/api/tv/channels", api_tv_channels)
     app.router.add_post("/api/football/streams", api_add_football_stream)
     app.router.add_delete("/api/football/streams/{id}", api_delete_football_stream)
     app.router.add_get("/api/weather", api_weather)
