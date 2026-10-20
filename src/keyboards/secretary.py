@@ -18,6 +18,9 @@ def get_secretary_main_keyboard(settings: dict) -> InlineKeyboardMarkup:
             InlineKeyboardButton(text=f"🎭 Rejim: {mode_title}", callback_data="sec:modes")
         ],
         [
+            InlineKeyboardButton(text="⏰ Vaqt bo'yicha jadvallar", callback_data="sec:schedules")
+        ],
+        [
             InlineKeyboardButton(text=f"🚨 Shoshilinch xabar filtri: {urgent_icon}", callback_data="sec:toggle_urgent")
         ],
         [
@@ -66,4 +69,47 @@ def get_secretary_back_keyboard() -> InlineKeyboardMarkup:
     """Ortga qaytish klaviaturasi"""
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="◀️ Ortga", callback_data="sec:back")]
+    ])
+
+def get_secretary_schedules_keyboard(schedules: list) -> InlineKeyboardMarkup:
+    """Vaqt jadvallari ro'yxati klaviaturasi"""
+    buttons = []
+    for s in schedules:
+        status_icon = "🟢" if s.get("is_active") else "⚪️"
+        title = s.get("title") or "Jadval"
+        time_span = f"{s.get('start_time')} - {s.get('end_time')}"
+        btn_text = f"{status_icon} {title} ({time_span})"
+        buttons.append([
+            InlineKeyboardButton(text=btn_text, callback_data=f"sec_sched_view:{s['id']}")
+        ])
+
+    buttons.append([
+        InlineKeyboardButton(text="➕ Yangi jadval qo'shish", callback_data="sec_sched_add")
+    ])
+    buttons.append([
+        InlineKeyboardButton(text="🔄 Standart jadvallarni tiklash", callback_data="sec_sched_reset")
+    ])
+    buttons.append([
+        InlineKeyboardButton(text="◀️ Kotib menyusiga qaytish", callback_data="sec:back")
+    ])
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+def get_secretary_schedule_item_keyboard(schedule_id: int, is_active: bool) -> InlineKeyboardMarkup:
+    """Alohida jadvalni boshqarish (yoqish/o'chirish, o'chirish) klaviaturasi"""
+    toggle_text = "⏸ O'chirib qo'yish" if is_active else "🟢 Faollashtirish"
+    buttons = [
+        [
+            InlineKeyboardButton(text=toggle_text, callback_data=f"sec_sched_toggle:{schedule_id}"),
+            InlineKeyboardButton(text="🗑 O'chirish", callback_data=f"sec_sched_del:{schedule_id}")
+        ],
+        [
+            InlineKeyboardButton(text="◀️ Jadvallar ro'yxatiga", callback_data="sec:schedules")
+        ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+def get_secretary_cancel_keyboard(callback_data: str = "sec:schedules") -> InlineKeyboardMarkup:
+    """Bekor qilish klaviaturasi"""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="❌ Bekor qilish", callback_data=callback_data)]
     ])

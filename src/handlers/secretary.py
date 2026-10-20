@@ -11,14 +11,22 @@ from src.database import (
     log_secretary_message,
     get_secretary_logs,
     clear_secretary_logs,
-    get_secretary_owner_by_connection_id
+    get_secretary_owner_by_connection_id,
+    get_secretary_schedules,
+    add_secretary_schedule,
+    delete_secretary_schedule,
+    toggle_secretary_schedule,
+    seed_default_secretary_schedules_if_empty
 )
 from src.services.secretary_service import secretary_service, SECRETARY_MODES
 from src.keyboards.secretary import (
     get_secretary_main_keyboard,
     get_secretary_modes_keyboard,
     get_secretary_logs_keyboard,
-    get_secretary_back_keyboard
+    get_secretary_back_keyboard,
+    get_secretary_schedules_keyboard,
+    get_secretary_schedule_item_keyboard,
+    get_secretary_cancel_keyboard
 )
 from src.keyboards.reply import get_main_keyboard
 
@@ -30,6 +38,10 @@ class SecretaryFSM(StatesGroup):
     waiting_for_custom_text = State()
     waiting_for_ai_instructions = State()
 
+class SecretaryScheduleFSM(StatesGroup):
+    waiting_for_title_and_time = State()
+    waiting_for_reply_text = State()
+
 def format_secretary_menu_text(settings: dict) -> str:
     """Kotib asosiy menyu matnini chiroyli formatlaydi"""
     is_enabled = settings.get("is_enabled", 0) == 1
@@ -39,9 +51,17 @@ def format_secretary_menu_text(settings: dict) -> str:
     urgent_text = "✅ <b>Yoqilgan</b> (Zudlik bilan xabar beriladi)" if settings.get("urgent_alerts", 1) == 1 else "❌ <b>O'chirilgan</b>"
 
     custom_txt = settings.get("custom_text", "").strip()
-    preview_reply = custom_txt if (mode_key == "custom" and custom_txt) else mode_info["default_text"]
+    preview_reply = custom_txt if (mode_key == "custom" and custom_txt) else mode_info.get("default_text", "")
     if mode_key == "ai":
         preview_reply = "AI-kotib kelgan xabarni tahlil qilib, o'zingiz kiritgan ma'lumotlar asosida aqlli javob beradi."
+    elif mode_key == "schedule":
+        user_id = settings.get("user_id") or 0
+        active_sched = secretary_service.get_active_scheduled_reply(user_id) if user_id else None
+        if active_sched:
+            sched_name = active_sched.get('title') or "Jadval"
+            preview_reply = f"[{sched_name}: {active_sched.get('start_time')}-{active_sched.get('end_time')}]\n{active_sched.get('reply_text')}"
+        else:
+            preview_reply = "Hozirgi vaqt uchun maxsus jadval topilmadi, standart javob beriladi."
 
     has_business = bool(settings.get("business_connection_id"))
     conn_badge = "🔗 <i>Telegram Business ulangan</i>" if has_business else "⚠️ <i>Hali Telegram Business bog'lanmagan</i>"
@@ -198,6 +218,208 @@ async def callback_secretary_guide(callback: CallbackQuery):
     await callback.message.edit_text(text, parse_mode="HTML", reply_markup=get_secretary_back_keyboard())
     await callback.answer()
 
+# ==================== SCHEDULES MANAGEMENT ====================
+
+@router.callback_query(F.data == "sec:schedules")
+async def callback_secretary_schedules(callback: CallbackQuery, state: FSMContext):
+    await state.clear()
+    seed_default_secretary_schedules_if_empty(callback.from_user.id)
+    schedules = get_secretary_schedules(callback.from_user.id)
+    text = secretary_service.format_schedules_text(schedules)
+    await callback.message.edit_text(
+        text,
+        parse_mode="HTML",
+        reply_markup=get_secretary_schedules_keyboard(schedules)
+    )
+    await callback.answer()
+
+@router.callback_query(F.data.startswith("sec_sched_view:"))
+async def callback_secretary_schedule_view(callback: CallbackQuery):
+    sched_id = int(callback.data.split(":")[1])
+    schedules = get_secretary_schedules(callback.from_user.id)
+    item = next((s for s in schedules if s["id"] == sched_id), None)
+    if not item:
+        await callback.answer("Jadval topilmadi.", show_alert=True)
+        return
+
+    status_str = "🟢 Faol (Ishlayapti)" if item.get("is_active") else "⚪️ O'chirilgan"
+    text = (
+        f"⏰ <b>Jadval tafsiloti:</b>\n\n"
+        f"📌 <b>Nomi:</b> {item.get('title')}\n"
+        f"⏳ <b>Vaqt oralig'i:</b> {item.get('start_time')} - {item.get('end_time')}\n"
+        f"🔘 <b>Holati:</b> {status_str}\n\n"
+        f"💬 <b>Ushbu vaqtda yuboriladigan avto-javob:</b>\n"
+        f"<i>\"{item.get('reply_text')}\"</i>"
+    )
+    await callback.message.edit_text(
+        text,
+        parse_mode="HTML",
+        reply_markup=get_secretary_schedule_item_keyboard(sched_id, bool(item.get("is_active")))
+    )
+    await callback.answer()
+
+@router.callback_query(F.data.startswith("sec_sched_toggle:"))
+async def callback_secretary_schedule_toggle(callback: CallbackQuery):
+    sched_id = int(callback.data.split(":")[1])
+    toggle_secretary_schedule(sched_id, callback.from_user.id)
+    schedules = get_secretary_schedules(callback.from_user.id)
+    item = next((s for s in schedules if s["id"] == sched_id), None)
+    if item:
+        status_alert = "🟢 Jadval faollashtirildi!" if item.get("is_active") else "⏸ Jadval o'chirildi."
+        status_str = "🟢 Faol (Ishlayapti)" if item.get("is_active") else "⚪️ O'chirilgan"
+        text = (
+            f"⏰ <b>Jadval tafsiloti:</b>\n\n"
+            f"📌 <b>Nomi:</b> {item.get('title')}\n"
+            f"⏳ <b>Vaqt oralig'i:</b> {item.get('start_time')} - {item.get('end_time')}\n"
+            f"🔘 <b>Holati:</b> {status_str}\n\n"
+            f"💬 <b>Ushbu vaqtda yuboriladigan avto-javob:</b>\n"
+            f"<i>\"{item.get('reply_text')}\"</i>"
+        )
+        await callback.message.edit_text(
+            text,
+            parse_mode="HTML",
+            reply_markup=get_secretary_schedule_item_keyboard(sched_id, bool(item.get("is_active")))
+        )
+        await callback.answer(status_alert)
+    else:
+        await callback.answer("Yangilandi.")
+
+@router.callback_query(F.data.startswith("sec_sched_del:"))
+async def callback_secretary_schedule_del(callback: CallbackQuery):
+    sched_id = int(callback.data.split(":")[1])
+    delete_secretary_schedule(sched_id, callback.from_user.id)
+    schedules = get_secretary_schedules(callback.from_user.id)
+    text = secretary_service.format_schedules_text(schedules)
+    await callback.message.edit_text(
+        text,
+        parse_mode="HTML",
+        reply_markup=get_secretary_schedules_keyboard(schedules)
+    )
+    await callback.answer("🗑 Jadval o'chirildi!", show_alert=True)
+
+@router.callback_query(F.data == "sec_sched_reset")
+async def callback_secretary_schedule_reset(callback: CallbackQuery):
+    seed_default_secretary_schedules_if_empty(callback.from_user.id, force_reset=True)
+    schedules = get_secretary_schedules(callback.from_user.id)
+    text = secretary_service.format_schedules_text(schedules)
+    await callback.message.edit_text(
+        text,
+        parse_mode="HTML",
+        reply_markup=get_secretary_schedules_keyboard(schedules)
+    )
+    await callback.answer("Standart jadvallar qayta tiklandi.")
+
+@router.callback_query(F.data == "sec_sched_add")
+async def callback_secretary_schedule_add(callback: CallbackQuery, state: FSMContext):
+    await state.set_state(SecretaryScheduleFSM.waiting_for_title_and_time)
+    text = (
+        "⏰ <b>Yangi vaqt oralig'i qo'shish (1-qadam):</b>\n\n"
+        "Nomi va vaqt oralig'ini quyidagi formatda yuboring:\n"
+        "<code>Nomi | HH:MM - HH:MM</code>\n\n"
+        "<b>Misollar:</b>\n"
+        "• <code>Ish vaqti | 09:00 - 18:00</code>\n"
+        "• <code>Tushlik | 13:00 - 14:00</code>\n"
+        "• <code>Kechki dam | 18:00 - 23:00</code>\n"
+        "• <code>Tungi uyqu | 23:00 - 08:00</code>\n\n"
+        "<i>Bekor qilish uchun /cancel yozing yoki tugmani bosing.</i>"
+    )
+    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=get_secretary_cancel_keyboard("sec:schedules"))
+    await callback.answer()
+
+@router.message(SecretaryScheduleFSM.waiting_for_title_and_time)
+async def process_schedule_title_and_time(message: Message, state: FSMContext):
+    if message.text and message.text.startswith("/"):
+        await state.clear()
+        schedules = get_secretary_schedules(message.from_user.id)
+        await message.answer("Jarayon bekor qilindi.", reply_markup=get_secretary_schedules_keyboard(schedules))
+        return
+
+    raw = message.text.strip()
+    import re
+    time_match = re.search(r'(\d{1,2}:\d{2})\s*[-—–to]+\s*(\d{1,2}:\d{2})', raw)
+    if not time_match:
+        await message.answer(
+            "⚠️ <b>Vaqt formati noto'g'ri kiritildi!</b>\n\n"
+            "Iltimos, quyidagi namunadagidek yuboring:\n"
+            "<code>Ish vaqti | 09:00 - 18:00</code>\n\n"
+            "Qaytadan kiriting:",
+            parse_mode="HTML",
+            reply_markup=get_secretary_cancel_keyboard("sec:schedules")
+        )
+        return
+
+    def normalize_time(t_str: str) -> str:
+        parts = t_str.strip().split(":")
+        h = int(parts[0])
+        m = int(parts[1])
+        if h > 23 or m > 59:
+            raise ValueError()
+        return f"{h:02d}:{m:02d}"
+
+    try:
+        start_t = normalize_time(time_match.group(1))
+        end_t = normalize_time(time_match.group(2))
+    except Exception:
+        await message.answer("⚠️ Soat 00:00 dan 23:59 gacha bo'lishi kerak. Qaytadan kiriting:")
+        return
+
+    parts = raw.split("|")
+    if len(parts) >= 2:
+        title = parts[0].strip()
+    else:
+        title = f"{start_t} - {end_t}"
+
+    await state.update_data(title=title, start_time=start_t, end_time=end_t)
+    await state.set_state(SecretaryScheduleFSM.waiting_for_reply_text)
+
+    await message.answer(
+        f"✅ <b>Vaqt:</b> {title} (<code>{start_t} - {end_t}</code>)\n\n"
+        f"💬 <b>2-qadam:</b> Ushbu vaqt oralig'ida yozganlarga qanday avto-javob yuborilsin?\n\n"
+        f"<i>(Masalan: «Assalomu alaykum! Hozir ish vaqtidaman. Xabaringizni ko'rib tezda javob beraman.»)</i>",
+        parse_mode="HTML",
+        reply_markup=get_secretary_cancel_keyboard("sec:schedules")
+    )
+
+@router.message(SecretaryScheduleFSM.waiting_for_reply_text)
+async def process_schedule_reply_text(message: Message, state: FSMContext):
+    if message.text and message.text.startswith("/"):
+        await state.clear()
+        schedules = get_secretary_schedules(message.from_user.id)
+        await message.answer("Jarayon bekor qilindi.", reply_markup=get_secretary_schedules_keyboard(schedules))
+        return
+
+    reply_text = message.text.strip()
+    data = await state.get_data()
+    title = data.get("title", "Oraliq")
+    start_time = data.get("start_time", "09:00")
+    end_time = data.get("end_time", "18:00")
+
+    add_secretary_schedule(
+        user_id=message.from_user.id,
+        title=title,
+        start_time=start_time,
+        end_time=end_time,
+        reply_text=reply_text,
+        is_active=1
+    )
+    # Avtomatik ravishda jadval rejimini faollashtiramiz
+    update_secretary_settings(message.from_user.id, mode="schedule")
+    await state.clear()
+
+    schedules = get_secretary_schedules(message.from_user.id)
+    text = (
+        f"🎉 <b>Yangi vaqt jadvali muvaffaqiyatli saqlandi!</b>\n\n"
+        f"📌 <b>{title}</b> (<code>{start_time} - {end_time}</code>)\n"
+        f"💬 <i>\"{reply_text}\"</i>\n\n"
+        f"Rejim avtomatik ravishda <b>⏰ Vaqt jadvallari</b> rejimiga o'tkazildi.\n\n"
+        + secretary_service.format_schedules_text(schedules)
+    )
+    await message.answer(
+        text,
+        parse_mode="HTML",
+        reply_markup=get_secretary_schedules_keyboard(schedules)
+    )
+
 
 # ==================== TELEGRAM BUSINESS EVENT HANDLERS ====================
 
@@ -299,7 +521,8 @@ async def on_incoming_business_message(message: Message, bot: Bot):
             custom_text=custom_txt,
             message_text=msg_text,
             sender_name=sender_name,
-            ai_instructions=ai_inst
+            ai_instructions=ai_inst,
+            user_id=owner_id
         )
 
         # 4. Javobni Business chatga yuboramiz

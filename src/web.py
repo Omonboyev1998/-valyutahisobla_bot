@@ -11,7 +11,11 @@ from src.services.prayer_service import prayer_service
 from src.services.football_service import football_service
 from src.services.weather_service import weather_service
 from src.services.secretary_service import SECRETARY_MODES
-from src.database import get_secretary_settings, update_secretary_settings, get_secretary_logs
+from src.database import (
+    get_secretary_settings, update_secretary_settings, get_secretary_logs,
+    get_secretary_schedules, add_secretary_schedule, delete_secretary_schedule,
+    toggle_secretary_schedule, seed_default_secretary_schedules_if_empty
+)
 
 logger = logging.getLogger(__name__)
 
@@ -386,6 +390,82 @@ async def api_get_secretary_logs(request: web.Request) -> web.Response:
         logger.error(f"Error api_get_secretary_logs: {e}")
         return web.json_response({"success": False, "error": str(e)}, status=500, headers={"Access-Control-Allow-Origin": "*"})
 
+async def api_get_secretary_schedules(request: web.Request) -> web.Response:
+    """Vaqt jadvallari ro'yxati API"""
+    try:
+        user_id = int(request.query.get("user_id", 0))
+        if not user_id:
+            user_id = ADMIN_ID
+        seed_default_secretary_schedules_if_empty(user_id)
+        schedules = get_secretary_schedules(user_id)
+        return web.json_response({"success": True, "schedules": schedules}, headers={"Access-Control-Allow-Origin": "*"})
+    except Exception as e:
+        logger.error(f"Error api_get_secretary_schedules: {e}")
+        return web.json_response({"success": False, "error": str(e)}, status=500, headers={"Access-Control-Allow-Origin": "*"})
+
+async def api_save_secretary_schedule(request: web.Request) -> web.Response:
+    """Yangi vaqt oralig'i qo'shish API"""
+    try:
+        data = await request.json()
+        user_id = int(data.get("user_id", 0))
+        if not user_id:
+            user_id = ADMIN_ID
+
+        title = str(data.get("title", "Oraliq")).strip()
+        start_time = str(data.get("start_time", "09:00")).strip()
+        end_time = str(data.get("end_time", "18:00")).strip()
+        reply_text = str(data.get("reply_text", "")).strip()
+
+        if not reply_text:
+            return web.json_response({"success": False, "error": "Javob matni kiritilishi shart"}, status=400, headers={"Access-Control-Allow-Origin": "*"})
+
+        new_id = add_secretary_schedule(
+            user_id=user_id,
+            title=title,
+            start_time=start_time,
+            end_time=end_time,
+            reply_text=reply_text,
+            is_active=1
+        )
+        schedules = get_secretary_schedules(user_id)
+        return web.json_response({"success": True, "id": new_id, "schedules": schedules}, headers={"Access-Control-Allow-Origin": "*"})
+    except Exception as e:
+        logger.error(f"Error api_save_secretary_schedule: {e}")
+        return web.json_response({"success": False, "error": str(e)}, status=500, headers={"Access-Control-Allow-Origin": "*"})
+
+async def api_toggle_secretary_schedule(request: web.Request) -> web.Response:
+    """Vaqt oralig'i holatini (faol/nofaol) o'zgartirish API"""
+    try:
+        schedule_id = int(request.match_info["id"])
+        user_id = int(request.query.get("user_id", 0))
+        if not user_id:
+            data = await request.json() if request.can_read_body else {}
+            user_id = int(data.get("user_id", 0)) if data else 0
+        if not user_id:
+            user_id = ADMIN_ID
+
+        toggle_secretary_schedule(schedule_id, user_id)
+        schedules = get_secretary_schedules(user_id)
+        return web.json_response({"success": True, "schedules": schedules}, headers={"Access-Control-Allow-Origin": "*"})
+    except Exception as e:
+        logger.error(f"Error api_toggle_secretary_schedule: {e}")
+        return web.json_response({"success": False, "error": str(e)}, status=500, headers={"Access-Control-Allow-Origin": "*"})
+
+async def api_delete_secretary_schedule(request: web.Request) -> web.Response:
+    """Vaqt oralig'ini o'chirish API"""
+    try:
+        schedule_id = int(request.match_info["id"])
+        user_id = int(request.query.get("user_id", 0))
+        if not user_id:
+            user_id = ADMIN_ID
+
+        delete_secretary_schedule(schedule_id, user_id)
+        schedules = get_secretary_schedules(user_id)
+        return web.json_response({"success": True, "schedules": schedules}, headers={"Access-Control-Allow-Origin": "*"})
+    except Exception as e:
+        logger.error(f"Error api_delete_secretary_schedule: {e}")
+        return web.json_response({"success": False, "error": str(e)}, status=500, headers={"Access-Control-Allow-Origin": "*"})
+
 def create_web_app(bot: Optional[Any] = None) -> web.Application:
     app = web.Application()
     if bot:
@@ -417,5 +497,9 @@ def create_web_app(bot: Optional[Any] = None) -> web.Application:
     app.router.add_get("/api/secretary/settings", api_get_secretary_settings)
     app.router.add_post("/api/secretary/settings", api_save_secretary_settings)
     app.router.add_get("/api/secretary/logs", api_get_secretary_logs)
+    app.router.add_get("/api/secretary/schedules", api_get_secretary_schedules)
+    app.router.add_post("/api/secretary/schedules", api_save_secretary_schedule)
+    app.router.add_post("/api/secretary/schedules/{id}/toggle", api_toggle_secretary_schedule)
+    app.router.add_delete("/api/secretary/schedules/{id}", api_delete_secretary_schedule)
 
     return app

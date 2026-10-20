@@ -184,6 +184,18 @@ def init_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS secretary_schedules (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                title TEXT DEFAULT 'Oraliq',
+                start_time TEXT NOT NULL,
+                end_time TEXT NOT NULL,
+                reply_text TEXT NOT NULL,
+                is_active INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
         seed_default_football_streams_if_empty(cursor)
         # Yangi ustunlarni tekshirib qo'shish (migratsiya)
         new_columns = [
@@ -945,4 +957,92 @@ def get_secretary_owner_by_connection_id(connection_id: str) -> Optional[Dict[st
             "cooldown_seconds": int(row[7]) if row[7] is not None else 1800,
             "business_connection_id": row[8] or ""
         }
+
+def get_secretary_schedules(user_id: int) -> List[Dict[str, Any]]:
+    """Foydalanuvchining barcha vaqt jadvallarini oladi"""
+    seed_default_secretary_schedules_if_empty(user_id)
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, user_id, title, start_time, end_time, reply_text, is_active, created_at
+            FROM secretary_schedules
+            WHERE user_id = ?
+            ORDER BY start_time ASC
+        """, (user_id,))
+        rows = cursor.fetchall()
+        result = []
+        for r in rows:
+            result.append({
+                "id": r[0],
+                "user_id": r[1],
+                "title": r[2] or "Vaqt oralig'i",
+                "start_time": r[3],
+                "end_time": r[4],
+                "reply_text": r[5],
+                "is_active": int(r[6]) if r[6] is not None else 1,
+                "created_at": str(r[7]) if r[7] else ""
+            })
+        return result
+
+def add_secretary_schedule(
+    user_id: int,
+    start_time: str,
+    end_time: str,
+    reply_text: str,
+    title: str = "Vaqt oralig'i"
+) -> int:
+    """Yangi vaqt oralig'i va javob matnini qo'shish"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO secretary_schedules (user_id, title, start_time, end_time, reply_text, is_active)
+            VALUES (?, ?, ?, ?, ?, 1)
+        """, (user_id, title, start_time, end_time, reply_text))
+        conn.commit()
+        return cursor.lastrowid
+
+def delete_secretary_schedule(schedule_id: int, user_id: int) -> bool:
+    """Vaqt oralig'ini o'chirish"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM secretary_schedules WHERE id = ? AND user_id = ?", (schedule_id, user_id))
+        conn.commit()
+        return cursor.rowcount > 0
+
+def toggle_secretary_schedule(schedule_id: int, user_id: int) -> bool:
+    """Vaqt oralig'ini faollashtirish yoki vaqtincha to'xtatish"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE secretary_schedules 
+            SET is_active = CASE WHEN is_active = 1 THEN 0 ELSE 1 END
+            WHERE id = ? AND user_id = ?
+        """, (schedule_id, user_id))
+        conn.commit()
+        return cursor.rowcount > 0
+
+def seed_default_secretary_schedules_if_empty(user_id: int, force_reset: bool = False):
+    """Foydalanuvchida jadvallar bo'lmasa yoki majburiy tiklanganda, dastlabki qulay vaqt oraliqlarini qo'shadi"""
+    try:
+        with get_db() as conn:
+            cursor = conn.cursor()
+            if force_reset:
+                cursor.execute("DELETE FROM secretary_schedules WHERE user_id = ?", (user_id,))
+            cursor.execute("SELECT COUNT(*) FROM secretary_schedules WHERE user_id = ?", (user_id,))
+            row = cursor.fetchone()
+            if row and row[0] == 0:
+                defaults = [
+                    (user_id, "☀️ Ish vaqti (Kunduzi)", "09:00", "18:00", "Assalomu alaykum! Hozir ish vaqtidaman. Xabaringizni ko'rib tez orada aloqaga chiqaman.", 1),
+                    (user_id, "☕️ Tushlik vaqti", "13:00", "14:00", "Assalomu alaykum! Hozir tushlik tanaffusidaman. Soat 14:00 dan so'ng javob yozaman.", 1),
+                    (user_id, "🌇 Kechki vaqt", "18:00", "23:00", "Xayrli kech! Hozir ishdan tashqari vaqtdaman. Xabaringizni ko'rib albatta javob qaytaraman.", 1),
+                    (user_id, "🌙 Tungi uyqu", "23:00", "08:00", "Assalomu alaykum! Hozir tungi dam olish vaqti bo'lganligi sababli javob bera olmayapman. Ertalab birinchilardan bo'lib javob qaytaraman.", 1)
+                ]
+                for d in defaults:
+                    cursor.execute("""
+                        INSERT INTO secretary_schedules (user_id, title, start_time, end_time, reply_text, is_active)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    """, d)
+                conn.commit()
+    except Exception as e:
+        logger.error(f"Default jadvallarni yaratishda xatolik: {e}")
 
