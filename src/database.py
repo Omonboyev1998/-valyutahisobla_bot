@@ -156,6 +156,34 @@ def init_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS secretary_settings (
+                user_id INTEGER PRIMARY KEY,
+                is_enabled INTEGER DEFAULT 0,
+                mode TEXT DEFAULT 'busy',
+                custom_text TEXT DEFAULT '',
+                ai_instructions TEXT DEFAULT '',
+                urgent_alerts INTEGER DEFAULT 1,
+                auto_digest INTEGER DEFAULT 1,
+                cooldown_seconds INTEGER DEFAULT 1800,
+                business_connection_id TEXT DEFAULT '',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS secretary_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                owner_id INTEGER NOT NULL,
+                sender_id INTEGER NOT NULL,
+                sender_name TEXT DEFAULT '',
+                sender_username TEXT DEFAULT '',
+                message_text TEXT DEFAULT '',
+                bot_reply TEXT DEFAULT '',
+                is_urgent INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
         seed_default_football_streams_if_empty(cursor)
         # Yangi ustunlarni tekshirib qo'shish (migratsiya)
         new_columns = [
@@ -748,4 +776,173 @@ def delete_football_stream(stream_id: int) -> bool:
         cursor.execute("DELETE FROM football_streams WHERE id = ?", (stream_id,))
         conn.commit()
         return cursor.rowcount > 0
+
+
+# ==================== SHAXSIY KOTIB / SEKRETAR REJIM ====================
+
+def get_secretary_settings(user_id: int) -> Dict[str, Any]:
+    """Foydalanuvchining kotib sozlamalarini oladi yoki yangisini yaratadi"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT user_id, is_enabled, mode, custom_text, ai_instructions, 
+                   urgent_alerts, auto_digest, cooldown_seconds, business_connection_id, created_at, updated_at
+            FROM secretary_settings
+            WHERE user_id = ?
+        """, (user_id,))
+        row = cursor.fetchone()
+        if not row:
+            cursor.execute("""
+                INSERT INTO secretary_settings (user_id, is_enabled, mode, custom_text, urgent_alerts, auto_digest, cooldown_seconds)
+                VALUES (?, 0, 'busy', '', 1, 1, 1800)
+            """, (user_id,))
+            conn.commit()
+            return {
+                "user_id": user_id,
+                "is_enabled": 0,
+                "mode": "busy",
+                "custom_text": "",
+                "ai_instructions": "",
+                "urgent_alerts": 1,
+                "auto_digest": 1,
+                "cooldown_seconds": 1800,
+                "business_connection_id": "",
+                "created_at": "",
+                "updated_at": ""
+            }
+        return {
+            "user_id": row[0],
+            "is_enabled": int(row[1]) if row[1] is not None else 0,
+            "mode": row[2] or "busy",
+            "custom_text": row[3] or "",
+            "ai_instructions": row[4] or "",
+            "urgent_alerts": int(row[5]) if row[5] is not None else 1,
+            "auto_digest": int(row[6]) if row[6] is not None else 1,
+            "cooldown_seconds": int(row[7]) if row[7] is not None else 1800,
+            "business_connection_id": row[8] or "",
+            "created_at": str(row[9]) if row[9] else "",
+            "updated_at": str(row[10]) if row[10] else ""
+        }
+
+def update_secretary_settings(user_id: int, **kwargs) -> bool:
+    """Kotib sozlamalarini yangilash"""
+    if not kwargs:
+        return False
+    # Ensure user exists
+    get_secretary_settings(user_id)
+    fields = []
+    values = []
+    allowed = ["is_enabled", "mode", "custom_text", "ai_instructions", "urgent_alerts", "auto_digest", "cooldown_seconds", "business_connection_id"]
+    for k, v in kwargs.items():
+        if k in allowed:
+            fields.append(f"{k} = ?")
+            values.append(v)
+    if not fields:
+        return False
+    fields.append("updated_at = CURRENT_TIMESTAMP")
+    values.append(user_id)
+    sql = f"UPDATE secretary_settings SET {', '.join(fields)} WHERE user_id = ?"
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(sql, tuple(values))
+        conn.commit()
+        return cursor.rowcount > 0
+
+def log_secretary_message(
+    owner_id: int,
+    sender_id: int,
+    sender_name: str,
+    sender_username: str,
+    message_text: str,
+    bot_reply: str,
+    is_urgent: int = 0
+) -> int:
+    """Kotib qabul qilgan va javob bergan xabarni logga yozish"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO secretary_logs (owner_id, sender_id, sender_name, sender_username, message_text, bot_reply, is_urgent)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (owner_id, sender_id, sender_name or "", sender_username or "", message_text or "", bot_reply or "", is_urgent))
+        conn.commit()
+        return cursor.lastrowid
+
+def get_secretary_logs(owner_id: int, limit: int = 15) -> List[Dict[str, Any]]:
+    """Kotib qabul qilgan so'nggi xabarlar tarixini oladi"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, owner_id, sender_id, sender_name, sender_username, message_text, bot_reply, is_urgent, created_at
+            FROM secretary_logs
+            WHERE owner_id = ?
+            ORDER BY id DESC
+            LIMIT ?
+        """, (owner_id, limit))
+        rows = cursor.fetchall()
+        result = []
+        for r in rows:
+            result.append({
+                "id": r[0],
+                "owner_id": r[1],
+                "sender_id": r[2],
+                "sender_name": r[3] or "Noma'lum",
+                "sender_username": r[4] or "",
+                "message_text": r[5] or "",
+                "bot_reply": r[6] or "",
+                "is_urgent": int(r[7]) if r[7] is not None else 0,
+                "created_at": str(r[8]) if r[8] else ""
+            })
+        return result
+
+def get_secretary_last_sender_time(owner_id: int, sender_id: int) -> Optional[float]:
+    """Bir xil foydalanuvchiga eng oxirgi avtojavob berilgan vaqtini (timestamp) oladi"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT strftime('%s', created_at)
+            FROM secretary_logs
+            WHERE owner_id = ? AND sender_id = ?
+            ORDER BY id DESC
+            LIMIT 1
+        """, (owner_id, sender_id))
+        row = cursor.fetchone()
+        if row and row[0]:
+            try:
+                return float(row[0])
+            except ValueError:
+                return None
+        return None
+
+def clear_secretary_logs(owner_id: int) -> bool:
+    """Foydalanuvchi kotib loglarini tozalash"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM secretary_logs WHERE owner_id = ?", (owner_id,))
+        conn.commit()
+        return True
+
+def get_secretary_owner_by_connection_id(connection_id: str) -> Optional[Dict[str, Any]]:
+    """business_connection_id bo'yicha kotib egasini topadi"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT user_id, is_enabled, mode, custom_text, ai_instructions, 
+                   urgent_alerts, auto_digest, cooldown_seconds, business_connection_id
+            FROM secretary_settings
+            WHERE business_connection_id = ?
+        """, (connection_id,))
+        row = cursor.fetchone()
+        if not row:
+            return None
+        return {
+            "user_id": row[0],
+            "is_enabled": int(row[1]) if row[1] is not None else 0,
+            "mode": row[2] or "busy",
+            "custom_text": row[3] or "",
+            "ai_instructions": row[4] or "",
+            "urgent_alerts": int(row[5]) if row[5] is not None else 1,
+            "auto_digest": int(row[6]) if row[6] is not None else 1,
+            "cooldown_seconds": int(row[7]) if row[7] is not None else 1800,
+            "business_connection_id": row[8] or ""
+        }
 

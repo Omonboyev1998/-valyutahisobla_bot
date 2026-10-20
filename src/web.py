@@ -10,6 +10,8 @@ from src.services.cbu_service import cbu_service
 from src.services.prayer_service import prayer_service
 from src.services.football_service import football_service
 from src.services.weather_service import weather_service
+from src.services.secretary_service import SECRETARY_MODES
+from src.database import get_secretary_settings, update_secretary_settings, get_secretary_logs
 
 logger = logging.getLogger(__name__)
 
@@ -335,6 +337,55 @@ async def api_service_detail(request: web.Request) -> web.Response:
         pass
     return web.json_response({"error": "Xizmat topilmadi"}, status=404, headers={"Access-Control-Allow-Origin": "*"})
 
+async def api_get_secretary_settings(request: web.Request) -> web.Response:
+    """Foydalanuvchining kotib sozlamalarini olish API"""
+    try:
+        user_id = int(request.query.get("user_id", 0))
+        if not user_id:
+            return web.json_response({"success": False, "error": "user_id talab qilinadi"}, status=400, headers={"Access-Control-Allow-Origin": "*"})
+        settings = get_secretary_settings(user_id)
+        return web.json_response({"success": True, "settings": settings, "modes": SECRETARY_MODES}, headers={"Access-Control-Allow-Origin": "*"})
+    except Exception as e:
+        logger.error(f"Error api_get_secretary_settings: {e}")
+        return web.json_response({"success": False, "error": str(e)}, status=500, headers={"Access-Control-Allow-Origin": "*"})
+
+async def api_save_secretary_settings(request: web.Request) -> web.Response:
+    """Foydalanuvchining kotib sozlamalarini yangilash API"""
+    try:
+        data = await request.json()
+        user_id = int(data.get("user_id", 0))
+        if not user_id:
+            return web.json_response({"success": False, "error": "user_id talab qilinadi"}, status=400, headers={"Access-Control-Allow-Origin": "*"})
+
+        updates = {}
+        if "is_enabled" in data:
+            updates["is_enabled"] = int(data["is_enabled"])
+        if "mode" in data and data["mode"] in SECRETARY_MODES:
+            updates["mode"] = data["mode"]
+        if "custom_text" in data:
+            updates["custom_text"] = str(data["custom_text"]).strip()
+        if "urgent_alerts" in data:
+            updates["urgent_alerts"] = int(data["urgent_alerts"])
+
+        update_secretary_settings(user_id, **updates)
+        new_settings = get_secretary_settings(user_id)
+        return web.json_response({"success": True, "settings": new_settings, "modes": SECRETARY_MODES}, headers={"Access-Control-Allow-Origin": "*"})
+    except Exception as e:
+        logger.error(f"Error api_save_secretary_settings: {e}")
+        return web.json_response({"success": False, "error": str(e)}, status=500, headers={"Access-Control-Allow-Origin": "*"})
+
+async def api_get_secretary_logs(request: web.Request) -> web.Response:
+    """Kotib qabul qilgan so'nggi xabarlar jurnali API"""
+    try:
+        user_id = int(request.query.get("user_id", 0))
+        if not user_id:
+            return web.json_response({"success": False, "error": "user_id talab qilinadi"}, status=400, headers={"Access-Control-Allow-Origin": "*"})
+        logs = get_secretary_logs(user_id, limit=20)
+        return web.json_response({"success": True, "logs": logs}, headers={"Access-Control-Allow-Origin": "*"})
+    except Exception as e:
+        logger.error(f"Error api_get_secretary_logs: {e}")
+        return web.json_response({"success": False, "error": str(e)}, status=500, headers={"Access-Control-Allow-Origin": "*"})
+
 def create_web_app(bot: Optional[Any] = None) -> web.Application:
     app = web.Application()
     if bot:
@@ -363,5 +414,8 @@ def create_web_app(bot: Optional[Any] = None) -> web.Application:
     app.router.add_get("/api/services", api_services)
     app.router.add_post("/api/services", api_add_service)
     app.router.add_get("/api/services/{id}", api_service_detail)
+    app.router.add_get("/api/secretary/settings", api_get_secretary_settings)
+    app.router.add_post("/api/secretary/settings", api_save_secretary_settings)
+    app.router.add_get("/api/secretary/logs", api_get_secretary_logs)
 
     return app

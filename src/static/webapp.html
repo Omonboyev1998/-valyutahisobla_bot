@@ -919,6 +919,62 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* iOS Switch */
+    .ios-switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 26px;
+    }
+    .ios-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .ios-slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background-color: #e5e5ea;
+      transition: .25s;
+      border-radius: 26px;
+    }
+    .ios-slider:before {
+      position: absolute;
+      content: "";
+      height: 20px;
+      width: 20px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .25s;
+      border-radius: 50%;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    input:checked + .ios-slider {
+      background-color: var(--ios-green);
+    }
+    input:checked + .ios-slider:before {
+      transform: translateX(18px);
+    }
+
+    .sec-mode-btn {
+      padding: 9px 8px;
+      border: 1px solid rgba(0,0,0,0.08);
+      background: var(--ios-card-bg);
+      border-radius: 10px;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--ios-text);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .sec-mode-btn.active {
+      background: var(--ios-blue);
+      color: #fff;
+      border-color: var(--ios-blue);
+    }
+
     /* ==================== FOOTBALL STREAMING & LIVE UI ==================== */
     .fb-segment-bar {
       display: flex;
@@ -1355,7 +1411,16 @@
           <span class="app-label">Bot Chat</span>
         </div>
 
-        <!-- 8. Yordam & Buyruqlar -->
+        <!-- 8. Shaxsiy Kotib / Sekretar Rejim -->
+        <div class="app-item" onclick="openSecretaryModal()">
+          <div class="app-icon-squircle" style="background: linear-gradient(135deg, #6366f1, #4338ca); color: #fff;">
+            🤖
+            <span class="app-badge-new">Kotib</span>
+          </div>
+          <span class="app-label">Kotib</span>
+        </div>
+
+        <!-- 9. Yordam & Buyruqlar -->
         <div class="app-item" onclick="openHelpModal()">
           <div class="app-icon-squircle icon-help">ℹ️</div>
           <span class="app-label">Qo'llanma</span>
@@ -2022,6 +2087,82 @@
           </button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- ==================== SHAXSIY KOTIB / SEKRETAR MODALI ==================== -->
+  <div class="modal-backdrop" id="secretaryModal">
+    <div class="modal-sheet" style="padding: 18px; max-height: 88vh; overflow-y: auto;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 22px;">🤖</span>
+          <div>
+            <div style="font-size: 16px; font-weight: 700; color: var(--ios-text);">Shaxsiy Kotib Rejimi</div>
+            <div style="font-size: 11px; color: var(--ios-text-secondary);">Avto-javob va shoshilinch filtri</div>
+          </div>
+        </div>
+        <button class="modal-close-btn" onclick="closeSecretaryModal()">✕ Yopish</button>
+      </div>
+
+      <!-- Holat Toggle -->
+      <div class="card" style="margin-bottom: 12px; padding: 12px 14px; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <div style="font-size: 14px; font-weight: 700; color: var(--ios-text);">Kotib faolligi</div>
+          <div style="font-size: 11px; color: var(--ios-text-secondary); margin-top: 2px;" id="secStatusText">Hozirda: O'chirilgan</div>
+        </div>
+        <label class="ios-switch">
+          <input type="checkbox" id="secStatusToggle" onchange="toggleSecretaryStatus(this.checked)">
+          <span class="ios-slider"></span>
+        </label>
+      </div>
+
+      <!-- Rejim Tanlash -->
+      <div class="card" style="margin-bottom: 12px; padding: 12px 14px;">
+        <div style="font-size: 13px; font-weight: 700; margin-bottom: 8px; color: var(--ios-text);">🎭 Avto-javob rejimi:</div>
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px;" id="secModesGrid">
+          <button class="sec-mode-btn active" data-mode="busy" onclick="selectSecMode('busy', this)">⏳ Bandman</button>
+          <button class="sec-mode-btn" data-mode="meeting" onclick="selectSecMode('meeting', this)">💼 Yig'ilishda</button>
+          <button class="sec-mode-btn" data-mode="driving" onclick="selectSecMode('driving', this)">🚗 Ruldaman</button>
+          <button class="sec-mode-btn" data-mode="night" onclick="selectSecMode('night', this)">🌙 Tun / Dam olish</button>
+          <button class="sec-mode-btn" data-mode="vacation" onclick="selectSecMode('vacation', this)">🏖 Ta'tildaman</button>
+          <button class="sec-mode-btn" data-mode="ai" onclick="selectSecMode('ai', this)">🤖 AI Kotib</button>
+          <button class="sec-mode-btn" data-mode="custom" onclick="selectSecMode('custom', this)" style="grid-column: 1 / -1;">✏️ Shaxsiy matn</button>
+        </div>
+      </div>
+
+      <!-- Shaxsiy matn kiritish -->
+      <div class="card" id="secCustomTextCard" style="margin-bottom: 12px; padding: 12px 14px;">
+        <div style="font-size: 13px; font-weight: 700; margin-bottom: 6px; color: var(--ios-text);">💬 Avto-javob matni:</div>
+        <textarea id="secCustomTextInput" rows="3" placeholder="Siz band vaqtingizda yozganlarga yuboriladigan matn..." style="width: 100%; border: 1px solid rgba(0,0,0,0.1); border-radius: 10px; padding: 8px 10px; font-size: 13px; font-family: inherit; resize: none; box-sizing: border-box; outline: none;"></textarea>
+      </div>
+
+      <!-- Shoshilinch xabar filtri -->
+      <div class="card" style="margin-bottom: 12px; padding: 12px 14px; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <div style="font-size: 13px; font-weight: 700; color: var(--ios-text);">🚨 Shoshilinch xabar filtri</div>
+          <div style="font-size: 11px; color: var(--ios-text-secondary); margin-top: 2px;">Muhim so'zlar bo'lsa darhol bildirish</div>
+        </div>
+        <label class="ios-switch">
+          <input type="checkbox" id="secUrgentToggle" checked>
+          <span class="ios-slider"></span>
+        </label>
+      </div>
+
+      <!-- So'nggi xabarlar logi -->
+      <div class="card" style="margin-bottom: 14px; padding: 12px 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 13px; font-weight: 700; color: var(--ios-text);">📋 So'nggi qabul qilingan xabarlar</span>
+          <button onclick="loadSecretaryLogs()" style="border: none; background: none; color: var(--ios-blue); font-size: 12px; cursor: pointer; font-weight: 600;">Yangilash 🔄</button>
+        </div>
+        <div id="secLogsContainer" style="font-size: 12px; color: var(--ios-text-secondary);">
+          Hozircha xabarlar yo'q
+        </div>
+      </div>
+
+      <!-- Saqlash tugmasi -->
+      <button onclick="saveSecretarySettings()" class="btn-action-call" style="width: 100%; padding: 12px; font-size: 14px; font-weight: 700; border-radius: 12px;">
+        💾 Sozlamalarni saqlash
+      </button>
     </div>
   </div>
 
@@ -3567,6 +3708,127 @@
         }
       }).catch(function() {});
     });
+  
+    // ==================== SHAXSIY KOTIB JAVASCRIPT ====================
+    let currentSelectedSecMode = 'busy';
+
+    async function openSecretaryModal() {
+      haptic();
+      const modal = document.getElementById('secretaryModal');
+      if (modal) modal.classList.add('active');
+      loadSecretarySettings();
+      loadSecretaryLogs();
+    }
+
+    function closeSecretaryModal() {
+      haptic();
+      const modal = document.getElementById('secretaryModal');
+      if (modal) modal.classList.remove('active');
+    }
+
+    async function loadSecretarySettings() {
+      try {
+        const userId = tg?.initDataUnsafe?.user?.id || 0;
+        const res = await fetch('/api/secretary/settings?user_id=' + userId);
+        const data = await res.json();
+        if (data.success && data.settings) {
+          const s = data.settings;
+          const statusToggle = document.getElementById('secStatusToggle');
+          const statusText = document.getElementById('secStatusText');
+          if (statusToggle) statusToggle.checked = s.is_enabled === 1;
+          if (statusText) statusText.innerText = s.is_enabled === 1 ? "Hozirda: ✅ Faol (Ishlamoqda)" : "Hozirda: ⏸ O'chirilgan";
+
+          currentSelectedSecMode = s.mode || 'busy';
+          document.querySelectorAll('.sec-mode-btn').forEach(b => {
+            if (b.getAttribute('data-mode') === currentSelectedSecMode) {
+              b.classList.add('active');
+            } else {
+              b.classList.remove('active');
+            }
+          });
+
+          const customInput = document.getElementById('secCustomTextInput');
+          if (customInput) customInput.value = s.custom_text || '';
+
+          const urgentToggle = document.getElementById('secUrgentToggle');
+          if (urgentToggle) urgentToggle.checked = s.urgent_alerts === 1;
+        }
+      } catch (e) {
+        console.error('loadSecretarySettings error:', e);
+      }
+    }
+
+    function toggleSecretaryStatus(checked) {
+      haptic();
+      const statusText = document.getElementById('secStatusText');
+      if (statusText) statusText.innerText = checked ? "Hozirda: ✅ Faol (Ishlamoqda)" : "Hozirda: ⏸ O'chirilgan";
+    }
+
+    function selectSecMode(mode, btn) {
+      haptic();
+      currentSelectedSecMode = mode;
+      document.querySelectorAll('.sec-mode-btn').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+    }
+
+    async function saveSecretarySettings() {
+      haptic();
+      try {
+        const userId = tg?.initDataUnsafe?.user?.id || 0;
+        const isEnabled = document.getElementById('secStatusToggle')?.checked ? 1 : 0;
+        const urgentAlerts = document.getElementById('secUrgentToggle')?.checked ? 1 : 0;
+        const customText = document.getElementById('secCustomTextInput')?.value || '';
+
+        const res = await fetch('/api/secretary/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: userId,
+            is_enabled: isEnabled,
+            mode: currentSelectedSecMode,
+            custom_text: customText,
+            urgent_alerts: urgentAlerts
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert('✅ Kotib sozlamalari muvaffaqiyatli saqlandi!');
+          closeSecretaryModal();
+        } else {
+          alert('Xatolik: ' + (data.error || 'Saqlab bo\'lmadi'));
+        }
+      } catch (e) {
+        alert('Tarmoq xatosi: ' + e.message);
+      }
+    }
+
+    async function loadSecretaryLogs() {
+      const container = document.getElementById('secLogsContainer');
+      if (!container) return;
+      try {
+        const userId = tg?.initDataUnsafe?.user?.id || 0;
+        const res = await fetch('/api/secretary/logs?user_id=' + userId);
+        const data = await res.json();
+        if (data.success && data.logs && data.logs.length > 0) {
+          let html = '';
+          data.logs.slice(0, 5).forEach(l => {
+            const urgentBadge = l.is_urgent ? '<span style="color: #ef4444; font-weight: 700;">[SHOSHILINCH]</span> ' : '';
+            html += `
+              <div style="padding: 6px 0; border-bottom: 0.5px solid rgba(0,0,0,0.06);">
+                <div style="font-weight: 600; color: var(--ios-text);">${urgentBadge}${l.sender_name} <span style="font-size: 10px; color: var(--ios-text-secondary);">${l.created_at.slice(11, 16)}</span></div>
+                <div style="font-size: 11px; color: var(--ios-text-secondary); text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">"${l.message_text}"</div>
+              </div>
+            `;
+          });
+          container.innerHTML = html;
+        } else {
+          container.innerHTML = '<div style="text-align: center; padding: 8px;">Kotib hali xabarlarni qayd etmagan</div>';
+        }
+      } catch (e) {
+        container.innerHTML = '<div style="text-align: center; padding: 8px;">Yuklab bo\'lmadi</div>';
+      }
+    }
   </script>
+
 </body>
 </html>

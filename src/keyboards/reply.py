@@ -17,7 +17,8 @@ def get_main_keyboard(user_id: int = None) -> ReplyKeyboardMarkup:
             KeyboardButton(text="⚽️ Futbol olami")
         ],
         [
-            KeyboardButton(text="🛠 Maishiy xizmatlar (Ustalar)")
+            KeyboardButton(text="🛠 Maishiy xizmatlar (Ustalar)"),
+            KeyboardButton(text="🤖 Shaxsiy Kotib")
         ],
         [
             KeyboardButton(text="🎁 Do'stlarni taklif qilish"),
