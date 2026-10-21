@@ -41,6 +41,9 @@ class SecretaryFSM(StatesGroup):
     waiting_for_custom_text = State()
     waiting_for_ai_instructions = State()
     waiting_for_test_ai_query = State()
+    waiting_for_busy_reason = State()
+    waiting_for_emergency_phone = State()
+    waiting_for_whitelist_entry = State()
 
 class SecretaryScheduleFSM(StatesGroup):
     waiting_for_title_and_time = State()
@@ -48,11 +51,12 @@ class SecretaryScheduleFSM(StatesGroup):
 
 def format_secretary_menu_text(settings: dict) -> str:
     """Kotib asosiy menyu matnini chiroyli formatlaydi"""
+    import json
     is_enabled = settings.get("is_enabled", 0) == 1
     status_text = "🟢 <b>FAOLLASHTIRILGAN</b>" if is_enabled else "🔴 <b>O'CHIRILGAN</b>"
     mode_key = settings.get("mode", "busy")
     mode_info = SECRETARY_MODES.get(mode_key, SECRETARY_MODES["busy"])
-    urgent_text = "✅ <b>Yoqilgan</b> (Zudlik bilan xabar beriladi)" if settings.get("urgent_alerts", 1) == 1 else "❌ <b>O'chirilgan</b>"
+    urgent_text = "✅ <b>Yoqilgan</b>" if settings.get("urgent_alerts", 1) == 1 else "❌ <b>O'chirilgan</b>"
 
     custom_txt = settings.get("custom_text", "").strip()
     preview_reply = custom_txt if (mode_key == "custom" and custom_txt) else mode_info.get("default_text", "")
@@ -74,16 +78,41 @@ def format_secretary_menu_text(settings: dict) -> str:
     has_business = bool(settings.get("business_connection_id"))
     conn_badge = "🔗 <i>Telegram Business ulangan</i>" if has_business else "⚠️ <i>Hali Telegram Business bog'lanmagan</i>"
 
+    # Yangi sozlamalar qatorlari
+    busy_reason = settings.get("busy_reason", "").strip()
+    reason_badge = f"\n• 📌 <b>Bandlik sababi:</b> <i>\"{busy_reason}\"</i>" if busy_reason else "\n• 📌 <b>Bandlik sababi:</b> <i>Belgilanmagan</i>"
+
+    emerg_phone = settings.get("emergency_phone", "").strip()
+    phone_badge = f"\n• 📞 <b>Shoshilinch tel:</b> <code>{emerg_phone}</code>" if emerg_phone else "\n• 📞 <b>Shoshilinch tel:</b> <i>Kiritilmagan</i>"
+
+    wl_str = settings.get("whitelist", "[]")
+    try:
+        wl_count = len(json.loads(wl_str)) if wl_str.startswith("[") else len([x for x in wl_str.split("\n") if x.strip()])
+    except Exception:
+        wl_count = 0
+    wl_badge = f"\n• 🛡 <b>Oq ro'yxat:</b> {wl_count} ta kontakt (bot jim turadi)"
+
+    spam_status = "✅ Yoqilgan" if settings.get("filter_spam", 1) == 1 else "❌ O'chirilgan"
+    spam_badge = f"\n• 🚫 <b>Spam filtri:</b> {spam_status}"
+
+    time_info = secretary_service.get_detailed_time_context()
+    time_badge = f"\n• ⏰ <b>Vaqt:</b> {time_info['time_str']} ({time_info['day_name']}, {time_info['period_name']})"
+
     return (
         f"🤖 <b>Shaxsiy Kotib / Sekretar Rejim</b>\n\n"
         f"Akkauntingiz uchun avto-javob beruvchi, shoshilinch xabarlarni saralovchi va siz band bo'lganingizda xabarlarni qabul qiluvchi shaxsiy yordamchingiz.\n\n"
         f"• <b>Holati:</b> {status_text}\n"
         f"• <b>Faol Rejim:</b> {mode_info['title']} ({mode_info['desc']})\n"
-        f"• <b>Shoshilinch xabar filtri:</b> {urgent_text}\n"
+        f"• <b>Shoshilinch xabar filtri:</b> {urgent_text}"
+        f"{spam_badge}"
+        f"{reason_badge}"
+        f"{phone_badge}"
+        f"{wl_badge}"
+        f"{time_badge}\n"
         f"• <b>Akkaunt holati:</b> {conn_badge}\n\n"
         f"💬 <b>Hozirgi avtojavob ko'rinishi:</b>\n"
         f"<i>\"{preview_reply}\"</i>\n\n"
-        f"<i>💡 Rejimni o'zgartirish yoki sozlash uchun pastdagi tugmalardan foydalaning:</i>"
+        f"<i>💡 Sozlash uchun pastdagi tugmalardan foydalaning:</i>"
     )
 
 @router.message(Command("sekretar"))
@@ -302,6 +331,138 @@ async def process_test_ai_query(message: Message, state: FSMContext, bot: Bot):
         f"<i>Yana savol yoki ovozli xabar yuborib ko'rishingiz mumkin (chiqish uchun /cancel).</i>"
     )
     await message.answer(res_text, parse_mode="HTML", reply_markup=get_secretary_back_keyboard())
+
+@router.callback_query(F.data == "sec:set_reason")
+async def callback_secretary_set_reason(callback: CallbackQuery, state: FSMContext):
+    await state.set_state(SecretaryFSM.waiting_for_busy_reason)
+    settings = get_secretary_settings(callback.from_user.id)
+    cur_reason = settings.get("busy_reason", "").strip()
+    preview = f"\n\n📌 <b>Hozirgi sabab:</b> <i>\"{cur_reason}\"</i>" if cur_reason else "\n\n<i>(Hozircha sabab belgilanmagan)</i>"
+    text = (
+        "📌 <b>Hozirgi bandlik sababini kiriting:</b>\n\n"
+        "Ayni vaqtda nima bilan mashg'ul ekanligingizni va taxminan qachongacha bandligingizni yozing. AI barcha murojaatlarga aynan shu sababni tabiiy qistirib javob beradi.\n\n"
+        "<b>Misollar:</b>\n"
+        "• <i>«soat 16:00 gacha 3-kurs talabalarida darsdaman»</i>\n"
+        "• <i>«soat 18:30 gacha ruldaman, yo'ldaman»</i>\n"
+        "• <i>«soat 15:00 gacha muhim yig'ilishdaman»</i>\n\n"
+        "<i>Sababni o'chirish / tozalash uchun: /clear deb yozing.</i>"
+        + preview
+    )
+    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=get_secretary_back_keyboard())
+    await callback.answer()
+
+@router.message(SecretaryFSM.waiting_for_busy_reason)
+async def process_busy_reason(message: Message, state: FSMContext):
+    txt = (message.text or "").strip()
+    if txt.startswith("/cancel"):
+        await state.clear()
+        settings = get_secretary_settings(message.from_user.id)
+        await message.answer("Bekor qilindi.", reply_markup=get_secretary_main_keyboard(settings))
+        return
+
+    new_reason = "" if txt.startswith("/clear") else txt
+    update_secretary_settings(message.from_user.id, busy_reason=new_reason)
+    await state.clear()
+    settings = get_secretary_settings(message.from_user.id)
+    ans = f"✅ <b>Bandlik sababi yangilandi:</b>\n<i>\"{new_reason}\"</i>" if new_reason else "🗑 <b>Bandlik sababi tozalandi.</b>"
+    await message.answer(f"{ans}\n\n" + format_secretary_menu_text(settings), parse_mode="HTML", reply_markup=get_secretary_main_keyboard(settings))
+
+@router.callback_query(F.data == "sec:set_phone")
+async def callback_secretary_set_phone(callback: CallbackQuery, state: FSMContext):
+    await state.set_state(SecretaryFSM.waiting_for_emergency_phone)
+    settings = get_secretary_settings(callback.from_user.id)
+    cur_phone = settings.get("emergency_phone", "").strip()
+    preview = f"\n\n📞 <b>Hozirgi telefon:</b> <code>{cur_phone}</code>" if cur_phone else "\n\n<i>(Hozircha telefon belgilanmagan)</i>"
+    text = (
+        "📞 <b>Shoshilinch holatlar uchun telefon raqami:</b>\n\n"
+        "Agar suhbatdosh o'ta muhim, shoshilinch yoki kechiktirib bo'lmas masala bilan yozsa, AI unga to'g'ridan-to'g'ri telefon qilishni taklif etadi.\n\n"
+        "<b>Format:</b> <i>+998901234567</i>\n\n"
+        "<i>O'chirish uchun: /clear yozing.</i>"
+        + preview
+    )
+    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=get_secretary_back_keyboard())
+    await callback.answer()
+
+@router.message(SecretaryFSM.waiting_for_emergency_phone)
+async def process_emergency_phone(message: Message, state: FSMContext):
+    txt = (message.text or "").strip()
+    if txt.startswith("/cancel"):
+        await state.clear()
+        settings = get_secretary_settings(message.from_user.id)
+        await message.answer("Bekor qilindi.", reply_markup=get_secretary_main_keyboard(settings))
+        return
+
+    new_phone = "" if txt.startswith("/clear") else txt
+    update_secretary_settings(message.from_user.id, emergency_phone=new_phone)
+    await state.clear()
+    settings = get_secretary_settings(message.from_user.id)
+    ans = f"✅ <b>Shoshilinch telefon saqlandi:</b> <code>{new_phone}</code>" if new_phone else "🗑 <b>Telefon raqami o'chirildi.</b>"
+    await message.answer(f"{ans}\n\n" + format_secretary_menu_text(settings), parse_mode="HTML", reply_markup=get_secretary_main_keyboard(settings))
+
+@router.callback_query(F.data == "sec:whitelist")
+async def callback_secretary_whitelist(callback: CallbackQuery, state: FSMContext):
+    await state.set_state(SecretaryFSM.waiting_for_whitelist_entry)
+    settings = get_secretary_settings(callback.from_user.id)
+    import json
+    wl_str = settings.get("whitelist", "[]")
+    try:
+        wl_list = json.loads(wl_str) if wl_str.startswith("[") else [x for x in wl_str.split("\n") if x.strip()]
+    except Exception:
+        wl_list = []
+    
+    list_text = "\n".join([f"• <code>{item}</code>" for item in wl_list]) if wl_list else "<i>Hozircha oq ro'yxat bo'sh</i>"
+    text = (
+        "🛡 <b>Oq ro'yxat (Istisnolar - Bot aralashmaydiganlar):</b>\n\n"
+        "Bu ro'yxatdagi insonlar yozganda bot <b>100% jim turadi</b> va hech qanday avto-javob qaytarmaydi.\n\n"
+        f"📋 <b>Joriy ro'yxat ({len(wl_list)} ta):</b>\n{list_text}\n\n"
+        "Yangi kontakt qo'shish uchun uning <b>@username</b>ini, <b>ID raqami</b>ni yoki <b>ismi</b>ni yuboring (masalan: <i>@onajonim</i>, <i>Onam</i>, <i>12345678</i>).\n\n"
+        "<i>Tozalash uchun /clear, chiqish uchun /cancel bosing.</i>"
+    )
+    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=get_secretary_back_keyboard())
+    await callback.answer()
+
+@router.message(SecretaryFSM.waiting_for_whitelist_entry)
+async def process_whitelist_entry(message: Message, state: FSMContext):
+    txt = (message.text or "").strip()
+    if txt.startswith("/cancel"):
+        await state.clear()
+        settings = get_secretary_settings(message.from_user.id)
+        await message.answer("Chiqildi.", reply_markup=get_secretary_main_keyboard(settings))
+        return
+
+    import json
+    settings = get_secretary_settings(message.from_user.id)
+    wl_str = settings.get("whitelist", "[]")
+    try:
+        wl_list = json.loads(wl_str) if wl_str.startswith("[") else [x for x in wl_str.split("\n") if x.strip()]
+    except Exception:
+        wl_list = []
+
+    if txt.startswith("/clear"):
+        update_secretary_settings(message.from_user.id, whitelist="[]")
+        await state.clear()
+        settings = get_secretary_settings(message.from_user.id)
+        await message.answer("🗑 <b>Oq ro'yxat tozalandi.</b>\n\n" + format_secretary_menu_text(settings), parse_mode="HTML", reply_markup=get_secretary_main_keyboard(settings))
+        return
+
+    clean_entry = txt.lstrip("@").strip()
+    if clean_entry and clean_entry not in wl_list:
+        wl_list.append(clean_entry)
+        update_secretary_settings(message.from_user.id, whitelist=json.dumps(wl_list, ensure_ascii=False))
+
+    await state.clear()
+    settings = get_secretary_settings(message.from_user.id)
+    await message.answer(f"✅ <b>«{clean_entry}» oq ro'yxatga qo'shildi!</b> Endi bot bu kontaktga aralashmaydi.\n\n" + format_secretary_menu_text(settings), parse_mode="HTML", reply_markup=get_secretary_main_keyboard(settings))
+
+@router.callback_query(F.data == "sec:toggle_spam")
+async def callback_secretary_toggle_spam(callback: CallbackQuery):
+    settings = get_secretary_settings(callback.from_user.id)
+    new_spam = 0 if settings.get("filter_spam", 1) == 1 else 1
+    update_secretary_settings(callback.from_user.id, filter_spam=new_spam)
+    new_settings = get_secretary_settings(callback.from_user.id)
+    status_str = "yoqildi (reklamalar e'tiborsiz qoldiriladi)" if new_spam == 1 else "o'chirildi"
+    await callback.message.edit_text(format_secretary_menu_text(new_settings), parse_mode="HTML", reply_markup=get_secretary_main_keyboard(new_settings))
+    await callback.answer(f"Spam filtri {status_str}")
 
 @router.callback_query(F.data == "sec:logs")
 async def callback_secretary_logs(callback: CallbackQuery):
@@ -658,6 +819,16 @@ async def on_incoming_business_message(message: Message, bot: Bot):
         sender_name = sender.full_name if sender else "Mijoz"
         sender_username = sender.username or ""
 
+        # 0. Oq ro'yxatni tekshiramiz (Istisnolar - bot umuman aralashmaydi)
+        from src.services.ai_secretary_service import is_sender_whitelisted, is_spam_message
+        if is_sender_whitelisted(sender.id, sender_username, sender_name, owner_settings.get("whitelist", "[]")):
+            return
+
+        # 0.1 Spam va reklama xabarlari filtri
+        if owner_settings.get("filter_spam", 1) == 1 and is_spam_message(msg_text):
+            logger.info(f"Spam message ignored from {sender_name}: {msg_text[:60]}")
+            return
+
         # 1. Shoshilinch xabarni tekshirish
         is_urgent = secretary_service.is_urgent_message(msg_text)
         if is_urgent and owner_settings.get("urgent_alerts", 1) == 1:
@@ -706,6 +877,9 @@ async def on_incoming_business_message(message: Message, bot: Bot):
         # 5. Avto-javob matnini shakllantiramiz
         custom_txt = owner_settings.get("custom_text", "")
         ai_inst = owner_settings.get("ai_instructions", "")
+        busy_reason = owner_settings.get("busy_reason", "")
+        emergency_phone = owner_settings.get("emergency_phone", "") if owner_settings.get("enable_phone_escalation", 1) == 1 else ""
+        time_info = secretary_service.get_detailed_time_context()
 
         if is_voice and audio_bytes:
             reply_content = await secretary_service.generate_auto_voice_reply(
@@ -716,7 +890,11 @@ async def on_incoming_business_message(message: Message, bot: Bot):
                 mime_type=mime_type,
                 ai_instructions=ai_inst,
                 user_id=owner_id,
-                chat_history=chat_history
+                chat_history=chat_history,
+                busy_reason=busy_reason,
+                emergency_phone=emergency_phone,
+                is_urgent=is_urgent,
+                time_info=time_info
             )
         else:
             reply_content = await secretary_service.generate_auto_reply(
@@ -726,7 +904,11 @@ async def on_incoming_business_message(message: Message, bot: Bot):
                 sender_name=sender_name,
                 ai_instructions=ai_inst,
                 user_id=owner_id,
-                chat_history=chat_history
+                chat_history=chat_history,
+                busy_reason=busy_reason,
+                emergency_phone=emergency_phone,
+                is_urgent=is_urgent,
+                time_info=time_info
             )
 
         # 4. Javobni Business chatga yuboramiz

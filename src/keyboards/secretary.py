@@ -10,6 +10,8 @@ def get_secretary_main_keyboard(settings: dict) -> InlineKeyboardMarkup:
     mode_title = SECRETARY_MODES.get(current_mode, {}).get("title", "⏳ Bandman")
     urgent_icon = "✅ Yoqilgan" if settings.get("urgent_alerts", 1) == 1 else "❌ O'chirilgan"
 
+    spam_icon = "✅" if settings.get("filter_spam", 1) == 1 else "❌"
+
     buttons = [
         [
             InlineKeyboardButton(text=f"🔘 Holat: {status_icon}", callback_data="sec:toggle")
@@ -21,14 +23,20 @@ def get_secretary_main_keyboard(settings: dict) -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="⏰ Vaqt bo'yicha jadvallar", callback_data="sec:schedules")
         ],
         [
-            InlineKeyboardButton(text=f"🚨 Shoshilinch xabar filtri: {urgent_icon}", callback_data="sec:toggle_urgent")
+            InlineKeyboardButton(text=f"🚨 Shoshilinch xabar filtri: {urgent_icon}", callback_data="sec:toggle_urgent"),
+            InlineKeyboardButton(text=f"🚫 Spam filtri: {spam_icon}", callback_data="sec:toggle_spam")
+        ],
+        [
+            InlineKeyboardButton(text="📌 Bandlik sababi", callback_data="sec:set_reason"),
+            InlineKeyboardButton(text="📞 Shoshilinch tel", callback_data="sec:set_phone")
         ],
         [
             InlineKeyboardButton(text="✏️ Shaxsiy matn", callback_data="sec:set_text"),
             InlineKeyboardButton(text="🧠 AI yo'riqnomasi", callback_data="sec:set_ai")
         ],
         [
-            InlineKeyboardButton(text="🧪 AI Kotib javobini sinash", callback_data="sec:test_ai")
+            InlineKeyboardButton(text="🛡 Oq ro'yxat (Istisnolar)", callback_data="sec:whitelist"),
+            InlineKeyboardButton(text="🧪 AI javobini sinash", callback_data="sec:test_ai")
         ],
         [
             InlineKeyboardButton(text="📋 Kelgan xabarlar tarixi", callback_data="sec:logs"),

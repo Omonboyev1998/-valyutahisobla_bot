@@ -112,6 +112,49 @@ class SecretaryService:
         return now_dt.strftime("%H:%M")
 
     @staticmethod
+    def get_detailed_time_context() -> Dict[str, Any]:
+        """Toshkent vaqti bo'yicha soat, sutka qismi va haftaning kunini oladi"""
+        tz_tashkent = timezone(timedelta(hours=5))
+        now = datetime.now(tz_tashkent)
+        hour = now.hour
+        weekday_idx = now.weekday()
+        days_uz = ["Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba", "Yakshanba"]
+        day_name = days_uz[weekday_idx]
+        is_weekend = (weekday_idx in [5, 6])
+
+        if 5 <= hour < 11:
+            time_period = "tong"
+            period_name = "ertalabki vaqt"
+            period_greeting = "Xayrli tong!"
+            period_note = "Hozir ertalabki reja va yo'l vaqti."
+        elif 11 <= hour < 18:
+            time_period = "kunduz"
+            period_name = "faol ish/dars vaqti"
+            period_greeting = "Assalomu alaykum!"
+            period_note = "Hozir faol ish / dars vaqti."
+        elif 18 <= hour < 23:
+            time_period = "oqshom"
+            period_name = "kechki vaqt"
+            period_greeting = "Xayrli kech!"
+            period_note = "Hozir ishdan keyingi kechki vaqt."
+        else:
+            time_period = "tun"
+            period_name = "dam olish / uyqu vaqti"
+            period_greeting = "Assalomu alaykum!"
+            period_note = "Hozir tun, dam olish va uyqu vaqti."
+
+        return {
+            "time_str": now.strftime("%H:%M"),
+            "date_str": now.strftime("%Y-%m-%d"),
+            "day_name": day_name,
+            "is_weekend": is_weekend,
+            "time_period": time_period,
+            "period_name": period_name,
+            "period_greeting": period_greeting,
+            "period_note": period_note
+        }
+
+    @staticmethod
     def get_active_scheduled_reply(user_id: int, now_time_str: str = None) -> Optional[Dict[str, Any]]:
         """Hozirgi vaqt oralig'iga mos keluvchi faol jadvalni aniqlaydi"""
         from src.database import get_secretary_schedules
@@ -157,9 +200,16 @@ class SecretaryService:
         ai_instructions: str = "",
         user_id: Optional[int] = None,
         owner_name: str = "Akkaunt egasi",
-        chat_history: Optional[List[Dict[str, str]]] = None
+        chat_history: Optional[List[Dict[str, str]]] = None,
+        busy_reason: str = "",
+        emergency_phone: str = "",
+        is_urgent: bool = False,
+        time_info: Optional[Dict[str, Any]] = None
     ) -> str:
         """Tanlangan rejim yoki vaqt jadvali bo'yicha avtojavob matnini tayyorlaydi"""
+        if not time_info:
+            time_info = SecretaryService.get_detailed_time_context()
+
         # 1. Agar vaqt jadvallari rejimi tanlangan bo'lsa (yoki user_id berilgan bo'lsa)
         if mode == "schedule" and user_id:
             sched = SecretaryService.get_active_scheduled_reply(user_id)
@@ -180,7 +230,11 @@ class SecretaryService:
                     message_text=message_text,
                     ai_instructions=ai_instructions,
                     owner_name=owner_name,
-                    chat_history=chat_history
+                    chat_history=chat_history,
+                    time_info=time_info,
+                    busy_reason=busy_reason,
+                    emergency_phone=emergency_phone,
+                    is_urgent=is_urgent
                 )
             except Exception as e:
                 import logging
@@ -189,7 +243,8 @@ class SecretaryService:
         # 4. Standart rejimlar
         mode_info = SECRETARY_MODES.get(mode, SECRETARY_MODES["busy"])
         text = mode_info["default_text"]
-        return f"🤖 [Avto-Kotib]\n{text}"
+        phone_part = f"\n\n📞 Shoshilinch bo'lsa: {emergency_phone}" if (is_urgent and emergency_phone) else ""
+        return f"🤖 [Avto-Kotib]\n{text}{phone_part}"
 
     @staticmethod
     async def generate_auto_voice_reply(
@@ -201,9 +256,16 @@ class SecretaryService:
         ai_instructions: str = "",
         user_id: Optional[int] = None,
         owner_name: str = "Akkaunt egasi",
-        chat_history: Optional[List[Dict[str, str]]] = None
+        chat_history: Optional[List[Dict[str, str]]] = None,
+        busy_reason: str = "",
+        emergency_phone: str = "",
+        is_urgent: bool = False,
+        time_info: Optional[Dict[str, Any]] = None
     ) -> str:
         """Kelgan ovozli xabarga rejim bo'yicha mos avtojavob tayyorlaydi"""
+        if not time_info:
+            time_info = SecretaryService.get_detailed_time_context()
+
         # 1. AI Rejimi bo'lsa - Gemini 1.5 ga audioni to'g'ridan-to'g'ri yuboramiz
         if mode == "ai":
             try:
@@ -214,7 +276,11 @@ class SecretaryService:
                     mime_type=mime_type,
                     ai_instructions=ai_instructions,
                     owner_name=owner_name,
-                    chat_history=chat_history
+                    chat_history=chat_history,
+                    time_info=time_info,
+                    busy_reason=busy_reason,
+                    emergency_phone=emergency_phone,
+                    is_urgent=is_urgent
                 )
             except Exception as e:
                 import logging
@@ -234,7 +300,9 @@ class SecretaryService:
         # 4. Standart rejimlar
         mode_info = SECRETARY_MODES.get(mode, SECRETARY_MODES["busy"])
         text = mode_info["default_text"]
-        return f"🤖 [Avto-Kotib]\n🎙 Ovozli xabaringiz qabul qilindi. {text}"
+        phone_part = f"\n\n📞 Shoshilinch bo'lsa: {emergency_phone}" if (is_urgent and emergency_phone) else ""
+        return f"🤖 [Avto-Kotib]\n🎙 Ovozli xabaringiz qabul qilindi. {text}{phone_part}"
+
 
 
     @staticmethod

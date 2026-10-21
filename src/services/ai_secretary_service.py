@@ -28,6 +28,16 @@ QUESTION_KEYWORDS = {
     "so'm", "variant", "tolov", "to'lov", "bepul", "chegirma", "aloqa", "ishlaydimi", "qilasizmi"
 }
 
+# Spam va reklama xabarlari kalit so'zlari
+SPAM_KEYWORDS = {
+    "investitsiya", "daromad", "kripto", "signal", "binance", "stavka", "1xbet",
+    "pul ishlash", "rabota v internete", "ishga taklif", "vakansiya", "obuna bo'ling",
+    "kanalga a'zo", "podpishis", "zarabotok", "reklama", "piar", "kredit beramiz",
+    "kredit rasmiylashtirish", "kaspi", "hamkorlikka taklif", "saytga kiring",
+    "havola orqali o'ting", "sarmoya", "daromadli loyiha", "kunlik daromad",
+    "passive income", "free crypto", "giveaway", "100x"
+}
+
 # Suhbatdosh munosabatini aniqlovchi kalit so'zlar
 FAMILY_KEYWORDS = [
     "ona", "onam", "onajon", "ota", "otam", "otajon", "dada", "dadam", "dadajon",
@@ -55,6 +65,49 @@ def clean_text_for_matching(text: str) -> str:
         return ""
     cleaned = re.sub(r'[^\w\s]', '', text.lower()).strip()
     return cleaned
+
+def is_spam_message(text: str) -> bool:
+    """Xabar reklama yoki spam ekanini aniqlaydi"""
+    if not text:
+        return False
+    lower = text.lower()
+    for kw in SPAM_KEYWORDS:
+        if kw in lower:
+            return True
+    return False
+
+def is_sender_whitelisted(
+    sender_id: int,
+    sender_username: str,
+    sender_name: str,
+    whitelist_str: str
+) -> bool:
+    """Suhbatdosh oq ro'yxatda (istisnolar) bor-yo'qligini tekshiradi"""
+    if not whitelist_str or whitelist_str.strip() in ("[]", ""):
+        return False
+    try:
+        if whitelist_str.strip().startswith("["):
+            items = json.loads(whitelist_str)
+        else:
+            items = [x.strip() for x in whitelist_str.split("\n") if x.strip()]
+    except Exception:
+        items = [x.strip() for x in whitelist_str.split("\n") if x.strip()]
+
+    s_id_str = str(sender_id)
+    s_user = (sender_username or "").lower().lstrip("@")
+    s_name = (sender_name or "").lower()
+
+    for item in items:
+        clean_item = str(item).lower().strip().lstrip("@")
+        if not clean_item:
+            continue
+        if clean_item == s_id_str:
+            return True
+        if s_user and clean_item == s_user:
+            return True
+        if clean_item in s_name or s_name in clean_item:
+            return True
+    return False
 
 def is_acknowledgment_only(text: str) -> bool:
     """Xabar faqat qisqa minnatdorchilik yoki oddiy reaktsiya ekanini tekshiradi"""
@@ -96,9 +149,41 @@ def is_meaningful_query_or_question(text: str) -> bool:
 
     return False
 
-def build_adaptive_system_prompt(owner_name: str, sender_name: str, ai_instructions: str) -> str:
-    """Suhbatdosh toifasini tushunuvchi aqlli moslashuvchan tizim yo'riqnomasi"""
+def build_adaptive_system_prompt(
+    owner_name: str,
+    sender_name: str,
+    ai_instructions: str,
+    time_info: Optional[Dict[str, Any]] = None,
+    busy_reason: str = "",
+    emergency_phone: str = ""
+) -> str:
+    """Suhbatdosh toifasi, sutka vaqti va bandlik sababini hisobga oluvchi aqlli tizim yo'riqnomasi"""
     inst_text = ai_instructions.strip() if ai_instructions else "Hozircha maxsus yo'riqnoma yo'q."
+
+    # Vaqt va sharoit kontekstini tuzamiz
+    context_lines = []
+    if time_info:
+        t_str = time_info.get("time_str", "")
+        d_name = time_info.get("day_name", "")
+        p_name = time_info.get("period_name", "")
+        is_wk = time_info.get("is_weekend", False)
+        wk_text = " (Dam olish kuni)" if is_wk else ""
+        context_lines.append(f"- Hozirgi Toshkent vaqti: {t_str}, {d_name}{wk_text}. Bu {p_name}.")
+        if time_info.get("time_period") == "tun":
+            context_lines.append("- MUHIM: Hozir tun / uyqu vaqti. Javobda shuni hisobga olib, ertalab aloqaga chiqishlarini samimiy bildiring.")
+        elif is_wk:
+            context_lines.append("- Eslatma: Bugun dam olish kuni, oilaviy vaqt.")
+
+    if busy_reason.strip():
+        context_lines.append(f"- Egasining ayni paytdagi holati/sababi: «{busy_reason.strip()}». Suhbatdoshga shunchaki 'band' demasdan, aynan shu sababni tabiiy ifodalab ayting.")
+
+    if emergency_phone.strip():
+        context_lines.append(f"- Shoshilinch aloqa raqami: {emergency_phone.strip()}. Agar suhbatdosh o'ta kechiktirib bo'lmas shoshilinch masala bilan yozsa, bemalol shu raqamga qo'ng'iroq qilishni taklif qiling.")
+
+    extra_context = "\n".join(context_lines)
+    if extra_context:
+        extra_context = f"\n\n--- JORIY SHAROIT VA VAQT KONTEKSTI ---\n{extra_context}\n--------------------------------------"
+
     return (
         f"Siz {owner_name}ning shaxsiy Telegram akkauntiga kelgan xabarlarga javob beruvchi nihoyatda fahmli, samimiy va aqlli yordamchisiz.\n\n"
         f"DIQQAT! Sizga yozayotgan har bir inson mijoz EMAS! Yozgan odamning munosabatini (kimligini) xabar mazmuni, murojaat so'zlari va ohangidan ANQLANG va shunga mos ohangda javob bering:\n\n"
@@ -122,7 +207,8 @@ def build_adaptive_system_prompt(owner_name: str, sender_name: str, ai_instructi
         f"   - Xabar oxirida «Hurmat bilan, {owner_name} yordamchisi 🤖» deb yakunlashingiz mumkin.\n\n"
         f"--- EGASINING YO'RIQNOMASI VA SOHASI ---\n"
         f"{inst_text}\n"
-        f"----------------------------------------\n"
+        f"----------------------------------------"
+        f"{extra_context}\n\n"
         f"UMUMIY QOIDALAR:\n"
         f"- Agar avvalgi xabarlarda salomlashilgan bo'lsa, qayta salom bermang!\n"
         f"- Hech qachon o'zingizdan moliyaviy va'da bermang, qarz bermang, pul masalasini egasining o'zi bilan gaplashishni ayting.\n"
@@ -139,14 +225,25 @@ class AISecretaryService:
         message_text: str,
         ai_instructions: str = "",
         owner_name: str = "Akkaunt egasi",
-        chat_history: Optional[List[Dict[str, str]]] = None
+        chat_history: Optional[List[Dict[str, str]]] = None,
+        time_info: Optional[Dict[str, Any]] = None,
+        busy_reason: str = "",
+        emergency_phone: str = "",
+        is_urgent: bool = False
     ) -> str:
         """Kelgan xabarga mos aqlli, xushmuomala va kontekstual avto-javob tayyorlaydi"""
         api_key = GEMINI_API_KEY.strip() if GEMINI_API_KEY else ""
 
         if api_key:
             try:
-                system_prompt = build_adaptive_system_prompt(owner_name, sender_name, ai_instructions)
+                system_prompt = build_adaptive_system_prompt(
+                    owner_name=owner_name,
+                    sender_name=sender_name,
+                    ai_instructions=ai_instructions,
+                    time_info=time_info,
+                    busy_reason=busy_reason,
+                    emergency_phone=emergency_phone
+                )
 
                 contents: List[Dict[str, Any]] = []
                 if chat_history:
@@ -212,7 +309,11 @@ class AISecretaryService:
             message_text=message_text,
             ai_instructions=ai_instructions,
             owner_name=owner_name,
-            has_history=bool(chat_history)
+            has_history=bool(chat_history),
+            busy_reason=busy_reason,
+            emergency_phone=emergency_phone,
+            time_info=time_info,
+            is_urgent=is_urgent
         )
 
     @staticmethod
@@ -222,14 +323,25 @@ class AISecretaryService:
         mime_type: str = "audio/ogg",
         ai_instructions: str = "",
         owner_name: str = "Akkaunt egasi",
-        chat_history: Optional[List[Dict[str, str]]] = None
+        chat_history: Optional[List[Dict[str, str]]] = None,
+        time_info: Optional[Dict[str, Any]] = None,
+        busy_reason: str = "",
+        emergency_phone: str = "",
+        is_urgent: bool = False
     ) -> str:
         """Kelgan ovozli xabarni eshitib, suhbatdosh toifasiga mos aqlli javob qaytaradi"""
         api_key = GEMINI_API_KEY.strip() if GEMINI_API_KEY else ""
 
         if api_key and audio_bytes:
             try:
-                system_prompt = build_adaptive_system_prompt(owner_name, sender_name, ai_instructions)
+                system_prompt = build_adaptive_system_prompt(
+                    owner_name=owner_name,
+                    sender_name=sender_name,
+                    ai_instructions=ai_instructions,
+                    time_info=time_info,
+                    busy_reason=busy_reason,
+                    emergency_phone=emergency_phone
+                )
                 b64_audio = base64.b64encode(audio_bytes).decode("utf-8")
 
                 contents: List[Dict[str, Any]] = []
@@ -297,15 +409,12 @@ class AISecretaryService:
                 logger.error(f"Gemini Voice API bilan ulanishda xatolik: {e}")
 
         # Zaxira (Fallback)
-        lower_msg = "ovozli xabar"
-        info_part = ""
-        if ai_instructions.strip():
-            first_line = ai_instructions.strip().split("\n")[0][:120]
-            info_part = f"\n\nℹ️ <i>Ma'lumot uchun: {first_line}</i>"
+        reason_part = f"hozirda {busy_reason.strip()} sababli" if busy_reason.strip() else "hozirda band bo'lganliklari sababli"
+        phone_part = f"\n\n📞 <i>Shoshilinch bo'lsa, to'g'ridan-to'g'ri telefon qilishingiz mumkin: {emergency_phone.strip()}</i>" if (is_urgent and emergency_phone.strip()) else ""
 
         return (
             f"🎙 <b>Ovozli xabaringiz qabul qilindi.</b>\n"
-            f"Hozirda band bo'lganliklari sababli, bo'shashlari bilanoq ovozli xabaringizni eshitib, sizga aloqaga chiqadilar.{info_part}"
+            f"{reason_part.capitalize()}, bo'shashlari bilanoq ovozli xabaringizni eshitib, sizga aloqaga chiqadilar.{phone_part}"
         )
 
     @staticmethod
@@ -314,9 +423,13 @@ class AISecretaryService:
         message_text: str,
         ai_instructions: str = "",
         owner_name: str = "Akkaunt egasi",
-        has_history: bool = False
+        has_history: bool = False,
+        busy_reason: str = "",
+        emergency_phone: str = "",
+        time_info: Optional[Dict[str, Any]] = None,
+        is_urgent: bool = False
     ) -> str:
-        """Gemini ulanmagan yoki xatolik yuz berganda suhbatdosh toifasiga mos aqlli javob"""
+        """Gemini ulanmagan yoki xatolik yuz berganda suhbatdosh toifasi va vaqtga mos aqlli javob"""
         lower_msg = (message_text or "").lower()
         sender_lower = (sender_name or "").lower()
         combined_text = f"{lower_msg} {sender_lower}"
@@ -325,29 +438,33 @@ class AISecretaryService:
         for w in combined_text.lower().replace("'", "").replace("‘", "").replace("`", "").split():
             words.add(w)
 
+        reason_text = f"hozir {busy_reason.strip()}" if busy_reason.strip() else "hozir biroz band"
+        phone_note = f"\n\n📞 <i>Shoshilinch bo'lsa, telefon qilishingiz mumkin: {emergency_phone.strip()}</i>" if (is_urgent and emergency_phone.strip()) else ""
+
         # 1. Oila va Ota-ona (ona, ota, dada, oyi, bolam, o'g'lim, uyga...)
         if words.intersection(set(FAMILY_KEYWORDS)):
             return (
-                "Assalomu alaykum! Xabaringizni ko'rdilar, hozir biroz band bo'lganliklari sababli "
-                "bo'shashlari bilanoq darhol o'zlari sizga telefon qiladilar."
+                f"Assalomu alaykum! Xabaringizni ko'rdilar, {reason_text} edilar. "
+                f"Bo'shashlari bilanoq darhol o'zlari sizga telefon qiladilar."
             )
 
         # 2. Do'stlar va Og'aynilar (brat, jigar, jo'ra, qattasan, choyxona...)
         if words.intersection(set(FRIEND_KEYWORDS)):
-            return "Salom! Hozir qo'li band edi, bo'shashi bilan o'zi aloqaga chiqadi."
+            friend_reason = busy_reason.strip() if busy_reason.strip() else "qo'li band edi"
+            return f"Salom! Hozir {friend_reason}, bo'shashi bilan o'zi aloqaga chiqadi."
 
         # 3. Talabalar va Shogirdlar (domla, ustoz, dars, vazifa, para...)
         if words.intersection(set(STUDENT_KEYWORDS)):
             return (
-                "Assalomu alaykum! Xabaringiz yetkazildi, ustoz/domla hozir band edilar, "
-                "bo'shashlari bilan dars/vazifa bo'yicha javob yozadilar."
+                f"Assalomu alaykum! Xabaringiz yetkazildi, ustoz/domla {reason_text} edilar, "
+                f"bo'shashlari bilan dars/vazifa bo'yicha javob yozadilar.{phone_note}"
             )
 
         # 4. Hamkasblar (yig'ilish, hisobot, majlis, xodim...)
         if words.intersection(set(COLLEAGUE_KEYWORDS)):
             return (
-                "Assalomu alaykum! Xabaringiz qabul qilindi, hozir ish jarayonida band bo'lganliklari "
-                "sababli bo'shashlari bilan aloqaga chiqadilar."
+                f"Assalomu alaykum! Xabaringiz qabul qilindi, {reason_text} bo'lganliklari "
+                f"sababli bo'shashlari bilan aloqaga chiqadilar.{phone_note}"
             )
 
         # 5. Mijozlar va umumiy murojaatlar
@@ -356,13 +473,20 @@ class AISecretaryService:
             first_line = ai_instructions.strip().split("\n")[0][:120]
             info_part = f"\n\nℹ️ <i>Ma'lumot uchun: {first_line}</i>"
 
+        # Tun vaqti tekshiruvi
+        if time_info and time_info.get("time_period") == "tun":
+            return (
+                f"Assalomu alaykum! Xabaringiz qabul qilindi. Hozir dam olish/uyqu vaqti bo'lganligi sababli, "
+                f"ertalab o'zlari sizga albatta javob yozadilar.{info_part}"
+            )
+
         if has_history:
             if any(w in lower_msg for w in ["narx", "kurs", "necha pul", "qancha", "cena", "skolko", "price"]):
                 context_reply = "Narxlar bo'yicha savolingiz yetkazildi. Bo'shashlari bilanoq to'liq ma'lumot beradilar."
             else:
-                context_reply = "Xabaringiz qabul qilindi. Hozirda band bo'lganliklari sababli bo'shashlari bilan javob qaytaradilar."
+                context_reply = f"Xabaringiz qabul qilindi. {reason_text.capitalize()} bo'lganliklari sababli bo'shashlari bilan javob qaytaradilar."
 
-            return f"🤖 {context_reply}{info_part}\n\n<i>Hurmat bilan, {owner_name} yordamchisi 🤖</i>"
+            return f"🤖 {context_reply}{info_part}{phone_note}\n\n<i>Hurmat bilan, {owner_name} yordamchisi 🤖</i>"
 
         greeting = f"Assalomu alaykum, {sender_name}!" if sender_name and sender_name != "Mijoz" else "Assalomu alaykum!"
 
@@ -371,11 +495,11 @@ class AISecretaryService:
         elif any(w in lower_msg for w in ["uchrashuv", "vaqt", "qachon", "ko'rishamiz", "vstrecha", "kogda"]):
             context_reply = "Uchrashuv va vaqt masalasidagi xabaringiz yetkazildi. Bo'sh vaqtlarini tekshirib aloqaga chiqadilar."
         else:
-            context_reply = f"Hozirda {owner_name} band bo'lganliklari sababli xabaringizni qabul qilib oldim. Bo'shashlari bilanoq javob yozadilar."
+            context_reply = f"{reason_text.capitalize()} bo'lganliklari sababli xabaringizni qabul qilib oldim. Bo'shashlari bilanoq javob yozadilar."
 
         return (
             f"🤖 {greeting}\n\n"
-            f"{context_reply}{info_part}\n\n"
+            f"{context_reply}{info_part}{phone_note}\n\n"
             f"<i>Hurmat bilan, {owner_name} yordamchisi 🤖</i>"
         )
 

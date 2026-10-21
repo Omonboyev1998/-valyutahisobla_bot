@@ -227,10 +227,19 @@ def init_db():
             except Exception:
                 pass
 
-        try:
-            cursor.execute("ALTER TABLE secretary_settings ADD COLUMN has_seeded_schedules INTEGER DEFAULT 0")
-        except Exception:
-            pass
+        sec_new_columns = [
+            ("busy_reason", "TEXT DEFAULT ''"),
+            ("emergency_phone", "TEXT DEFAULT ''"),
+            ("enable_phone_escalation", "INTEGER DEFAULT 1"),
+            ("whitelist", "TEXT DEFAULT '[]'"),
+            ("filter_spam", "INTEGER DEFAULT 1"),
+            ("has_seeded_schedules", "INTEGER DEFAULT 0")
+        ]
+        for col_name, col_type in sec_new_columns:
+            try:
+                cursor.execute(f"ALTER TABLE secretary_settings ADD COLUMN {col_name} {col_type}")
+            except Exception:
+                pass
 
         conn.commit()
     logger.info("Ma'lumotlar bazasi (SQLite) muvaffaqiyatli ishga tushirildi.")
@@ -804,7 +813,9 @@ def get_secretary_settings(user_id: int) -> Dict[str, Any]:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT user_id, is_enabled, mode, custom_text, ai_instructions, 
-                   urgent_alerts, auto_digest, cooldown_seconds, business_connection_id, has_seeded_schedules, created_at, updated_at
+                   urgent_alerts, auto_digest, cooldown_seconds, business_connection_id, has_seeded_schedules,
+                   busy_reason, emergency_phone, enable_phone_escalation, whitelist, filter_spam,
+                   created_at, updated_at
             FROM secretary_settings
             WHERE user_id = ?
         """, (user_id,))
@@ -826,6 +837,11 @@ def get_secretary_settings(user_id: int) -> Dict[str, Any]:
                 "cooldown_seconds": 300,
                 "business_connection_id": "",
                 "has_seeded_schedules": 0,
+                "busy_reason": "",
+                "emergency_phone": "",
+                "enable_phone_escalation": 1,
+                "whitelist": "[]",
+                "filter_spam": 1,
                 "created_at": "",
                 "updated_at": ""
             }
@@ -840,8 +856,13 @@ def get_secretary_settings(user_id: int) -> Dict[str, Any]:
             "cooldown_seconds": int(row[7]) if row[7] is not None else 300,
             "business_connection_id": row[8] or "",
             "has_seeded_schedules": int(row[9]) if row[9] is not None else 0,
-            "created_at": str(row[10]) if row[10] else "",
-            "updated_at": str(row[11]) if row[11] else ""
+            "busy_reason": row[10] or "",
+            "emergency_phone": row[11] or "",
+            "enable_phone_escalation": int(row[12]) if row[12] is not None else 1,
+            "whitelist": row[13] or "[]",
+            "filter_spam": int(row[14]) if row[14] is not None else 1,
+            "created_at": str(row[15]) if row[15] else "",
+            "updated_at": str(row[16]) if row[16] else ""
         }
 
 def update_secretary_settings(user_id: int, **kwargs) -> bool:
@@ -852,7 +873,11 @@ def update_secretary_settings(user_id: int, **kwargs) -> bool:
     get_secretary_settings(user_id)
     fields = []
     values = []
-    allowed = ["is_enabled", "mode", "custom_text", "ai_instructions", "urgent_alerts", "auto_digest", "cooldown_seconds", "business_connection_id", "has_seeded_schedules"]
+    allowed = [
+        "is_enabled", "mode", "custom_text", "ai_instructions", "urgent_alerts",
+        "auto_digest", "cooldown_seconds", "business_connection_id", "has_seeded_schedules",
+        "busy_reason", "emergency_phone", "enable_phone_escalation", "whitelist", "filter_spam"
+    ]
     for k, v in kwargs.items():
         if k in allowed:
             fields.append(f"{k} = ?")

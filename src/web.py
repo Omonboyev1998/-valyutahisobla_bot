@@ -373,6 +373,16 @@ async def api_save_secretary_settings(request: web.Request) -> web.Response:
             updates["urgent_alerts"] = int(data["urgent_alerts"])
         if "ai_instructions" in data:
             updates["ai_instructions"] = str(data["ai_instructions"]).strip()
+        if "busy_reason" in data:
+            updates["busy_reason"] = str(data["busy_reason"]).strip()
+        if "emergency_phone" in data:
+            updates["emergency_phone"] = str(data["emergency_phone"]).strip()
+        if "enable_phone_escalation" in data:
+            updates["enable_phone_escalation"] = int(data["enable_phone_escalation"])
+        if "whitelist" in data:
+            updates["whitelist"] = str(data["whitelist"]).strip()
+        if "filter_spam" in data:
+            updates["filter_spam"] = int(data["filter_spam"])
 
         update_secretary_settings(user_id, **updates)
         new_settings = get_secretary_settings(user_id)
@@ -500,16 +510,23 @@ async def api_test_secretary_ai(request: web.Request) -> web.Response:
     """Mini App orqali AI javobini sinab ko'rish API"""
     try:
         from src.services.ai_secretary_service import generate_ai_reply
+        from src.services.secretary_service import secretary_service
         data = await request.json()
         user_id = int(data.get("user_id", 0)) or ADMIN_ID
         query_text = (data.get("message") or "Assalomu alaykum, sizda xizmat narxlari qancha?").strip()
         settings = get_secretary_settings(user_id)
         ai_inst = data.get("ai_instructions") if "ai_instructions" in data else settings.get("ai_instructions", "")
+        busy_reason = data.get("busy_reason") if "busy_reason" in data else settings.get("busy_reason", "")
+        emergency_phone = data.get("emergency_phone") if "emergency_phone" in data else settings.get("emergency_phone", "")
+        time_info = secretary_service.get_detailed_time_context()
         reply = await generate_ai_reply(
             sender_name="Mijoz (Sinov)",
             message_text=query_text,
             ai_instructions=ai_inst,
-            owner_name="Akkaunt egasi"
+            owner_name="Akkaunt egasi",
+            busy_reason=busy_reason,
+            emergency_phone=emergency_phone,
+            time_info=time_info
         )
         return web.json_response({"success": True, "reply": reply}, headers={"Access-Control-Allow-Origin": "*"})
     except Exception as e:

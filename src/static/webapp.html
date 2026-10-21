@@ -2208,6 +2208,39 @@
         </label>
       </div>
 
+      <!-- Bandlik sababi (Live Status) -->
+      <div class="card" style="margin-bottom: 12px; padding: 12px 14px;">
+        <div style="font-size: 13px; font-weight: 700; margin-bottom: 4px; color: var(--ios-text);">📌 Hozirgi bandlik sababi (Live Status):</div>
+        <div style="font-size: 11px; color: var(--ios-text-secondary); margin-bottom: 6px;">Qachongacha va nima bilan bandsiz? AI barcha yozganlarga aynan shu sababni aytadi.</div>
+        <input type="text" id="secBusyReasonInput" placeholder="Masalan: Soat 17:00 gacha darsdaman / ruldaman" style="width: 100%; border: 1px solid rgba(0,0,0,0.1); border-radius: 8px; padding: 8px 10px; font-size: 12px; box-sizing: border-box; outline: none;">
+      </div>
+
+      <!-- Shoshilinch telefon raqami -->
+      <div class="card" style="margin-bottom: 12px; padding: 12px 14px;">
+        <div style="font-size: 13px; font-weight: 700; margin-bottom: 4px; color: var(--ios-text);">📞 Shoshilinch holat uchun telefon:</div>
+        <div style="font-size: 11px; color: var(--ios-text-secondary); margin-bottom: 6px;">O'ta muhim holatlarda AI suhbatdoshga shu raqamga telefon qilishni taklif etadi.</div>
+        <input type="text" id="secEmergencyPhoneInput" placeholder="+998 90 123 45 67" style="width: 100%; border: 1px solid rgba(0,0,0,0.1); border-radius: 8px; padding: 8px 10px; font-size: 12px; box-sizing: border-box; outline: none;">
+      </div>
+
+      <!-- Oq ro'yxat (Istisnolar) -->
+      <div class="card" style="margin-bottom: 12px; padding: 12px 14px;">
+        <div style="font-size: 13px; font-weight: 700; margin-bottom: 4px; color: var(--ios-text);">🛡 Oq ro'yxat (Bot aralashmaydiganlar):</div>
+        <div style="font-size: 11px; color: var(--ios-text-secondary); margin-bottom: 6px;">Oila yoki eng yaqinlar (har bir qatorda bittadan username, ID yoki ism). Bot ularga 100% jim turadi.</div>
+        <textarea id="secWhitelistInput" rows="2" placeholder="@username, 12345678, Onam... (har qatorda bittadan)" style="width: 100%; border: 1px solid rgba(0,0,0,0.1); border-radius: 8px; padding: 8px 10px; font-size: 12px; font-family: inherit; resize: none; box-sizing: border-box; outline: none;"></textarea>
+      </div>
+
+      <!-- Spam va reklama filtri -->
+      <div class="card" style="margin-bottom: 12px; padding: 12px 14px; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <div style="font-size: 13px; font-weight: 700; color: var(--ios-text);">🚫 Reklama va spam filtri</div>
+          <div style="font-size: 11px; color: var(--ios-text-secondary); margin-top: 2px;">Reklama tarqatuvchilarga javob bermaslik</div>
+        </div>
+        <label class="ios-switch">
+          <input type="checkbox" id="secSpamToggle" checked>
+          <span class="ios-slider"></span>
+        </label>
+      </div>
+
       <!-- So'nggi xabarlar logi -->
       <div class="card" style="margin-bottom: 14px; padding: 12px 14px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
@@ -3829,6 +3862,25 @@
 
           const urgentToggle = document.getElementById('secUrgentToggle');
           if (urgentToggle) urgentToggle.checked = s.urgent_alerts === 1;
+
+          const reasonInput = document.getElementById('secBusyReasonInput');
+          if (reasonInput) reasonInput.value = s.busy_reason || '';
+
+          const phoneInput = document.getElementById('secEmergencyPhoneInput');
+          if (phoneInput) phoneInput.value = s.emergency_phone || '';
+
+          const whitelistInput = document.getElementById('secWhitelistInput');
+          if (whitelistInput) {
+            try {
+              const parsed = JSON.parse(s.whitelist || '[]');
+              whitelistInput.value = Array.isArray(parsed) ? parsed.join('\n') : (s.whitelist || '');
+            } catch(e) {
+              whitelistInput.value = s.whitelist || '';
+            }
+          }
+
+          const spamToggle = document.getElementById('secSpamToggle');
+          if (spamToggle) spamToggle.checked = s.filter_spam !== 0;
         }
       } catch (e) {
         console.error('loadSecretarySettings error:', e);
@@ -3866,6 +3918,12 @@
         const urgentAlerts = document.getElementById('secUrgentToggle')?.checked ? 1 : 0;
         const customText = document.getElementById('secCustomTextInput')?.value || '';
         const aiInstructions = document.getElementById('secAiInstructionsInput')?.value || '';
+        const busyReason = document.getElementById('secBusyReasonInput')?.value || '';
+        const emergencyPhone = document.getElementById('secEmergencyPhoneInput')?.value || '';
+        const rawWl = document.getElementById('secWhitelistInput')?.value || '';
+        const wlArr = rawWl.split('\n').map(x => x.trim()).filter(Boolean);
+        const whitelistStr = JSON.stringify(wlArr);
+        const filterSpam = document.getElementById('secSpamToggle')?.checked ? 1 : 0;
 
         const res = await fetch('/api/secretary/settings', {
           method: 'POST',
@@ -3876,7 +3934,11 @@
             mode: currentSelectedSecMode,
             custom_text: customText,
             ai_instructions: aiInstructions,
-            urgent_alerts: urgentAlerts
+            urgent_alerts: urgentAlerts,
+            busy_reason: busyReason,
+            emergency_phone: emergencyPhone,
+            whitelist: whitelistStr,
+            filter_spam: filterSpam
           })
         });
         const data = await res.json();
