@@ -167,6 +167,7 @@ def init_db():
                 auto_digest INTEGER DEFAULT 1,
                 cooldown_seconds INTEGER DEFAULT 1800,
                 business_connection_id TEXT DEFAULT '',
+                has_seeded_schedules INTEGER DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -225,6 +226,11 @@ def init_db():
                 cursor.execute(f"ALTER TABLE services ADD COLUMN {col_name} {col_type}")
             except Exception:
                 pass
+
+        try:
+            cursor.execute("ALTER TABLE secretary_settings ADD COLUMN has_seeded_schedules INTEGER DEFAULT 0")
+        except Exception:
+            pass
 
         conn.commit()
     logger.info("Ma'lumotlar bazasi (SQLite) muvaffaqiyatli ishga tushirildi.")
@@ -798,15 +804,15 @@ def get_secretary_settings(user_id: int) -> Dict[str, Any]:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT user_id, is_enabled, mode, custom_text, ai_instructions, 
-                   urgent_alerts, auto_digest, cooldown_seconds, business_connection_id, created_at, updated_at
+                   urgent_alerts, auto_digest, cooldown_seconds, business_connection_id, has_seeded_schedules, created_at, updated_at
             FROM secretary_settings
             WHERE user_id = ?
         """, (user_id,))
         row = cursor.fetchone()
         if not row:
             cursor.execute("""
-                INSERT INTO secretary_settings (user_id, is_enabled, mode, custom_text, urgent_alerts, auto_digest, cooldown_seconds)
-                VALUES (?, 0, 'busy', '', 1, 1, 1800)
+                INSERT INTO secretary_settings (user_id, is_enabled, mode, custom_text, urgent_alerts, auto_digest, cooldown_seconds, has_seeded_schedules)
+                VALUES (?, 0, 'busy', '', 1, 1, 300, 0)
             """, (user_id,))
             conn.commit()
             return {
@@ -817,8 +823,9 @@ def get_secretary_settings(user_id: int) -> Dict[str, Any]:
                 "ai_instructions": "",
                 "urgent_alerts": 1,
                 "auto_digest": 1,
-                "cooldown_seconds": 1800,
+                "cooldown_seconds": 300,
                 "business_connection_id": "",
+                "has_seeded_schedules": 0,
                 "created_at": "",
                 "updated_at": ""
             }
@@ -830,10 +837,11 @@ def get_secretary_settings(user_id: int) -> Dict[str, Any]:
             "ai_instructions": row[4] or "",
             "urgent_alerts": int(row[5]) if row[5] is not None else 1,
             "auto_digest": int(row[6]) if row[6] is not None else 1,
-            "cooldown_seconds": int(row[7]) if row[7] is not None else 1800,
+            "cooldown_seconds": int(row[7]) if row[7] is not None else 300,
             "business_connection_id": row[8] or "",
-            "created_at": str(row[9]) if row[9] else "",
-            "updated_at": str(row[10]) if row[10] else ""
+            "has_seeded_schedules": int(row[9]) if row[9] is not None else 0,
+            "created_at": str(row[10]) if row[10] else "",
+            "updated_at": str(row[11]) if row[11] else ""
         }
 
 def update_secretary_settings(user_id: int, **kwargs) -> bool:
@@ -844,7 +852,7 @@ def update_secretary_settings(user_id: int, **kwargs) -> bool:
     get_secretary_settings(user_id)
     fields = []
     values = []
-    allowed = ["is_enabled", "mode", "custom_text", "ai_instructions", "urgent_alerts", "auto_digest", "cooldown_seconds", "business_connection_id"]
+    allowed = ["is_enabled", "mode", "custom_text", "ai_instructions", "urgent_alerts", "auto_digest", "cooldown_seconds", "business_connection_id", "has_seeded_schedules"]
     for k, v in kwargs.items():
         if k in allowed:
             fields.append(f"{k} = ?")
@@ -960,7 +968,6 @@ def get_secretary_owner_by_connection_id(connection_id: str) -> Optional[Dict[st
 
 def get_secretary_schedules(user_id: int) -> List[Dict[str, Any]]:
     """Foydalanuvchining barcha vaqt jadvallarini oladi"""
-    seed_default_secretary_schedules_if_empty(user_id)
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("""
@@ -1002,13 +1009,26 @@ def add_secretary_schedule(
         conn.commit()
         return cursor.lastrowid
 
-def delete_secretary_schedule(schedule_id: int, user_id: int) -> bool:
+def delete_secretary_schedule(schedule_id: int, user_id: int = 0) -> bool:
     """Vaqt oralig'ini o'chirish"""
     with get_db() as conn:
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM secretary_schedules WHERE id = ? AND user_id = ?", (schedule_id, user_id))
+        if user_id:
+            cursor.execute("DELETE FROM secretary_schedules WHERE id = ? AND (user_id = ? OR user_id = 0)", (schedule_id, user_id))
+            cursor.execute("UPDATE secretary_settings SET has_seeded_schedules = 1 WHERE user_id = ?", (user_id,))
+        else:
+            cursor.execute("DELETE FROM secretary_schedules WHERE id = ?", (schedule_id,))
         conn.commit()
         return cursor.rowcount > 0
+
+def clear_all_secretary_schedules(user_id: int) -> bool:
+    """Foydalanuvchining barcha vaqt jadvallarini tozalash (o'chirish)"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM secretary_schedules WHERE user_id = ?", (user_id,))
+        cursor.execute("UPDATE secretary_settings SET has_seeded_schedules = 1 WHERE user_id = ?", (user_id,))
+        conn.commit()
+        return True
 
 def toggle_secretary_schedule(schedule_id: int, user_id: int) -> bool:
     """Vaqt oralig'ini faollashtirish yoki vaqtincha to'xtatish"""
@@ -1023,27 +1043,44 @@ def toggle_secretary_schedule(schedule_id: int, user_id: int) -> bool:
         return cursor.rowcount > 0
 
 def seed_default_secretary_schedules_if_empty(user_id: int, force_reset: bool = False):
-    """Foydalanuvchida jadvallar bo'lmasa yoki majburiy tiklanganda, dastlabki qulay vaqt oraliqlarini qo'shadi"""
+    """Foydalanuvchida birinchi marta kirganda yoki majburiy tiklanganda standart jadvallarni qo'shadi"""
     try:
+        # Foydalanuvchi sozlamalari mavjudligini ta'minlaymiz
+        settings = get_secretary_settings(user_id)
+        if not force_reset:
+            # Agar allaqachon seed qilingan bo'lsa, foydalanuvchi o'chirgan bo'lsa ham qayta qo'shmaymiz!
+            if settings.get("has_seeded_schedules") == 1:
+                return
+
         with get_db() as conn:
             cursor = conn.cursor()
             if force_reset:
                 cursor.execute("DELETE FROM secretary_schedules WHERE user_id = ?", (user_id,))
-            cursor.execute("SELECT COUNT(*) FROM secretary_schedules WHERE user_id = ?", (user_id,))
-            row = cursor.fetchone()
-            if row and row[0] == 0:
-                defaults = [
-                    (user_id, "☀️ Ish vaqti (Kunduzi)", "09:00", "18:00", "Assalomu alaykum! Hozir ish vaqtidaman. Xabaringizni ko'rib tez orada aloqaga chiqaman.", 1),
-                    (user_id, "☕️ Tushlik vaqti", "13:00", "14:00", "Assalomu alaykum! Hozir tushlik tanaffusidaman. Soat 14:00 dan so'ng javob yozaman.", 1),
-                    (user_id, "🌇 Kechki vaqt", "18:00", "23:00", "Xayrli kech! Hozir ishdan tashqari vaqtdaman. Xabaringizni ko'rib albatta javob qaytaraman.", 1),
-                    (user_id, "🌙 Tungi uyqu", "23:00", "09:00", "Assalomu alaykum! Hozir tungi dam olish vaqti bo'lganligi sababli javob bera olmayapman. Ertalab birinchilardan bo'lib javob qaytaraman.", 1)
-                ]
-                for d in defaults:
-                    cursor.execute("""
-                        INSERT INTO secretary_schedules (user_id, title, start_time, end_time, reply_text, is_active)
-                        VALUES (?, ?, ?, ?, ?, ?)
-                    """, d)
-                conn.commit()
+            else:
+                cursor.execute("SELECT COUNT(*) FROM secretary_schedules WHERE user_id = ?", (user_id,))
+                row = cursor.fetchone()
+                if row and row[0] > 0:
+                    cursor.execute("UPDATE secretary_settings SET has_seeded_schedules = 1 WHERE user_id = ?", (user_id,))
+                    conn.commit()
+                    return
+
+            defaults = [
+                (user_id, "☀️ Ish vaqti (Kunduzi)", "09:00", "18:00", "Assalomu alaykum! Hozir ish vaqtidaman. Xabaringizni ko'rib tez orada aloqaga chiqaman.", 1),
+                (user_id, "☕️ Tushlik vaqti", "13:00", "14:00", "Assalomu alaykum! Hozir tushlik tanaffusidaman. Soat 14:00 dan so'ng javob yozaman.", 1),
+                (user_id, "🌇 Kechki vaqt", "18:00", "23:00", "Xayrli kech! Hozir ishdan tashqari vaqtdaman. Xabaringizni ko'rib albatta javob qaytaraman.", 1),
+                (user_id, "🌙 Tungi uyqu", "23:00", "09:00", "Assalomu alaykum! Hozir tungi dam olish vaqti bo'lganligi sababli javob bera olmayapman. Ertalab birinchilardan bo'lib javob qaytaraman.", 1)
+            ]
+            for d in defaults:
+                cursor.execute("""
+                    INSERT INTO secretary_schedules (user_id, title, start_time, end_time, reply_text, is_active)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, d)
+
+            # Belgilaymiz: standart jadvallar berildi
+            cursor.execute("""
+                UPDATE secretary_settings SET has_seeded_schedules = 1 WHERE user_id = ?
+            """, (user_id,))
+            conn.commit()
     except Exception as e:
         logger.error(f"Default jadvallarni yaratishda xatolik: {e}")
 

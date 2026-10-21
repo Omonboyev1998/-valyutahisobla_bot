@@ -14,7 +14,8 @@ from src.services.secretary_service import SECRETARY_MODES
 from src.database import (
     get_secretary_settings, update_secretary_settings, get_secretary_logs,
     get_secretary_schedules, add_secretary_schedule, delete_secretary_schedule,
-    toggle_secretary_schedule, seed_default_secretary_schedules_if_empty
+    toggle_secretary_schedule, seed_default_secretary_schedules_if_empty,
+    clear_all_secretary_schedules
 )
 
 logger = logging.getLogger(__name__)
@@ -466,6 +467,33 @@ async def api_delete_secretary_schedule(request: web.Request) -> web.Response:
         logger.error(f"Error api_delete_secretary_schedule: {e}")
         return web.json_response({"success": False, "error": str(e)}, status=500, headers={"Access-Control-Allow-Origin": "*"})
 
+async def api_reset_secretary_schedules(request: web.Request) -> web.Response:
+    """Standart jadvallarni qayta tiklash API"""
+    try:
+        user_id = int(request.query.get("user_id", 0))
+        if not user_id:
+            user_id = ADMIN_ID
+
+        seed_default_secretary_schedules_if_empty(user_id, force_reset=True)
+        schedules = get_secretary_schedules(user_id)
+        return web.json_response({"success": True, "schedules": schedules}, headers={"Access-Control-Allow-Origin": "*"})
+    except Exception as e:
+        logger.error(f"Error api_reset_secretary_schedules: {e}")
+        return web.json_response({"success": False, "error": str(e)}, status=500, headers={"Access-Control-Allow-Origin": "*"})
+
+async def api_clear_secretary_schedules(request: web.Request) -> web.Response:
+    """Barcha jadvallarni tozalash API"""
+    try:
+        user_id = int(request.query.get("user_id", 0))
+        if not user_id:
+            user_id = ADMIN_ID
+
+        clear_all_secretary_schedules(user_id)
+        return web.json_response({"success": True, "schedules": []}, headers={"Access-Control-Allow-Origin": "*"})
+    except Exception as e:
+        logger.error(f"Error api_clear_secretary_schedules: {e}")
+        return web.json_response({"success": False, "error": str(e)}, status=500, headers={"Access-Control-Allow-Origin": "*"})
+
 def create_web_app(bot: Optional[Any] = None) -> web.Application:
     app = web.Application()
     if bot:
@@ -499,6 +527,8 @@ def create_web_app(bot: Optional[Any] = None) -> web.Application:
     app.router.add_get("/api/secretary/logs", api_get_secretary_logs)
     app.router.add_get("/api/secretary/schedules", api_get_secretary_schedules)
     app.router.add_post("/api/secretary/schedules", api_save_secretary_schedule)
+    app.router.add_post("/api/secretary/schedules/reset", api_reset_secretary_schedules)
+    app.router.add_post("/api/secretary/schedules/clear", api_clear_secretary_schedules)
     app.router.add_post("/api/secretary/schedules/{id}/toggle", api_toggle_secretary_schedule)
     app.router.add_delete("/api/secretary/schedules/{id}", api_delete_secretary_schedule)
 
