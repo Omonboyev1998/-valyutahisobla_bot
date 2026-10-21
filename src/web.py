@@ -496,6 +496,26 @@ async def api_clear_secretary_schedules(request: web.Request) -> web.Response:
         logger.error(f"Error api_clear_secretary_schedules: {e}")
         return web.json_response({"success": False, "error": str(e)}, status=500, headers={"Access-Control-Allow-Origin": "*"})
 
+async def api_test_secretary_ai(request: web.Request) -> web.Response:
+    """Mini App orqali AI javobini sinab ko'rish API"""
+    try:
+        from src.services.ai_secretary_service import generate_ai_reply
+        data = await request.json()
+        user_id = int(data.get("user_id", 0)) or ADMIN_ID
+        query_text = (data.get("message") or "Assalomu alaykum, sizda xizmat narxlari qancha?").strip()
+        settings = get_secretary_settings(user_id)
+        ai_inst = data.get("ai_instructions") if "ai_instructions" in data else settings.get("ai_instructions", "")
+        reply = await generate_ai_reply(
+            sender_name="Mijoz (Sinov)",
+            message_text=query_text,
+            ai_instructions=ai_inst,
+            owner_name="Akkaunt egasi"
+        )
+        return web.json_response({"success": True, "reply": reply}, headers={"Access-Control-Allow-Origin": "*"})
+    except Exception as e:
+        logger.error(f"Error api_test_secretary_ai: {e}")
+        return web.json_response({"success": False, "error": str(e)}, status=500, headers={"Access-Control-Allow-Origin": "*"})
+
 def create_web_app(bot: Optional[Any] = None) -> web.Application:
     app = web.Application()
     if bot:
@@ -526,6 +546,7 @@ def create_web_app(bot: Optional[Any] = None) -> web.Application:
     app.router.add_get("/api/services/{id}", api_service_detail)
     app.router.add_get("/api/secretary/settings", api_get_secretary_settings)
     app.router.add_post("/api/secretary/settings", api_save_secretary_settings)
+    app.router.add_post("/api/secretary/test_ai", api_test_secretary_ai)
     app.router.add_get("/api/secretary/logs", api_get_secretary_logs)
     app.router.add_get("/api/secretary/schedules", api_get_secretary_schedules)
     app.router.add_post("/api/secretary/schedules", api_save_secretary_schedule)

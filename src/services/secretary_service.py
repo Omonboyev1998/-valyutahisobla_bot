@@ -72,13 +72,37 @@ class SecretaryService:
         return False
 
     @staticmethod
-    def should_respond_to_sender(owner_id: int, sender_id: int, cooldown_seconds: int = 1800) -> bool:
-        """Bir xil suhbatdoshga intervaldan (cooldown) tezroq qayta javob bermaslik"""
+    def should_respond_to_sender(
+        owner_id: int,
+        sender_id: int,
+        cooldown_seconds: int = 300,
+        message_text: str = "",
+        mode: str = "busy"
+    ) -> bool:
+        """Bir xil suhbatdoshga intervaldan (cooldown) tezroq qayta javob bermaslik va aqlli filtrlash"""
+        from src.services.ai_secretary_service import is_acknowledgment_only, is_meaningful_query_or_question
+
+        # 1. Agar xabar faqat qisqa minnatdorchilik yoki oddiy reaksiya bo'lsa (rahmat, ok, hop, emoji), javob bermaymiz
+        if is_acknowledgment_only(message_text):
+            return False
+
         last_time = get_secretary_last_sender_time(owner_id, sender_id)
         if last_time is None:
             return True
+
         now = time.time()
-        return (now - last_time) >= cooldown_seconds
+        elapsed = now - last_time
+
+        # 2. Agar belgilangan tanaffus (cooldown) vaqti to'liq o'tgan bo'lsa, javob beramiz
+        if elapsed >= cooldown_seconds:
+            return True
+
+        # 3. Agar AI rejimida bo'lsa va suhbatdosh aniq savol yoki muhim so'rov berayotgan bo'lsa,
+        # kamida 4 soniya o'tganidan so'ng javob berishga ruxsat beramiz
+        if mode == "ai" and elapsed >= 4 and is_meaningful_query_or_question(message_text):
+            return True
+
+        return False
 
     @staticmethod
     def get_current_tashkent_time_str() -> str:
@@ -132,7 +156,8 @@ class SecretaryService:
         sender_name: str,
         ai_instructions: str = "",
         user_id: Optional[int] = None,
-        owner_name: str = "Akkaunt egasi"
+        owner_name: str = "Akkaunt egasi",
+        chat_history: Optional[List[Dict[str, str]]] = None
     ) -> str:
         """Tanlangan rejim yoki vaqt jadvali bo'yicha avtojavob matnini tayyorlaydi"""
         # 1. Agar vaqt jadvallari rejimi tanlangan bo'lsa (yoki user_id berilgan bo'lsa)
@@ -154,7 +179,8 @@ class SecretaryService:
                     sender_name=sender_name,
                     message_text=message_text,
                     ai_instructions=ai_instructions,
-                    owner_name=owner_name
+                    owner_name=owner_name,
+                    chat_history=chat_history
                 )
             except Exception as e:
                 import logging

@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from aiogram import Router, F, Bot
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, BusinessConnection
@@ -16,9 +17,11 @@ from src.database import (
     add_secretary_schedule,
     delete_secretary_schedule,
     toggle_secretary_schedule,
-    seed_default_secretary_schedules_if_empty
+    seed_default_secretary_schedules_if_empty,
+    get_recent_chat_history
 )
 from src.services.secretary_service import secretary_service, SECRETARY_MODES
+from src.services.ai_secretary_service import generate_ai_reply
 from src.keyboards.secretary import (
     get_secretary_main_keyboard,
     get_secretary_modes_keyboard,
@@ -37,6 +40,7 @@ router = Router(name="secretary")
 class SecretaryFSM(StatesGroup):
     waiting_for_custom_text = State()
     waiting_for_ai_instructions = State()
+    waiting_for_test_ai_query = State()
 
 class SecretaryScheduleFSM(StatesGroup):
     waiting_for_title_and_time = State()
@@ -225,6 +229,57 @@ async def process_ai_instructions(message: Message, state: FSMContext):
         + format_secretary_menu_text(settings)
     )
     await message.answer(text, parse_mode="HTML", reply_markup=get_secretary_main_keyboard(settings))
+
+@router.callback_query(F.data == "sec:test_ai")
+async def callback_secretary_test_ai(callback: CallbackQuery, state: FSMContext):
+    await state.set_state(SecretaryFSM.waiting_for_test_ai_query)
+    settings = get_secretary_settings(callback.from_user.id)
+    ai_inst = settings.get("ai_instructions", "").strip()
+    preview = f"\n\n📌 <b>Faol yo'riqnoma:</b> <i>\"{ai_inst[:80]}...\"</i>" if ai_inst else "\n\n⚠️ <i>Hozircha yo'riqnoma kiritilmagan. Standart yordamchi tarzida javob beradi.</i>"
+    text = (
+        "🧪 <b>AI-Kotib javobini sinab ko'rish:</b>\n\n"
+        "Xuddi mijozdek biror savol yozing (masalan: <i>«Assalomu alaykum, siz qanday xizmat ko'rsatasiz va narxlar qancha?»</i>).\n\n"
+        "AI kotib kiritgan yo'riqnomangiz asosida qanday javob qaytarishini shu yerda tekshirib ko'rishingiz mumkin.\n\n"
+        "<i>(Sinovdan chiqish uchun /cancel yozing)</i>"
+        + preview
+    )
+    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=get_secretary_back_keyboard())
+    await callback.answer()
+
+@router.message(SecretaryFSM.waiting_for_test_ai_query)
+async def process_test_ai_query(message: Message, state: FSMContext):
+    if message.text and message.text.startswith("/"):
+        await state.clear()
+        settings = get_secretary_settings(message.from_user.id)
+        await message.answer("Sinov rejimidan chiqildi.", reply_markup=get_secretary_main_keyboard(settings))
+        return
+
+    query_text = (message.text or "").strip()
+    settings = get_secretary_settings(message.from_user.id)
+    ai_inst = settings.get("ai_instructions", "")
+    owner_name = message.from_user.full_name or "Akkaunt egasi"
+
+    wait_msg = await message.answer("🤖 <i>AI javob tayyorlamoqda...</i>", parse_mode="HTML")
+
+    reply = await generate_ai_reply(
+        sender_name="Mijoz (Sinov)",
+        message_text=query_text,
+        ai_instructions=ai_inst,
+        owner_name=owner_name
+    )
+
+    try:
+        await wait_msg.delete()
+    except Exception:
+        pass
+
+    res_text = (
+        f"🧪 <b>Sinov natijasi:</b>\n\n"
+        f"👤 <b>Mijoz savoli:</b> <i>\"{query_text}\"</i>\n\n"
+        f"<b>🤖 AI javobi:</b>\n{reply}\n\n"
+        f"<i>Yana boshqa savol yozib ko'rishingiz mumkin yoki /cancel bosing.</i>"
+    )
+    await message.answer(res_text, parse_mode="HTML", reply_markup=get_secretary_back_keyboard())
 
 @router.callback_query(F.data == "sec:logs")
 async def callback_secretary_logs(callback: CallbackQuery):
@@ -573,14 +628,36 @@ async def on_incoming_business_message(message: Message, bot: Bot):
             except Exception as err:
                 logger.warning(f"Could not notify owner about urgent message: {err}")
 
-        # 2. Cooldown tekshirish (Bir odamga ketma-ket har soniyada avtojavob yozmaslik)
+        # 2. Cooldown va aqlli filtrlash (Bir odamga ketma-ket avtojavob yozmaslik, minnatdorchiliklarda jim turish)
         cooldown = owner_settings.get("cooldown_seconds", 300)
-        should_reply = secretary_service.should_respond_to_sender(owner_id, sender.id, cooldown)
+        mode = owner_settings.get("mode", "busy")
+        should_reply = secretary_service.should_respond_to_sender(
+            owner_id=owner_id,
+            sender_id=sender.id,
+            cooldown_seconds=cooldown,
+            message_text=msg_text,
+            mode=mode
+        )
         if not should_reply:
             return
 
-        # 3. Avto-javob matnini shakllantiramiz
-        mode = owner_settings.get("mode", "busy")
+        # 3. Yozmoqda... (Typing) effektini yoqamiz (insoniy va tabiiy ko'rinishi uchun)
+        try:
+            await bot.send_chat_action(
+                chat_id=message.chat.id,
+                action="typing",
+                business_connection_id=conn_id
+            )
+        except Exception:
+            pass
+
+        # 4. Dialog tarixini olamiz (AI o'tmishdagi suhbatni eslab qolishi uchun)
+        chat_history = get_recent_chat_history(owner_id, sender.id, limit=4)
+
+        # Qisqa tabiiy kutish (0.8 - 1.5 soniya)
+        await asyncio.sleep(1.2)
+
+        # 5. Avto-javob matnini shakllantiramiz
         custom_txt = owner_settings.get("custom_text", "")
         ai_inst = owner_settings.get("ai_instructions", "")
 
@@ -590,7 +667,8 @@ async def on_incoming_business_message(message: Message, bot: Bot):
             message_text=msg_text,
             sender_name=sender_name,
             ai_instructions=ai_inst,
-            user_id=owner_id
+            user_id=owner_id,
+            chat_history=chat_history
         )
 
         # 4. Javobni Business chatga yuboramiz

@@ -933,6 +933,28 @@ def get_secretary_last_sender_time(owner_id: int, sender_id: int) -> Optional[fl
                 return None
         return None
 
+def get_recent_chat_history(owner_id: int, sender_id: int, limit: int = 4) -> List[Dict[str, str]]:
+    """O'sha suhbatdosh bilan bo'lgan so'nggi dialog tarixini oladi (AI xotirasi uchun)"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT message_text, bot_reply
+            FROM secretary_logs
+            WHERE owner_id = ? AND sender_id = ?
+            ORDER BY id DESC
+            LIMIT ?
+        """, (owner_id, sender_id, limit))
+        rows = cursor.fetchall()
+        history = []
+        for r in reversed(rows):
+            msg = (r[0] or "").strip()
+            reply = (r[1] or "").strip()
+            if msg and not msg.startswith("["):
+                history.append({"role": "user", "text": msg})
+            if reply and not reply.startswith("["):
+                history.append({"role": "model", "text": reply})
+        return history
+
 def clear_secretary_logs(owner_id: int) -> bool:
     """Foydalanuvchi kotib loglarini tozalash"""
     with get_db() as conn:

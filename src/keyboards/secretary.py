@@ -28,6 +28,9 @@ def get_secretary_main_keyboard(settings: dict) -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="🧠 AI yo'riqnomasi", callback_data="sec:set_ai")
         ],
         [
+            InlineKeyboardButton(text="🧪 AI Kotib javobini sinash", callback_data="sec:test_ai")
+        ],
+        [
             InlineKeyboardButton(text="📋 Kelgan xabarlar tarixi", callback_data="sec:logs"),
             InlineKeyboardButton(text="ℹ️ Bog'lash qo'llanmasi", callback_data="sec:guide")
         ],
