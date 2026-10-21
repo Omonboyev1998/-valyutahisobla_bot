@@ -213,6 +213,8 @@ async def callback_secretary_guide(callback: CallbackQuery):
         "3️⃣ <b>Chatbots (Чат-боты / Chatbotlar)</b> qatorini tanlang.\n"
         "4️⃣ Botimizning username'ini qidiring va tanlang.\n"
         "5️⃣ Barcha ruxsatnomalarni (xabarlarga javob berish) tasdiqlang.\n\n"
+        "⚠️ <b>DIQQAT:</b> Agar Telegram Business'da botni tanlash imkoni chiqmasa:\n"
+        "Telegramda <b>@BotFather</b> botiga kiring ➡️ <code>/mybots</code> ➡️ botingizni tanlang ➡️ <b>Bot Settings</b> ➡️ <b>Business Mode</b> ➡️ <b>Turn on</b> (Yoqish) tugmasini bosing!\n\n"
         "🎉 Shundan so'ng bot sizning lichkangizga kelgan xabarlarga siz belgilagan rejim bo'yicha mustaqil avto-javob qaytaradi va shoshilinch xabarlarni sizga yetkazadi!"
     )
     await callback.message.edit_text(text, parse_mode="HTML", reply_markup=get_secretary_back_keyboard())
@@ -472,6 +474,22 @@ async def on_incoming_business_message(message: Message, bot: Bot):
         # Akkaunt egasini aniqlaymiz
         owner_settings = get_secretary_owner_by_connection_id(conn_id)
         if not owner_settings:
+            # Agar DBda bog'lanish saqlanmagan bo'lsa, Telegram API orqali olamiz
+            try:
+                b_conn = await bot.get_business_connection(business_connection_id=conn_id)
+                if b_conn and b_conn.user:
+                    user_id = b_conn.user.id
+                    update_secretary_settings(
+                        user_id,
+                        business_connection_id=conn_id,
+                        is_enabled=1 if b_conn.is_enabled else 0
+                    )
+                    owner_settings = get_secretary_settings(user_id)
+            except Exception as conn_err:
+                logger.warning(f"Failed to fetch business connection info for {conn_id}: {conn_err}")
+                return
+
+        if not owner_settings:
             return
 
         owner_id = owner_settings["user_id"]
@@ -479,6 +497,16 @@ async def on_incoming_business_message(message: Message, bot: Bot):
 
         # Agar xabarni akkaunt egasining o'zi yozgan bo'lsa, o'ziga avtojavob bermaymiz!
         if sender and sender.id == owner_id:
+            # Akkaunt egasining o'zi suhbatlashayotganini qayd etamiz (cooldown yangilanadi va bot xalaqit bermaydi)
+            log_secretary_message(
+                owner_id=owner_id,
+                sender_id=message.chat.id,
+                sender_name="Siz (Akkaunt egasi)",
+                sender_username="",
+                message_text=message.text or message.caption or "[Chiqish xabari]",
+                bot_reply="[Ega tomonidan qo'lda javob yozildi]",
+                is_urgent=0
+            )
             return
 
         # Agar kotib o'chirilgan bo'lsa
@@ -506,7 +534,7 @@ async def on_incoming_business_message(message: Message, bot: Bot):
                 logger.warning(f"Could not notify owner about urgent message: {err}")
 
         # 2. Cooldown tekshirish (Bir odamga ketma-ket har soniyada avtojavob yozmaslik)
-        cooldown = owner_settings.get("cooldown_seconds", 1800)
+        cooldown = owner_settings.get("cooldown_seconds", 300)
         should_reply = secretary_service.should_respond_to_sender(owner_id, sender.id, cooldown)
         if not should_reply:
             return
@@ -526,7 +554,15 @@ async def on_incoming_business_message(message: Message, bot: Bot):
         )
 
         # 4. Javobni Business chatga yuboramiz
-        await message.answer(reply_content, business_connection_id=conn_id)
+        try:
+            await bot.send_message(
+                chat_id=message.chat.id,
+                text=reply_content,
+                business_connection_id=conn_id
+            )
+        except Exception as send_err:
+            logger.error(f"Failed to send business reply for {owner_id}: {send_err}")
+            return
 
         # 5. Logga qayd etamiz
         log_secretary_message(

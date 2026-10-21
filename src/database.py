@@ -986,18 +986,19 @@ def get_secretary_schedules(user_id: int) -> List[Dict[str, Any]]:
 
 def add_secretary_schedule(
     user_id: int,
-    start_time: str,
-    end_time: str,
-    reply_text: str,
-    title: str = "Vaqt oralig'i"
+    title: str = "Oraliq",
+    start_time: str = "09:00",
+    end_time: str = "18:00",
+    reply_text: str = "",
+    is_active: int = 1
 ) -> int:
     """Yangi vaqt oralig'i va javob matnini qo'shish"""
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO secretary_schedules (user_id, title, start_time, end_time, reply_text, is_active)
-            VALUES (?, ?, ?, ?, ?, 1)
-        """, (user_id, title, start_time, end_time, reply_text))
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (user_id, title, start_time, end_time, reply_text, is_active))
         conn.commit()
         return cursor.lastrowid
 
@@ -1035,7 +1036,7 @@ def seed_default_secretary_schedules_if_empty(user_id: int, force_reset: bool = 
                     (user_id, "☀️ Ish vaqti (Kunduzi)", "09:00", "18:00", "Assalomu alaykum! Hozir ish vaqtidaman. Xabaringizni ko'rib tez orada aloqaga chiqaman.", 1),
                     (user_id, "☕️ Tushlik vaqti", "13:00", "14:00", "Assalomu alaykum! Hozir tushlik tanaffusidaman. Soat 14:00 dan so'ng javob yozaman.", 1),
                     (user_id, "🌇 Kechki vaqt", "18:00", "23:00", "Xayrli kech! Hozir ishdan tashqari vaqtdaman. Xabaringizni ko'rib albatta javob qaytaraman.", 1),
-                    (user_id, "🌙 Tungi uyqu", "23:00", "08:00", "Assalomu alaykum! Hozir tungi dam olish vaqti bo'lganligi sababli javob bera olmayapman. Ertalab birinchilardan bo'lib javob qaytaraman.", 1)
+                    (user_id, "🌙 Tungi uyqu", "23:00", "09:00", "Assalomu alaykum! Hozir tungi dam olish vaqti bo'lganligi sababli javob bera olmayapman. Ertalab birinchilardan bo'lib javob qaytaraman.", 1)
                 ]
                 for d in defaults:
                     cursor.execute("""
