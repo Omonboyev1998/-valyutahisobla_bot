@@ -192,6 +192,52 @@ class SecretaryService:
         return f"🤖 [Avto-Kotib]\n{text}"
 
     @staticmethod
+    async def generate_auto_voice_reply(
+        mode: str,
+        custom_text: str,
+        sender_name: str,
+        audio_bytes: bytes,
+        mime_type: str = "audio/ogg",
+        ai_instructions: str = "",
+        user_id: Optional[int] = None,
+        owner_name: str = "Akkaunt egasi",
+        chat_history: Optional[List[Dict[str, str]]] = None
+    ) -> str:
+        """Kelgan ovozli xabarga rejim bo'yicha mos avtojavob tayyorlaydi"""
+        # 1. AI Rejimi bo'lsa - Gemini 1.5 ga audioni to'g'ridan-to'g'ri yuboramiz
+        if mode == "ai":
+            try:
+                from src.services.ai_secretary_service import ai_secretary_service
+                return await ai_secretary_service.generate_ai_voice_reply(
+                    sender_name=sender_name,
+                    audio_bytes=audio_bytes,
+                    mime_type=mime_type,
+                    ai_instructions=ai_instructions,
+                    owner_name=owner_name,
+                    chat_history=chat_history
+                )
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"AI voice auto reply xatoligi: {e}")
+
+        # 2. Vaqt jadvali bo'lsa
+        if mode == "schedule" and user_id:
+            sched = SecretaryService.get_active_scheduled_reply(user_id)
+            if sched and sched.get("reply_text"):
+                sched_title = sched.get("title") or f"{sched.get('start_time')} - {sched.get('end_time')}"
+                return f"🤖 [Avto-Kotib • {sched_title}]\n🎙 Ovozli xabaringiz qabul qilindi.\n{sched['reply_text']}"
+
+        # 3. Shaxsiy matn
+        if mode == "custom" and custom_text.strip():
+            return f"🤖 [Avto-Kotib]\n🎙 Ovozli xabaringiz qabul qilindi.\n{custom_text.strip()}"
+
+        # 4. Standart rejimlar
+        mode_info = SECRETARY_MODES.get(mode, SECRETARY_MODES["busy"])
+        text = mode_info["default_text"]
+        return f"🤖 [Avto-Kotib]\n🎙 Ovozli xabaringiz qabul qilindi. {text}"
+
+
+    @staticmethod
     def format_logs_digest(logs: List[Dict[str, Any]]) -> str:
         """Qabul qilingan xabarlar hisobotini tayyorlaydi"""
         if not logs:

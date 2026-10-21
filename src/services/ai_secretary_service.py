@@ -1,6 +1,7 @@
 import logging
 import json
 import re
+import base64
 import aiohttp
 from typing import Optional, List, Dict, Any
 from src.config import GEMINI_API_KEY
@@ -189,6 +190,124 @@ class AISecretaryService:
         )
 
     @staticmethod
+    async def generate_ai_voice_reply(
+        sender_name: str,
+        audio_bytes: bytes,
+        mime_type: str = "audio/ogg",
+        ai_instructions: str = "",
+        owner_name: str = "Akkaunt egasi",
+        chat_history: Optional[List[Dict[str, str]]] = None
+    ) -> str:
+        """Kelgan ovozli xabarni (audio) eshitib, mazmunini tushunib aqlli javob qaytaradi"""
+        api_key = GEMINI_API_KEY.strip() if GEMINI_API_KEY else ""
+
+        if api_key and audio_bytes:
+            try:
+                inst_text = ai_instructions.strip() if ai_instructions else ""
+                if not inst_text:
+                    inst_text = "Hozircha maxsus yo'riqnoma yo'q. Faqat xabarni qabul qilganingizni va ega bo'shashi bilan aloqaga chiqishini ayting."
+
+                system_prompt = (
+                    f"Siz {owner_name}ning shaxsiy, muloyim va yordamchi AI-kotibisiz.\n"
+                    f"Sizga {owner_name}ning shaxsiy Telegram akkauntiga yozgan suhbatdoshdan OVOZLI XABAR (audio) keldi.\n\n"
+                    f"VAZIFANGIZ:\n"
+                    f"1. Audio ichidagi nutqni diqqat bilan tinglang va uning mazmunini to'liq tushuning.\n"
+                    f"2. Suhbatdoshga ({sender_name}) juda xushmuomala, iliq va professional ohangda qisqa javob yozing.\n"
+                    f"3. Uning ovozli murojaatini qabul qilganingizni va {owner_name} hozirda band bo'lganligi sababli, bo'shashi bilanoq o'zi javob yozishini bildiring.\n"
+                    f"4. Quyida {owner_name} tomonidan kiritilgan shaxsiy yo'riqnomalar berilgan. Agar suhbatdoshning ovozli savoliga shu yo'riqnomada javob bo'lsa, muloyimlik bilan qisqacha ma'lumot bering:\n"
+                    f"--- EGASINING YO'RIQNOMASI ---\n"
+                    f"{inst_text}\n"
+                    f"------------------------------\n"
+                    f"5. QOIDALAR:\n"
+                    f"- Nutq qaysi tilda (o'zbek, rus yoki ingliz) aytilgan bo'lsa, xuddi o'sha tilda javob bering.\n"
+                    f"- Hech qachon o'zingizdan moliyaviy va'da bermang, qarz bermang, pul masalasini egasining o'zi bilan gaplashishni ayting.\n"
+                    f"- Javob ixcham bo'lsin (ko'pi bilan 2-3 ta ixcham va chiroyli gap).\n"
+                    f"- Xabar boshida «🎙 [Ovozli xabaringiz tinglandi]» deb boshlang.\n"
+                    f"- Xabar oxirida yangi qatordan «Hurmat bilan, {owner_name}ning shaxsiy AI-kotibi 🤖» deb yakunlang.\n"
+                )
+
+                b64_audio = base64.b64encode(audio_bytes).decode("utf-8")
+
+                contents: List[Dict[str, Any]] = []
+                if chat_history:
+                    last_role = None
+                    for turn in chat_history[-4:]:
+                        r = "user" if turn.get("role") == "user" else "model"
+                        t = (turn.get("text") or "").strip()
+                        if not t:
+                            continue
+                        if r == last_role:
+                            contents[-1]["parts"][0]["text"] += f"\n{t}"
+                        else:
+                            contents.append({"role": r, "parts": [{"text": t}]})
+                            last_role = r
+
+                    while contents and contents[0]["role"] != "user":
+                        contents.pop(0)
+
+                # Audio qismini qo'shamiz
+                audio_part = {
+                    "inlineData": {
+                        "mimeType": mime_type,
+                        "data": b64_audio
+                    }
+                }
+                text_part = {
+                    "text": f"Suhbatdosh ({sender_name}) ushbu ovozli xabarni yubordi. Iltimos, audioni tinglab, uning gapiga javob bering."
+                }
+
+                contents.append({
+                    "role": "user",
+                    "parts": [audio_part, text_part]
+                })
+
+                payload = {
+                    "contents": contents,
+                    "systemInstruction": {
+                        "parts": [{"text": system_prompt}]
+                    },
+                    "generationConfig": {
+                        "temperature": 0.5,
+                        "maxOutputTokens": 300,
+                        "topP": 0.95
+                    }
+                }
+
+                url = f"{GEMINI_API_URL}?key={api_key}"
+                timeout = aiohttp.ClientTimeout(total=12)
+
+                async with aiohttp.ClientSession(timeout=timeout) as session:
+                    async with session.post(url, json=payload) as resp:
+                        if resp.status == 200:
+                            data = await resp.json()
+                            candidates = data.get("candidates", [])
+                            if candidates:
+                                parts = candidates[0].get("content", {}).get("parts", [])
+                                if parts:
+                                    reply_text = parts[0].get("text", "").strip()
+                                    if reply_text:
+                                        return reply_text
+                        else:
+                            err_txt = await resp.text()
+                            logger.warning(f"Gemini Voice API xatosi ({resp.status}): {err_txt[:200]}")
+            except Exception as e:
+                logger.error(f"Gemini Voice API bilan ulanishda xatolik: {e}")
+
+        # Zaxira (Fallback) agar kalit bo'lmasa yoki xato bersa
+        info_part = ""
+        if ai_instructions.strip():
+            first_line = ai_instructions.strip().split("\n")[0][:120]
+            info_part = f"\n\nℹ️ <i>Ma'lumot uchun: {first_line}</i>"
+
+        greeting = f"Assalomu alaykum, {sender_name}!" if sender_name and sender_name != "Mijoz" else "Assalomu alaykum!"
+        return (
+            f"🤖 {greeting}\n\n"
+            f"🎙 <b>Ovozli xabaringiz qabul qilindi.</b> Hozirda ular band bo'lganligi sababli, bo'shashlari bilanoq ovozli xabaringizni eshitib, sizga shaxsan javob yozadilar.{info_part}\n\n"
+            f"<i>Hurmat bilan, {owner_name}ning shaxsiy AI-kotibi 🤖</i>"
+        )
+
+
+    @staticmethod
     def _generate_smart_fallback(
         sender_name: str,
         message_text: str,
@@ -236,3 +355,5 @@ class AISecretaryService:
 
 ai_secretary_service = AISecretaryService()
 generate_ai_reply = AISecretaryService.generate_ai_reply
+generate_ai_voice_reply = AISecretaryService.generate_ai_voice_reply
+

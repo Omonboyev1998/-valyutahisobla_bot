@@ -238,8 +238,8 @@ async def callback_secretary_test_ai(callback: CallbackQuery, state: FSMContext)
     preview = f"\n\n📌 <b>Faol yo'riqnoma:</b> <i>\"{ai_inst[:80]}...\"</i>" if ai_inst else "\n\n⚠️ <i>Hozircha yo'riqnoma kiritilmagan. Standart yordamchi tarzida javob beradi.</i>"
     text = (
         "🧪 <b>AI-Kotib javobini sinab ko'rish:</b>\n\n"
-        "Xuddi mijozdek biror savol yozing (masalan: <i>«Assalomu alaykum, siz qanday xizmat ko'rsatasiz va narxlar qancha?»</i>).\n\n"
-        "AI kotib kiritgan yo'riqnomangiz asosida qanday javob qaytarishini shu yerda tekshirib ko'rishingiz mumkin.\n\n"
+        "Xuddi mijozdek xabar yozing yoki <b>ovozli xabar (golosovoy)</b> yuboring!\n\n"
+        "AI kotib yo'riqnomangiz asosida yozma yoki ovozli savollaringizga qanday javob qaytarishini shu yerda sinab ko'rishingiz mumkin.\n\n"
         "<i>(Sinovdan chiqish uchun /cancel yozing)</i>"
         + preview
     )
@@ -247,26 +247,48 @@ async def callback_secretary_test_ai(callback: CallbackQuery, state: FSMContext)
     await callback.answer()
 
 @router.message(SecretaryFSM.waiting_for_test_ai_query)
-async def process_test_ai_query(message: Message, state: FSMContext):
+async def process_test_ai_query(message: Message, state: FSMContext, bot: Bot):
     if message.text and message.text.startswith("/"):
         await state.clear()
         settings = get_secretary_settings(message.from_user.id)
         await message.answer("Sinov rejimidan chiqildi.", reply_markup=get_secretary_main_keyboard(settings))
         return
 
-    query_text = (message.text or "").strip()
     settings = get_secretary_settings(message.from_user.id)
     ai_inst = settings.get("ai_instructions", "")
     owner_name = message.from_user.full_name or "Akkaunt egasi"
 
-    wait_msg = await message.answer("🤖 <i>AI javob tayyorlamoqda...</i>", parse_mode="HTML")
+    wait_msg = await message.answer("🤖 <i>AI tahlil qilmoqda...</i>", parse_mode="HTML")
 
-    reply = await generate_ai_reply(
-        sender_name="Mijoz (Sinov)",
-        message_text=query_text,
-        ai_instructions=ai_inst,
-        owner_name=owner_name
-    )
+    if message.voice or message.audio:
+        from io import BytesIO
+        from src.services.ai_secretary_service import generate_ai_voice_reply
+        buf = BytesIO()
+        target = message.voice or message.audio
+        mime_type = "audio/ogg" if message.voice else (message.audio.mime_type or "audio/mp3")
+        try:
+            await bot.download(target, destination=buf)
+            audio_bytes = buf.getvalue()
+        except Exception as dl_err:
+            audio_bytes = b""
+            logger.error(f"Test voice download error: {dl_err}")
+
+        reply = await generate_ai_voice_reply(
+            sender_name="Mijoz (Sinov)",
+            audio_bytes=audio_bytes,
+            mime_type=mime_type,
+            ai_instructions=ai_inst,
+            owner_name=owner_name
+        )
+        query_text = "[🎙 Yuborilgan ovozli xabar]"
+    else:
+        query_text = (message.text or message.caption or "").strip()
+        reply = await generate_ai_reply(
+            sender_name="Mijoz (Sinov)",
+            message_text=query_text,
+            ai_instructions=ai_inst,
+            owner_name=owner_name
+        )
 
     try:
         await wait_msg.delete()
@@ -275,9 +297,9 @@ async def process_test_ai_query(message: Message, state: FSMContext):
 
     res_text = (
         f"🧪 <b>Sinov natijasi:</b>\n\n"
-        f"👤 <b>Mijoz savoli:</b> <i>\"{query_text}\"</i>\n\n"
+        f"👤 <b>Mijoz:</b> <i>\"{query_text}\"</i>\n\n"
         f"<b>🤖 AI javobi:</b>\n{reply}\n\n"
-        f"<i>Yana boshqa savol yozib ko'rishingiz mumkin yoki /cancel bosing.</i>"
+        f"<i>Yana savol yoki ovozli xabar yuborib ko'rishingiz mumkin (chiqish uchun /cancel).</i>"
     )
     await message.answer(res_text, parse_mode="HTML", reply_markup=get_secretary_back_keyboard())
 
@@ -608,7 +630,31 @@ async def on_incoming_business_message(message: Message, bot: Bot):
         if owner_settings.get("is_enabled", 0) != 1:
             return
 
-        msg_text = message.text or message.caption or "[Media xabar]"
+        # Ovozli yoki audio xabar kelganini aniqlaymiz
+        is_voice = bool(message.voice or message.audio)
+        audio_bytes = b""
+        mime_type = "audio/ogg"
+
+        if message.voice:
+            mime_type = "audio/ogg"
+            try:
+                from io import BytesIO
+                buf = BytesIO()
+                await bot.download(message.voice, destination=buf)
+                audio_bytes = buf.getvalue()
+            except Exception as dl_err:
+                logger.warning(f"Voice download failed: {dl_err}")
+        elif message.audio:
+            mime_type = message.audio.mime_type or "audio/mp3"
+            try:
+                from io import BytesIO
+                buf = BytesIO()
+                await bot.download(message.audio, destination=buf)
+                audio_bytes = buf.getvalue()
+            except Exception as dl_err:
+                logger.warning(f"Audio download failed: {dl_err}")
+
+        msg_text = message.text or message.caption or ("[🎙 Ovozli xabar]" if is_voice else "[Media xabar]")
         sender_name = sender.full_name if sender else "Mijoz"
         sender_username = sender.username or ""
 
@@ -661,15 +707,27 @@ async def on_incoming_business_message(message: Message, bot: Bot):
         custom_txt = owner_settings.get("custom_text", "")
         ai_inst = owner_settings.get("ai_instructions", "")
 
-        reply_content = await secretary_service.generate_auto_reply(
-            mode=mode,
-            custom_text=custom_txt,
-            message_text=msg_text,
-            sender_name=sender_name,
-            ai_instructions=ai_inst,
-            user_id=owner_id,
-            chat_history=chat_history
-        )
+        if is_voice and audio_bytes:
+            reply_content = await secretary_service.generate_auto_voice_reply(
+                mode=mode,
+                custom_text=custom_txt,
+                sender_name=sender_name,
+                audio_bytes=audio_bytes,
+                mime_type=mime_type,
+                ai_instructions=ai_inst,
+                user_id=owner_id,
+                chat_history=chat_history
+            )
+        else:
+            reply_content = await secretary_service.generate_auto_reply(
+                mode=mode,
+                custom_text=custom_txt,
+                message_text=msg_text,
+                sender_name=sender_name,
+                ai_instructions=ai_inst,
+                user_id=owner_id,
+                chat_history=chat_history
+            )
 
         # 4. Javobni Business chatga yuboramiz
         try:
