@@ -12,6 +12,9 @@ ADMIN_ID = ADMIN_IDS[0] if ADMIN_IDS else 1045855587
 
 CBU_API_URL = "https://cbu.uz/uz/arkhiv-kursov-valyut/json/"
 
+# AI Sozlamalari (Google Gemini)
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+
 # Web App sozlamalari
 RENDER_EXTERNAL_URL = os.getenv("RENDER_EXTERNAL_URL")
 _base_url = os.getenv("WEB_APP_URL", RENDER_EXTERNAL_URL or "https://valyutabot.onrender.com").rstrip("/")

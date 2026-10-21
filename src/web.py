@@ -371,6 +371,8 @@ async def api_save_secretary_settings(request: web.Request) -> web.Response:
             updates["custom_text"] = str(data["custom_text"]).strip()
         if "urgent_alerts" in data:
             updates["urgent_alerts"] = int(data["urgent_alerts"])
+        if "ai_instructions" in data:
+            updates["ai_instructions"] = str(data["ai_instructions"]).strip()
 
         update_secretary_settings(user_id, **updates)
         new_settings = get_secretary_settings(user_id)

@@ -125,13 +125,14 @@ class SecretaryService:
         return None
 
     @staticmethod
-    def generate_auto_reply(
+    async def generate_auto_reply(
         mode: str,
         custom_text: str,
         message_text: str,
         sender_name: str,
         ai_instructions: str = "",
-        user_id: Optional[int] = None
+        user_id: Optional[int] = None,
+        owner_name: str = "Akkaunt egasi"
     ) -> str:
         """Tanlangan rejim yoki vaqt jadvali bo'yicha avtojavob matnini tayyorlaydi"""
         # 1. Agar vaqt jadvallari rejimi tanlangan bo'lsa (yoki user_id berilgan bo'lsa)
@@ -145,14 +146,19 @@ class SecretaryService:
         if mode == "custom" and custom_text.strip():
             return custom_text.strip()
 
-        # 3. AI Kotib
+        # 3. AI Kotib (Google Gemini 1.5 Flash)
         if mode == "ai":
-            return (
-                f"🤖 Assalomu alaykum, {sender_name}!\n\n"
-                f"Men shaxsiy AI-kotibman. Hozirda akkaunt egasi band bo'lganligi sababli "
-                f"xabaringizni qabul qilib oldim va unga yetkazdim.\n"
-                f"U bo'shashi bilanoq sizga shaxsan javob qaytaradi."
-            )
+            try:
+                from src.services.ai_secretary_service import ai_secretary_service
+                return await ai_secretary_service.generate_ai_reply(
+                    sender_name=sender_name,
+                    message_text=message_text,
+                    ai_instructions=ai_instructions,
+                    owner_name=owner_name
+                )
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"AI auto reply xatoligi: {e}")
 
         # 4. Standart rejimlar
         mode_info = SECRETARY_MODES.get(mode, SECRETARY_MODES["busy"])

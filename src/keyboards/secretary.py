@@ -24,7 +24,8 @@ def get_secretary_main_keyboard(settings: dict) -> InlineKeyboardMarkup:
             InlineKeyboardButton(text=f"🚨 Shoshilinch xabar filtri: {urgent_icon}", callback_data="sec:toggle_urgent")
         ],
         [
-            InlineKeyboardButton(text="✏️ Avto-javob matnini sozlash", callback_data="sec:set_text")
+            InlineKeyboardButton(text="✏️ Shaxsiy matn", callback_data="sec:set_text"),
+            InlineKeyboardButton(text="🧠 AI yo'riqnomasi", callback_data="sec:set_ai")
         ],
         [
             InlineKeyboardButton(text="📋 Kelgan xabarlar tarixi", callback_data="sec:logs"),

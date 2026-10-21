@@ -53,7 +53,11 @@ def format_secretary_menu_text(settings: dict) -> str:
     custom_txt = settings.get("custom_text", "").strip()
     preview_reply = custom_txt if (mode_key == "custom" and custom_txt) else mode_info.get("default_text", "")
     if mode_key == "ai":
-        preview_reply = "AI-kotib kelgan xabarni tahlil qilib, o'zingiz kiritgan ma'lumotlar asosida aqlli javob beradi."
+        ai_inst = settings.get("ai_instructions", "").strip()
+        if ai_inst:
+            preview_reply = f"🤖 AI Kotib (Google Gemini 1.5)\n📌 Yo'riqnomangiz: \"{ai_inst[:90]}...\""
+        else:
+            preview_reply = "🤖 AI Kotib (Google Gemini 1.5)\nKelgan xabarga mos aqlli va xushmuomala javob qaytaradi."
     elif mode_key == "schedule":
         user_id = settings.get("user_id") or 0
         active_sched = secretary_service.get_active_scheduled_reply(user_id) if user_id else None
@@ -182,6 +186,42 @@ async def process_custom_text(message: Message, state: FSMContext):
     settings = get_secretary_settings(message.from_user.id)
     text = (
         "✅ <b>Shaxsiy avto-javob matni saqlandi va rejim 'Shaxsiy matn'ga o'tkazildi!</b>\n\n"
+        + format_secretary_menu_text(settings)
+    )
+    await message.answer(text, parse_mode="HTML", reply_markup=get_secretary_main_keyboard(settings))
+
+@router.callback_query(F.data == "sec:set_ai")
+async def callback_secretary_set_ai(callback: CallbackQuery, state: FSMContext):
+    await state.set_state(SecretaryFSM.waiting_for_ai_instructions)
+    settings = get_secretary_settings(callback.from_user.id)
+    current_inst = settings.get("ai_instructions", "").strip()
+    preview = f"\n\n📌 <b>Hozirgi yo'riqnomangiz:</b>\n<i>\"{current_inst}\"</i>" if current_inst else ""
+    text = (
+        "🧠 <b>AI-Kotib uchun shaxsiy yo'riqnomani kiriting:</b>\n\n"
+        "AI sun'iy intellekti siz haqingizda nimalarni bilishi va xabarlarga qanday mezonlar asosida javob berishi kerakligini yozing.\n\n"
+        "<b>Misol:</b>\n"
+        "<i>«Men grafik dizaynerman. Logotip narxi 300 000 so'm, tayyor bo'lish vaqti 2 kun. Yangi buyurtmalarni dushanbadan olaman. Shoshilinch bo'lmasa, soat 18:00 dan keyin javob yozishimni ayt.»</i>\n\n"
+        "<i>(Bekor qilish uchun /cancel yozing)</i>"
+        + preview
+    )
+    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=get_secretary_back_keyboard())
+    await callback.answer()
+
+@router.message(SecretaryFSM.waiting_for_ai_instructions)
+async def process_ai_instructions(message: Message, state: FSMContext):
+    if message.text and message.text.startswith("/"):
+        await state.clear()
+        settings = get_secretary_settings(message.from_user.id)
+        await message.answer("Jarayon bekor qilindi.", reply_markup=get_secretary_main_keyboard(settings))
+        return
+
+    new_instructions = message.text.strip()
+    update_secretary_settings(message.from_user.id, ai_instructions=new_instructions, mode="ai")
+    await state.clear()
+    settings = get_secretary_settings(message.from_user.id)
+    text = (
+        "🤖 <b>AI-Kotib yo'riqnomasi muvaffaqiyatli saqlandi!</b>\n\n"
+        "Endi shaxsiy akkauntingizga kelgan xabarlarga sun'iy intellekt siz kiritgan ma'lumotlar asosida aqlli va muloyim javob beradi.\n\n"
         + format_secretary_menu_text(settings)
     )
     await message.answer(text, parse_mode="HTML", reply_markup=get_secretary_main_keyboard(settings))
@@ -544,7 +584,7 @@ async def on_incoming_business_message(message: Message, bot: Bot):
         custom_txt = owner_settings.get("custom_text", "")
         ai_inst = owner_settings.get("ai_instructions", "")
 
-        reply_content = secretary_service.generate_auto_reply(
+        reply_content = await secretary_service.generate_auto_reply(
             mode=mode,
             custom_text=custom_txt,
             message_text=msg_text,

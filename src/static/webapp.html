@@ -2176,8 +2176,20 @@
 
       <!-- Shaxsiy matn kiritish -->
       <div class="card" id="secCustomTextCard" style="margin-bottom: 12px; padding: 12px 14px;">
-        <div style="font-size: 13px; font-weight: 700; margin-bottom: 6px; color: var(--ios-text);">💬 Avto-javob matni:</div>
+        <div style="font-size: 13px; font-weight: 700; margin-bottom: 6px; color: var(--ios-text);">💬 Standart avto-javob matni:</div>
         <textarea id="secCustomTextInput" rows="3" placeholder="Siz band vaqtingizda yozganlarga yuboriladigan matn..." style="width: 100%; border: 1px solid rgba(0,0,0,0.1); border-radius: 10px; padding: 8px 10px; font-size: 13px; font-family: inherit; resize: none; box-sizing: border-box; outline: none;"></textarea>
+      </div>
+
+      <!-- AI Yo'riqnomasi (AI Kotib Rejimi uchun) -->
+      <div class="card" id="secAiInstructionsCard" style="margin-bottom: 12px; padding: 12px 14px; transition: all 0.3s ease;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <div style="font-size: 13px; font-weight: 700; color: var(--ios-text);">🧠 AI Kotib yo'riqnomasi:</div>
+          <span style="font-size: 10px; background: rgba(0,122,255,0.12); color: var(--ios-blue); padding: 2px 7px; border-radius: 6px; font-weight: 600;">Gemini AI</span>
+        </div>
+        <div style="font-size: 11px; color: var(--ios-text-secondary); margin-bottom: 8px; line-height: 1.4;">
+          O'zingiz, xizmatlaringiz narxlari, ish tartibi haqida yozing. AI har bir mijoz savoliga shu yo'riqnoma asosida muloyim javob qaytaradi.
+        </div>
+        <textarea id="secAiInstructionsInput" rows="3" placeholder="Masalan: Men usta/dasturchiman. Sayt va bot yarataman. Narxlar 100$ dan. Ish vaqtim 09:00 dan 18:00 gacha... Shoshilinch bo'lsa telefon qiling..." style="width: 100%; border: 1px solid rgba(0,0,0,0.1); border-radius: 10px; padding: 8px 10px; font-size: 12px; font-family: inherit; resize: none; box-sizing: border-box; outline: none;"></textarea>
       </div>
 
       <!-- Shoshilinch xabar filtri -->
@@ -3803,6 +3815,14 @@
           const customInput = document.getElementById('secCustomTextInput');
           if (customInput) customInput.value = s.custom_text || '';
 
+          const aiInput = document.getElementById('secAiInstructionsInput');
+          if (aiInput) aiInput.value = s.ai_instructions || '';
+
+          const aiCard = document.getElementById('secAiInstructionsCard');
+          if (aiCard) {
+            aiCard.style.border = currentSelectedSecMode === 'ai' ? '1.5px solid var(--ios-blue)' : 'none';
+          }
+
           const urgentToggle = document.getElementById('secUrgentToggle');
           if (urgentToggle) urgentToggle.checked = s.urgent_alerts === 1;
         }
@@ -3822,6 +3842,16 @@
       currentSelectedSecMode = mode;
       document.querySelectorAll('.sec-mode-btn').forEach(b => b.classList.remove('active'));
       if (btn) btn.classList.add('active');
+
+      const aiCard = document.getElementById('secAiInstructionsCard');
+      if (aiCard) {
+        if (mode === 'ai') {
+          aiCard.style.border = '1.5px solid var(--ios-blue)';
+          aiCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        } else {
+          aiCard.style.border = 'none';
+        }
+      }
     }
 
     async function saveSecretarySettings() {
@@ -3831,6 +3861,7 @@
         const isEnabled = document.getElementById('secStatusToggle')?.checked ? 1 : 0;
         const urgentAlerts = document.getElementById('secUrgentToggle')?.checked ? 1 : 0;
         const customText = document.getElementById('secCustomTextInput')?.value || '';
+        const aiInstructions = document.getElementById('secAiInstructionsInput')?.value || '';
 
         const res = await fetch('/api/secretary/settings', {
           method: 'POST',
@@ -3840,6 +3871,7 @@
             is_enabled: isEnabled,
             mode: currentSelectedSecMode,
             custom_text: customText,
+            ai_instructions: aiInstructions,
             urgent_alerts: urgentAlerts
           })
         });
