@@ -204,7 +204,7 @@ async def callback_secretary_set_ai(callback: CallbackQuery, state: FSMContext):
         "🧠 <b>AI-Kotib uchun shaxsiy yo'riqnomani kiriting:</b>\n\n"
         "AI sun'iy intellekti siz haqingizda nimalarni bilishi va xabarlarga qanday mezonlar asosida javob berishi kerakligini yozing.\n\n"
         "<b>Misol:</b>\n"
-        "<i>«Men grafik dizaynerman. Logotip narxi 300 000 so'm, tayyor bo'lish vaqti 2 kun. Yangi buyurtmalarni dushanbadan olaman. Shoshilinch bo'lmasa, soat 18:00 dan keyin javob yozishimni ayt.»</i>\n\n"
+        "<i>«Men oliygohda domlaman / dasturchiman. Talabalarimga domla sifatida darslar bo'yicha, ota-onamga juda mehrli va samimiy, do'stlarimga jo'ralarcha qisqa, mijozlarga esa xushmuomala javob ber.»</i>\n\n"
         "<i>(Bekor qilish uchun /cancel yozing)</i>"
         + preview
     )

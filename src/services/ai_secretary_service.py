@@ -28,11 +28,31 @@ QUESTION_KEYWORDS = {
     "so'm", "variant", "tolov", "to'lov", "bepul", "chegirma", "aloqa", "ishlaydimi", "qilasizmi"
 }
 
+# Suhbatdosh munosabatini aniqlovchi kalit so'zlar
+FAMILY_KEYWORDS = [
+    "ona", "onam", "onajon", "ota", "otam", "otajon", "dada", "dadam", "dadajon",
+    "oyi", "oyijon", "bolam", "o'g'lim", "oglim", "qizim", "uyga", "kelasanmi",
+    "dori", "bozorlik", "ovqat"
+]
+
+FRIEND_KEYWORDS = [
+    "brat", "jigar", "jo'ra", "jora", "qattasan", "bormisan", "qalesan", "tinchmi",
+    "choyxona", "osh", "gap", "o'rtoq", "ortoq", "og'ayni", "ogayni", "oshna"
+]
+
+STUDENT_KEYWORDS = [
+    "domla", "ustoz", "muallim", "dars", "vazifa", "para", "oraliq",
+    "imtihon", "baho", "topshiriq", "konspekt", "yakuniy", "nb"
+]
+
+COLLEAGUE_KEYWORDS = [
+    "yig'ilish", "majlis", "loyiha", "hisobot", "xodim", "hujjat", "reja", "otchet"
+]
+
 def clean_text_for_matching(text: str) -> str:
     """Belgilarni olib tashlab, toza kichik harfli matn qaytaradi"""
     if not text:
         return ""
-    # Emojilar va tinish belgilarini olib tashlaymiz
     cleaned = re.sub(r'[^\w\s]', '', text.lower()).strip()
     return cleaned
 
@@ -42,12 +62,10 @@ def is_acknowledgment_only(text: str) -> bool:
         return True
     
     clean = clean_text_for_matching(text)
-    # Agar faqat emojilardan iborat bo'lsa
     if not clean:
         return True
     
     words = clean.split()
-    # Agar 5 ta so'zdan kam bo'lsa va so'zlarning barchasi minnatdorchilik bo'lsa
     if len(words) <= 5:
         if clean in ACKNOWLEDGMENT_WORDS:
             return True
@@ -61,22 +79,56 @@ def is_meaningful_query_or_question(text: str) -> bool:
     if not text:
         return False
     
-    # 1. Savol belgisi bo'lsa
     if "?" in text:
         return True
     
     clean = clean_text_for_matching(text)
     words = set(clean.split())
 
-    # 2. Savol kalit so'zlari bo'lsa
     if words.intersection(QUESTION_KEYWORDS):
         return True
     
-    # 3. Yoki kamida 4 ta so'zdan iborat to'liq gap bo'lsa
+    if any(w in clean for w in ["nimaga", "qachon", "qayerda", "narx", "domla"]):
+        return True
+
     if len(words) >= 4 and len(text.strip()) >= 15:
         return True
 
     return False
+
+def build_adaptive_system_prompt(owner_name: str, sender_name: str, ai_instructions: str) -> str:
+    """Suhbatdosh toifasini tushunuvchi aqlli moslashuvchan tizim yo'riqnomasi"""
+    inst_text = ai_instructions.strip() if ai_instructions else "Hozircha maxsus yo'riqnoma yo'q."
+    return (
+        f"Siz {owner_name}ning shaxsiy Telegram akkauntiga kelgan xabarlarga javob beruvchi nihoyatda fahmli, samimiy va aqlli yordamchisiz.\n\n"
+        f"DIQQAT! Sizga yozayotgan har bir inson mijoz EMAS! Yozgan odamning munosabatini (kimligini) xabar mazmuni, murojaat so'zlari va ohangidan ANQLANG va shunga mos ohangda javob bering:\n\n"
+        f"1. 👨‍👩‍👧 OILA VA OTA-ONA (Murojaatda: ona, ota, bolam, o'g'lim, qizim, dada, oyi, uyga, kelasanmi, qayerdasan, dori, bozor... bo'lsa):\n"
+        f"   - Ohang: Juda mehrli, iliq, samimiy va hurmat bilan.\n"
+        f"   - HECH QACHON «Men AI-kotibman», «Hurmat bilan AI-kotib» deb robotdek yozmang! Ota-onani cho'chitmaslik kerak.\n"
+        f"   - Javob namunasi: «Assalomu alaykum, Onajon/Dadajon! Xabaringizni ko'rdilar, hozir biroz band edilar. Bo'shashlari bilanoq darhol o'zlari sizga telefon qiladilar.»\n\n"
+        f"2. 🤝 DO'STLAR VA OG'AYNILAR (Murojaatda: brat, jigar, jo'ra, qattasan, bormisan, qalesan, tinchmi, choyxona, o'rtoq, oshna... bo'lsa):\n"
+        f"   - Ohang: Norasmiy, sodda, do'stona, qisqa.\n"
+        f"   - Hech qanday rasmiy imzo qo'ymang.\n"
+        f"   - Javob namunasi: «Salom! Hozir qo'li band edi, bo'shashi bilan o'zi aloqaga chiqadi / telefon qiladi.»\n\n"
+        f"3. 🎓 TALABALAR VA SHOGIRDLAR (Murojaatda: domla, ustoz, muallim, dars, vazifa, para, oraliq, imtihon, baho, topshiriq... bo'lsa):\n"
+        f"   - Ohang: Madaniyatli, ustoz-shogird munosabatiga mos, jiddiy va xushmuomala.\n"
+        f"   - Javob namunasi: «Assalomu alaykum! Xabaringiz yetkazildi, domla/ustoz hozir band edilar, bo'shashlari bilan dars/vazifa bo'yicha javob beradilar.»\n\n"
+        f"4. 💼 HAMKASBLAR VA ISHCHILAR (Murojaatda: yig'ilish, majlis, loyiha, hisobot, xodim, hujjat, reja, otchet... bo'lsa):\n"
+        f"   - Ohang: Professional, ishchan va hurmat bilan.\n"
+        f"   - Javob namunasi: «Assalomu alaykum! Xabaringiz qabul qilindi, hozir ish jarayonida band bo'lganliklari sababli bo'shashlari bilan aloqaga chiqadilar.»\n\n"
+        f"5. 🛍 MIJOZLAR VA NOMA'LUM SHAXSLAR (Narx, xizmat, buyurtma, sotib olish, dastur, shartnoma haqida so'rasa):\n"
+        f"   - Ohang: Xushmuomala, professional va yordam beruvchi.\n"
+        f"   - Quyidagi shaxsiy yo'riqnomadan foydalanib qisqa ma'lumot bering.\n"
+        f"   - Xabar oxirida «Hurmat bilan, {owner_name} yordamchisi 🤖» deb yakunlashingiz mumkin.\n\n"
+        f"--- EGASINING YO'RIQNOMASI VA SOHASI ---\n"
+        f"{inst_text}\n"
+        f"----------------------------------------\n"
+        f"UMUMIY QOIDALAR:\n"
+        f"- Agar avvalgi xabarlarda salomlashilgan bo'lsa, qayta salom bermang!\n"
+        f"- Hech qachon o'zingizdan moliyaviy va'da bermang, qarz bermang, pul masalasini egasining o'zi bilan gaplashishni ayting.\n"
+        f"- Xabar qaysi tilda (o'zbek, rus yoki ingliz) kelgan bo'lsa, xuddi o'sha tilda javob bering.\n"
+        f"- Javob juda cho'zilib ketmasin (ko'pi bilan 1-2 ta tabiiy va samimiy gap).\n"
+    )
 
 class AISecretaryService:
     """Google Gemini 1.5 Flash asosidagi Shaxsiy AI Kotib xizmati"""
@@ -92,32 +144,10 @@ class AISecretaryService:
         """Kelgan xabarga mos aqlli, xushmuomala va kontekstual avto-javob tayyorlaydi"""
         api_key = GEMINI_API_KEY.strip() if GEMINI_API_KEY else ""
 
-        # Agar API kalit bo'lsa, Gemini 1.5 Flash ga so'rov yuboramiz
         if api_key:
             try:
-                inst_text = ai_instructions.strip() if ai_instructions else ""
-                if not inst_text:
-                    inst_text = "Hozircha maxsus yo'riqnoma yo'q. Faqat xabarni qabul qilganingizni va ega bo'shashi bilan aloqaga chiqishini ayting."
+                system_prompt = build_adaptive_system_prompt(owner_name, sender_name, ai_instructions)
 
-                system_prompt = (
-                    f"Siz {owner_name}ning shaxsiy, muloyim va yordamchi AI-kotibisiz.\n"
-                    f"Siz {owner_name}ning Telegram akkauntiga kelgan xabarlarga javob yozasiz.\n\n"
-                    f"VAZIFANGIZ:\n"
-                    f"1. Suhbatdoshga ({sender_name}) xushmuomala, iliq va professional ohangda qisqa javob yozing.\n"
-                    f"2. Agar avvalgi xabarlarda salomlashilgan bo'lsa (tarixda ko'rinsa), qayta salomlashmang! To'g'ridan-to'g'ri savolga yoki mavzuga javob bering.\n"
-                    f"3. Kelgan xabar mazmunini tushungan holda, murojaatni qabul qilganingizni va {owner_name} hozirda bandligi sababli, bo'shashi bilanoq o'zi javob yozishini bildiring.\n"
-                    f"4. Quyida {owner_name} tomonidan kiritilgan shaxsiy yo'riqnomalar berilgan. Agar suhbatdoshning savoliga shu yo'riqnomada javob bo'lsa, muloyimlik bilan qisqacha ma'lumot bering:\n"
-                    f"--- EGASINING YO'RIQNOMASI ---\n"
-                    f"{inst_text}\n"
-                    f"------------------------------\n"
-                    f"5. QOIDALAR:\n"
-                    f"- Hech qachon o'zingizdan moliyaviy va'da bermang, qarz bermang, pul masalasini egasining o'zi bilan gaplashishni ayting.\n"
-                    f"- Xabar qaysi tilda kelgan bo'lsa (o'zbek, rus yoki ingliz), xuddi o'sha tilda javob bering.\n"
-                    f"- Javob ixcham bo'lsin (ko'pi bilan 2-3 ta chiroyli gap).\n"
-                    f"- Xabar oxirida yangi qatordan «Hurmat bilan, {owner_name}ning shaxsiy AI-kotibi 🤖» deb yakunlang.\n"
-                )
-
-                # Dialog tarixini Gemini formatiga moslaymiz
                 contents: List[Dict[str, Any]] = []
                 if chat_history:
                     last_role = None
@@ -132,11 +162,9 @@ class AISecretaryService:
                             contents.append({"role": r, "parts": [{"text": t}]})
                             last_role = r
 
-                    # Gemini talabi: birinchi element user bo'lishi kerak
                     while contents and contents[0]["role"] != "user":
                         contents.pop(0)
 
-                # Joriy xabarni qo'shamiz
                 current_text = f"Suhbatdosh ({sender_name}): \"{message_text}\""
                 if contents and contents[-1]["role"] == "user":
                     contents[-1]["parts"][0]["text"] += f"\n{current_text}"
@@ -149,9 +177,7 @@ class AISecretaryService:
                 payload = {
                     "contents": contents,
                     "systemInstruction": {
-                        "parts": [
-                            {"text": system_prompt}
-                        ]
+                        "parts": [{"text": system_prompt}]
                     },
                     "generationConfig": {
                         "temperature": 0.6,
@@ -180,7 +206,7 @@ class AISecretaryService:
             except Exception as e:
                 logger.error(f"Gemini API bilan ulanishda xatolik: {e}")
 
-        # Zaxira (Smart Fallback) avtojavob mantiqi (Agar API kalit bo'lmasa yoki tarmoqda xatolik bo'lsa)
+        # Zaxira (Smart Fallback)
         return AISecretaryService._generate_smart_fallback(
             sender_name=sender_name,
             message_text=message_text,
@@ -198,34 +224,12 @@ class AISecretaryService:
         owner_name: str = "Akkaunt egasi",
         chat_history: Optional[List[Dict[str, str]]] = None
     ) -> str:
-        """Kelgan ovozli xabarni (audio) eshitib, mazmunini tushunib aqlli javob qaytaradi"""
+        """Kelgan ovozli xabarni eshitib, suhbatdosh toifasiga mos aqlli javob qaytaradi"""
         api_key = GEMINI_API_KEY.strip() if GEMINI_API_KEY else ""
 
         if api_key and audio_bytes:
             try:
-                inst_text = ai_instructions.strip() if ai_instructions else ""
-                if not inst_text:
-                    inst_text = "Hozircha maxsus yo'riqnoma yo'q. Faqat xabarni qabul qilganingizni va ega bo'shashi bilan aloqaga chiqishini ayting."
-
-                system_prompt = (
-                    f"Siz {owner_name}ning shaxsiy, muloyim va yordamchi AI-kotibisiz.\n"
-                    f"Sizga {owner_name}ning shaxsiy Telegram akkauntiga yozgan suhbatdoshdan OVOZLI XABAR (audio) keldi.\n\n"
-                    f"VAZIFANGIZ:\n"
-                    f"1. Audio ichidagi nutqni diqqat bilan tinglang va uning mazmunini to'liq tushuning.\n"
-                    f"2. Suhbatdoshga ({sender_name}) juda xushmuomala, iliq va professional ohangda qisqa javob yozing.\n"
-                    f"3. Uning ovozli murojaatini qabul qilganingizni va {owner_name} hozirda band bo'lganligi sababli, bo'shashi bilanoq o'zi javob yozishini bildiring.\n"
-                    f"4. Quyida {owner_name} tomonidan kiritilgan shaxsiy yo'riqnomalar berilgan. Agar suhbatdoshning ovozli savoliga shu yo'riqnomada javob bo'lsa, muloyimlik bilan qisqacha ma'lumot bering:\n"
-                    f"--- EGASINING YO'RIQNOMASI ---\n"
-                    f"{inst_text}\n"
-                    f"------------------------------\n"
-                    f"5. QOIDALAR:\n"
-                    f"- Nutq qaysi tilda (o'zbek, rus yoki ingliz) aytilgan bo'lsa, xuddi o'sha tilda javob bering.\n"
-                    f"- Hech qachon o'zingizdan moliyaviy va'da bermang, qarz bermang, pul masalasini egasining o'zi bilan gaplashishni ayting.\n"
-                    f"- Javob ixcham bo'lsin (ko'pi bilan 2-3 ta ixcham va chiroyli gap).\n"
-                    f"- Xabar boshida «🎙 [Ovozli xabaringiz tinglandi]» deb boshlang.\n"
-                    f"- Xabar oxirida yangi qatordan «Hurmat bilan, {owner_name}ning shaxsiy AI-kotibi 🤖» deb yakunlang.\n"
-                )
-
+                system_prompt = build_adaptive_system_prompt(owner_name, sender_name, ai_instructions)
                 b64_audio = base64.b64encode(audio_bytes).decode("utf-8")
 
                 contents: List[Dict[str, Any]] = []
@@ -245,7 +249,6 @@ class AISecretaryService:
                     while contents and contents[0]["role"] != "user":
                         contents.pop(0)
 
-                # Audio qismini qo'shamiz
                 audio_part = {
                     "inlineData": {
                         "mimeType": mime_type,
@@ -253,7 +256,7 @@ class AISecretaryService:
                     }
                 }
                 text_part = {
-                    "text": f"Suhbatdosh ({sender_name}) ushbu ovozli xabarni yubordi. Iltimos, audioni tinglab, uning gapiga javob bering."
+                    "text": f"Suhbatdosh ({sender_name}) ovozli xabar yubordi. Iltimos, audioni tinglab, uning gapiga toifasiga mos ohangda javob bering."
                 }
 
                 contents.append({
@@ -293,19 +296,17 @@ class AISecretaryService:
             except Exception as e:
                 logger.error(f"Gemini Voice API bilan ulanishda xatolik: {e}")
 
-        # Zaxira (Fallback) agar kalit bo'lmasa yoki xato bersa
+        # Zaxira (Fallback)
+        lower_msg = "ovozli xabar"
         info_part = ""
         if ai_instructions.strip():
             first_line = ai_instructions.strip().split("\n")[0][:120]
             info_part = f"\n\nℹ️ <i>Ma'lumot uchun: {first_line}</i>"
 
-        greeting = f"Assalomu alaykum, {sender_name}!" if sender_name and sender_name != "Mijoz" else "Assalomu alaykum!"
         return (
-            f"🤖 {greeting}\n\n"
-            f"🎙 <b>Ovozli xabaringiz qabul qilindi.</b> Hozirda ular band bo'lganligi sababli, bo'shashlari bilanoq ovozli xabaringizni eshitib, sizga shaxsan javob yozadilar.{info_part}\n\n"
-            f"<i>Hurmat bilan, {owner_name}ning shaxsiy AI-kotibi 🤖</i>"
+            f"🎙 <b>Ovozli xabaringiz qabul qilindi.</b>\n"
+            f"Hozirda band bo'lganliklari sababli, bo'shashlari bilanoq ovozli xabaringizni eshitib, sizga aloqaga chiqadilar.{info_part}"
         )
-
 
     @staticmethod
     def _generate_smart_fallback(
@@ -315,45 +316,69 @@ class AISecretaryService:
         owner_name: str = "Akkaunt egasi",
         has_history: bool = False
     ) -> str:
-        """Gemini ulanmagan yoki xatolik yuz berganda xushmuomala aqlli javob"""
+        """Gemini ulanmagan yoki xatolik yuz berganda suhbatdosh toifasiga mos aqlli javob"""
         lower_msg = (message_text or "").lower()
+        sender_lower = (sender_name or "").lower()
+        combined_text = f"{lower_msg} {sender_lower}"
 
-        # Agar maxsus yo'riqnoma kiritilgan bo'lsa, qisqacha qo'shamiz
+        words = set(re.findall(r'\b\w+\b', combined_text.lower()))
+        for w in combined_text.lower().replace("'", "").replace("‘", "").replace("`", "").split():
+            words.add(w)
+
+        # 1. Oila va Ota-ona (ona, ota, dada, oyi, bolam, o'g'lim, uyga...)
+        if words.intersection(set(FAMILY_KEYWORDS)):
+            return (
+                "Assalomu alaykum! Xabaringizni ko'rdilar, hozir biroz band bo'lganliklari sababli "
+                "bo'shashlari bilanoq darhol o'zlari sizga telefon qiladilar."
+            )
+
+        # 2. Do'stlar va Og'aynilar (brat, jigar, jo'ra, qattasan, choyxona...)
+        if words.intersection(set(FRIEND_KEYWORDS)):
+            return "Salom! Hozir qo'li band edi, bo'shashi bilan o'zi aloqaga chiqadi."
+
+        # 3. Talabalar va Shogirdlar (domla, ustoz, dars, vazifa, para...)
+        if words.intersection(set(STUDENT_KEYWORDS)):
+            return (
+                "Assalomu alaykum! Xabaringiz yetkazildi, ustoz/domla hozir band edilar, "
+                "bo'shashlari bilan dars/vazifa bo'yicha javob yozadilar."
+            )
+
+        # 4. Hamkasblar (yig'ilish, hisobot, majlis, xodim...)
+        if words.intersection(set(COLLEAGUE_KEYWORDS)):
+            return (
+                "Assalomu alaykum! Xabaringiz qabul qilindi, hozir ish jarayonida band bo'lganliklari "
+                "sababli bo'shashlari bilan aloqaga chiqadilar."
+            )
+
+        # 5. Mijozlar va umumiy murojaatlar
         info_part = ""
         if ai_instructions.strip():
             first_line = ai_instructions.strip().split("\n")[0][:120]
             info_part = f"\n\nℹ️ <i>Ma'lumot uchun: {first_line}</i>"
 
-        # Agar bu davom etayotgan suhbat bo'lsa, qayta salom bermaymiz
         if has_history:
             if any(w in lower_msg for w in ["narx", "kurs", "necha pul", "qancha", "cena", "skolko", "price"]):
                 context_reply = "Narxlar bo'yicha savolingiz yetkazildi. Bo'shashlari bilanoq to'liq ma'lumot beradilar."
             else:
                 context_reply = "Xabaringiz qabul qilindi. Hozirda band bo'lganliklari sababli bo'shashlari bilan javob qaytaradilar."
 
-            return (
-                f"🤖 {context_reply}{info_part}\n\n"
-                f"<i>Hurmat bilan, {owner_name}ning shaxsiy AI-kotibi 🤖</i>"
-            )
+            return f"🤖 {context_reply}{info_part}\n\n<i>Hurmat bilan, {owner_name} yordamchisi 🤖</i>"
 
         greeting = f"Assalomu alaykum, {sender_name}!" if sender_name and sender_name != "Mijoz" else "Assalomu alaykum!"
 
-        if any(w in lower_msg for w in ["salom", "qalesiz", "qalaysiz", "yaxshimisiz", "privet", "hello"]):
-            context_reply = "Xabaringizni qabul qilib oldim. Hozirda telefon yonida emas edilar, bo'shashlari bilan sizga aloqaga chiqadilar."
-        elif any(w in lower_msg for w in ["narx", "kurs", "necha pul", "qancha", "cena", "skolko", "price"]):
+        if any(w in lower_msg for w in ["narx", "kurs", "necha pul", "qancha", "cena", "skolko", "price"]):
             context_reply = "Narxlar va xizmatlar bo'yicha so'rovingiz qabul qilindi. Tez orada batafsil javob qaytaradilar."
         elif any(w in lower_msg for w in ["uchrashuv", "vaqt", "qachon", "ko'rishamiz", "vstrecha", "kogda"]):
             context_reply = "Uchrashuv va vaqt masalasidagi xabaringiz yetkazildi. Bo'sh vaqtlarini tekshirib aloqaga chiqadilar."
         else:
-            context_reply = f"Men {owner_name}ning shaxsiy AI-kotibisiz. Hozirda ular band bo'lganligi sababli xabaringizni qabul qilib oldim va ularga yetkazdim. Bo'shashlari bilanoq javob yozadilar."
+            context_reply = f"Hozirda {owner_name} band bo'lganliklari sababli xabaringizni qabul qilib oldim. Bo'shashlari bilanoq javob yozadilar."
 
         return (
             f"🤖 {greeting}\n\n"
             f"{context_reply}{info_part}\n\n"
-            f"<i>Hurmat bilan, {owner_name}ning shaxsiy AI-kotibi 🤖</i>"
+            f"<i>Hurmat bilan, {owner_name} yordamchisi 🤖</i>"
         )
 
 ai_secretary_service = AISecretaryService()
 generate_ai_reply = AISecretaryService.generate_ai_reply
 generate_ai_voice_reply = AISecretaryService.generate_ai_voice_reply
-
