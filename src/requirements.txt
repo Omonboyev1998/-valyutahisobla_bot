@@ -2,3 +2,4 @@ aiogram>=3.17.0
 aiohttp>=3.10.0
 python-dotenv>=1.0.0
 libsql-experimental>=0.0.50
+telethon>=1.36.0

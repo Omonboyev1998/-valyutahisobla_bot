@@ -9,7 +9,7 @@ from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 from aiogram.client.session.aiohttp import AiohttpSession
 
-from src.config import BOT_TOKEN, WEB_APP_URL
+from src.config import BOT_TOKEN, WEB_APP_URL, TG_API_ID, TG_API_HASH, USERBOT_SESSION, TG_SESSION_STRING
 from src.database import init_db
 from src.handlers import start, rates, convert, notifications, admin, weather, football, referral, prayer, services, secretary
 from src.services.scheduler import morning_scheduler_task
@@ -96,6 +96,17 @@ async def main():
     # 4. Eslatmalar va namoz ogohlantirishlari (scheduler)
     scheduler_task = asyncio.create_task(morning_scheduler_task(bot))
 
+    # 5. Userbot guruh kuzatuvchisini fon jarayoni sifatida ishga tushirish (agar avtorizatsiya qilingan bo'lsa)
+    userbot_task = None
+    session_file = f"{USERBOT_SESSION}.session"
+    if TG_API_ID and TG_API_HASH and (TG_SESSION_STRING or os.path.exists(session_file)):
+        try:
+            from src.userbot.listener import start_userbot
+            userbot_task = asyncio.create_task(start_userbot(scan_history=False))
+            logger.info("Userbot (Guruh kuzatuvchi) fonda muvaffaqiyatli ishga tushirildi.")
+        except Exception as e:
+            logger.warning(f"Userbotni fonda ishga tushirishda xatolik: {e}")
+
     # Telegram API ga ulanish va polling
     while True:
         try:
@@ -110,6 +121,8 @@ async def main():
             logger.warning(f"Telegram API ga ulanishda vaqtinchalik xatolik: {e}. 5 soniyadan so'ng qayta uriniladi...")
             await asyncio.sleep(5)
 
+    if userbot_task:
+        userbot_task.cancel()
     scheduler_task.cancel()
     await runner.cleanup()
     await bot.session.close()

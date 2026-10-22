@@ -587,6 +587,23 @@ def get_service_by_id(service_id: int) -> Optional[Dict[str, Any]]:
             return to_dict(cols, row)
         return None
 
+def get_service_by_phone(phone: str) -> Optional[Dict[str, Any]]:
+    """Telefon raqam bo'yicha xizmat mavjudligini tekshirish (dublikatlarni oldini olish)"""
+    if not phone:
+        return None
+    clean_digits = "".join(filter(str.isdigit, phone))
+    # Oxirgi 9 ta raqam bo'yicha qidirish (masalan 901234567)
+    search_suffix = clean_digits[-9:] if len(clean_digits) >= 9 else clean_digits
+    if not search_suffix:
+        return None
+
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM services WHERE phone LIKE ? LIMIT 1", (f"%{search_suffix}%",))
+        cols = [col[0] for col in cursor.description] if cursor.description else []
+        row = cursor.fetchone()
+        return to_dict(cols, row) if row else None
+
 def get_user_services(user_id: int) -> List[Dict[str, Any]]:
     with get_db() as conn:
         cursor = conn.cursor()

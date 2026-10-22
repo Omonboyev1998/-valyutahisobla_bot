@@ -9,3 +9,15 @@ services:
         sync: false
       - key: ADMIN_ID
         value: "1045855587"
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false
+      - key: TG_API_ID
+        sync: false
+      - key: TG_API_HASH
+        sync: false
+      - key: TG_SESSION_STRING
+        sync: false
+      - key: TARGET_CHATS
+        value: "Xortumliklar,Xortum,Хортум,Хортумликлар"

@@ -17,5 +17,13 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
 # Web App sozlamalari
 RENDER_EXTERNAL_URL = os.getenv("RENDER_EXTERNAL_URL")
-_base_url = os.getenv("WEB_APP_URL", RENDER_EXTERNAL_URL or "https://valyutabot.onrender.com").rstrip("/")
+_base_url = (RENDER_EXTERNAL_URL or os.getenv("WEB_APP_URL") or "https://valyutabot.onrender.com").rstrip("/")
 WEB_APP_URL = f"{_base_url}/app" if not _base_url.endswith("/app") else _base_url
+
+# Userbot (Telegram Client) sozlamalari - Guruhlarni kuzatish uchun
+TG_API_ID = int(os.getenv("TG_API_ID", "0") or "0")
+TG_API_HASH = os.getenv("TG_API_HASH", "")
+TG_SESSION_STRING = os.getenv("TG_SESSION_STRING", "")
+TARGET_CHATS = [c.strip() for c in os.getenv("TARGET_CHATS", "Xortumliklar,Xortum,Хортум,Хортумликлар").split(",") if c.strip()]
+USERBOT_SESSION = os.getenv("USERBOT_SESSION", "data/userbot")
+
