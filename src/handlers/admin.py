@@ -594,3 +594,94 @@ async def callback_admin_delete_service(callback: CallbackQuery):
     except Exception as e:
         logger.error(f"E'lonni o'chirishda xatolik: {e}")
         await callback.answer("Xatolik yuz berdi!", show_alert=True)
+
+
+# ==================== KITOBLAR BOSHQARUVI ====================
+
+@router.callback_query(F.data == "admin:books_menu")
+async def callback_admin_books_menu(callback: CallbackQuery):
+    if not is_admin(callback.from_user.id):
+        await callback.answer("Ruxsat yo'q!", show_alert=True)
+        return
+
+    from src.database import get_books_count, get_userbot_setting
+    from src.services.book_service import is_indexing_active
+    from src.keyboards.admin import get_admin_books_keyboard
+    from src.config import BOOK_SOURCE_CHAT, BOOK_STORAGE_CHAT
+
+    total = get_books_count()
+    last_id = get_userbot_setting("last_scanned_book_msg_id", "0")
+    active = is_indexing_active()
+    status_icon = "🟢 Ishlamoqda (Nusxalanmoqda)" if active else "⏸ To'xtatilgan"
+
+    text = (
+        "📚 <b>Elektron Kutubxona Boshqaruvi</b>\n\n"
+        f"📊 <b>Bazadagi jami kitoblar:</b> {total:,} ta\n"
+        f"📡 <b>Manba guruh:</b> @{BOOK_SOURCE_CHAT.lstrip('@')}\n"
+        f"📦 <b>Ombor kanal:</b> {BOOK_STORAGE_CHAT}\n"
+        f"🔖 <b>Oxirgi skanerlangan xabar:</b> #{last_id}\n"
+        f"⚙️ <b>Holati:</b> {status_icon}\n\n"
+        "<i>Tugmalar orqali nusxalashni ishga tushirishingiz yoki to'xtatishingiz mumkin. "
+        "Userbot orqa fonda kitoblarni Telegram limitlariga amal qilgan holda xavfsiz nusxalaydi.</i>"
+    )
+
+    await callback.message.edit_text(
+        text,
+        reply_markup=get_admin_books_keyboard(active),
+        parse_mode="HTML"
+    )
+    await callback.answer()
+
+@router.callback_query(F.data == "admin:books_start")
+async def callback_admin_books_start(callback: CallbackQuery):
+    if not is_admin(callback.from_user.id):
+        return
+    from src.services.book_service import start_indexing, is_indexing_active
+    from src.database import get_books_count, get_userbot_setting
+    from src.keyboards.admin import get_admin_books_keyboard
+    from src.config import BOOK_SOURCE_CHAT, BOOK_STORAGE_CHAT
+
+    started = start_indexing()
+    if started:
+        await callback.answer("▶️ Kitoblar nusxalash boshlandi!", show_alert=False)
+    else:
+        await callback.answer("⚠️ Jarayon allaqachon ishlayapti!", show_alert=True)
+
+    total = get_books_count()
+    last_id = get_userbot_setting("last_scanned_book_msg_id", "0")
+    text = (
+        "📚 <b>Elektron Kutubxona Boshqaruvi</b>\n\n"
+        f"📊 <b>Bazadagi jami kitoblar:</b> {total:,} ta\n"
+        f"📡 <b>Manba guruh:</b> @{BOOK_SOURCE_CHAT.lstrip('@')}\n"
+        f"📦 <b>Ombor kanal:</b> {BOOK_STORAGE_CHAT}\n"
+        f"🔖 <b>Oxirgi skanerlangan xabar:</b> #{last_id}\n"
+        f"⚙️ <b>Holati:</b> 🟢 Ishlamoqda (Nusxalanmoqda)\n\n"
+        "<i>Kitoblar birin-ketin shaxsiy kanalingizga ko'chirilmoqda va bazaga yozilmoqda...</i>"
+    )
+    await callback.message.edit_text(text, reply_markup=get_admin_books_keyboard(True), parse_mode="HTML")
+
+@router.callback_query(F.data == "admin:books_stop")
+async def callback_admin_books_stop(callback: CallbackQuery):
+    if not is_admin(callback.from_user.id):
+        return
+    from src.services.book_service import stop_indexing
+    from src.database import get_books_count, get_userbot_setting
+    from src.keyboards.admin import get_admin_books_keyboard
+    from src.config import BOOK_SOURCE_CHAT, BOOK_STORAGE_CHAT
+
+    stop_indexing()
+    await callback.answer("⏸ Nusxalash to'xtatildi!", show_alert=False)
+
+    total = get_books_count()
+    last_id = get_userbot_setting("last_scanned_book_msg_id", "0")
+    text = (
+        "📚 <b>Elektron Kutubxona Boshqaruvi</b>\n\n"
+        f"📊 <b>Bazadagi jami kitoblar:</b> {total:,} ta\n"
+        f"📡 <b>Manba guruh:</b> @{BOOK_SOURCE_CHAT.lstrip('@')}\n"
+        f"📦 <b>Ombor kanal:</b> {BOOK_STORAGE_CHAT}\n"
+        f"🔖 <b>Oxirgi skanerlangan xabar:</b> #{last_id}\n"
+        f"⚙️ <b>Holati:</b> ⏸ To'xtatilgan\n\n"
+        "<i>Jarayon to'xtatildi. Istalgan vaqtda qayta davom ettirishingiz mumkin.</i>"
+    )
+    await callback.message.edit_text(text, reply_markup=get_admin_books_keyboard(False), parse_mode="HTML")
+

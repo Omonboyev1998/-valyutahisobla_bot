@@ -27,3 +27,9 @@ TG_SESSION_STRING = os.getenv("TG_SESSION_STRING", "")
 TARGET_CHATS = [c.strip() for c in os.getenv("TARGET_CHATS", "Xortumliklar,Xortum,Хортум,Хортумликлар").split(",") if c.strip()]
 USERBOT_SESSION = os.getenv("USERBOT_SESSION", "data/userbot")
 
+# Kutubxona sozlamalari
+BOOK_SOURCE_CHAT = os.getenv("BOOK_SOURCE_CHAT", "onlayn_kutubxona_pdfo")
+BOOK_STORAGE_CHAT = os.getenv("BOOK_STORAGE_CHAT", "@dunyokitoblari1")
+BOOK_STORAGE_CHAT_ID = int(os.getenv("BOOK_STORAGE_CHAT_ID", "-1004326786240"))
+
+

@@ -21,10 +21,11 @@ def get_main_keyboard(user_id: int = None) -> ReplyKeyboardMarkup:
             KeyboardButton(text="🛠 Maishiy xizmatlar")
         ],
         [
-            KeyboardButton(text="🎁 Do'stlarni taklif qilish"),
-            KeyboardButton(text="🔔 Eslatmalar")
+            KeyboardButton(text="📚 Kitoblar Kutubxonasi"),
+            KeyboardButton(text="🎁 Do'stlarni taklif qilish")
         ],
         [
+            KeyboardButton(text="🔔 Eslatmalar"),
             KeyboardButton(text="❓ Yordam")
         ]
     ]

@@ -11,7 +11,7 @@ from aiogram.client.session.aiohttp import AiohttpSession
 
 from src.config import BOT_TOKEN, WEB_APP_URL, TG_API_ID, TG_API_HASH, USERBOT_SESSION, TG_SESSION_STRING
 from src.database import init_db
-from src.handlers import start, rates, convert, notifications, admin, weather, football, referral, prayer, services, secretary
+from src.handlers import start, rates, convert, notifications, admin, weather, football, referral, prayer, services, secretary, books
 from src.services.scheduler import morning_scheduler_task
 from src.web import create_web_app
 
@@ -32,6 +32,7 @@ async def set_commands(bot: Bot):
         BotCommand(command="futbol", description="Futbol jadvallari va natijalari"),
         BotCommand(command="xizmatlar", description="Maishiy xizmatlar va ustalar"),
         BotCommand(command="sekretar", description="Shaxsiy Kotib / Sekretar Rejim"),
+        BotCommand(command="kitob", description="📚 Kitoblar Kutubxonasi"),
         BotCommand(command="ref", description="Do'stlarni taklif qilish"),
         BotCommand(command="help", description="Yordam va qo'llanma"),
         BotCommand(command="admin", description="Admin paneli (Faqat admin)"),
@@ -89,6 +90,7 @@ async def main():
     dp.include_router(football.router)
     dp.include_router(referral.router)
     dp.include_router(services.router)
+    dp.include_router(books.router)
     dp.include_router(secretary.router)
     dp.include_router(notifications.router)
     dp.include_router(convert.router)

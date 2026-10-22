@@ -9,6 +9,9 @@ def get_admin_main_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="📢 Xabar tarqatish", callback_data="admin:broadcast")
         ],
         [
+            InlineKeyboardButton(text="📚 Kitoblar Kutubxonasi Boshqaruvi", callback_data="admin:books_menu")
+        ],
+        [
             InlineKeyboardButton(text="📡 Kuzatiladigan guruhlar (Userbot)", callback_data="admin:userbot_chats")
         ],
         [
@@ -20,6 +23,21 @@ def get_admin_main_keyboard() -> InlineKeyboardMarkup:
         ]
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+def get_admin_books_keyboard(is_running: bool = False) -> InlineKeyboardMarkup:
+    """Kitoblar boshqaruvi klaviaturasi"""
+    action_btn = (
+        InlineKeyboardButton(text="⏸ Nusxalashni to'xtatish", callback_data="admin:books_stop")
+        if is_running else
+        InlineKeyboardButton(text="▶️ Nusxalashni boshlash (Guruhdan)", callback_data="admin:books_start")
+    )
+    buttons = [
+        [action_btn],
+        [InlineKeyboardButton(text="🔄 Statistikani yangilash", callback_data="admin:books_menu")],
+        [InlineKeyboardButton(text="◀️ Admin panelga qaytish", callback_data="admin:back")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
 
 def get_userbot_chats_menu_keyboard(auto_dm_enabled: bool = True) -> InlineKeyboardMarkup:
     """Userbot guruhlar boshqaruv menyusi"""

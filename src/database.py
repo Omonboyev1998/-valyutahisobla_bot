@@ -222,6 +222,30 @@ def init_db():
                 value TEXT
             )
         """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS books (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                author TEXT DEFAULT '',
+                file_name TEXT NOT NULL,
+                file_size INTEGER DEFAULT 0,
+                file_extension TEXT DEFAULT '',
+                mime_type TEXT DEFAULT '',
+                storage_chat_id TEXT NOT NULL,
+                storage_message_id INTEGER NOT NULL,
+                source_chat_id TEXT,
+                source_message_id INTEGER,
+                caption TEXT DEFAULT '',
+                download_count INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        try:
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_books_title ON books(title)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_books_file_name ON books(file_name)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_books_source ON books(source_chat_id, source_message_id)")
+        except Exception:
+            pass
         seed_default_football_streams_if_empty(cursor)
         # Yangi ustunlarni tekshirib qo'shish (migratsiya)
         new_columns = [
@@ -1281,6 +1305,176 @@ def count_auto_dms_sent() -> int:
         cursor = conn.cursor()
         cursor.execute("SELECT COUNT(*) FROM userbot_auto_dm_logs")
         return cursor.fetchone()[0]
+
+
+# ==================== KITOBLAR (BOOKS) KUTUBXONASI ====================
+
+def add_book(
+    title: str,
+    author: str,
+    file_name: str,
+    file_size: int,
+    file_extension: str,
+    mime_type: str,
+    storage_chat_id: str,
+    storage_message_id: int,
+    source_chat_id: Optional[str] = None,
+    source_message_id: Optional[int] = None,
+    caption: str = ""
+) -> Optional[int]:
+    """Yangi kitobni bazaga qo'shish yoki yangilash"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO books (
+                title, author, file_name, file_size, file_extension,
+                mime_type, storage_chat_id, storage_message_id,
+                source_chat_id, source_message_id, caption
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            title, author, file_name, file_size, file_extension,
+            mime_type, str(storage_chat_id), storage_message_id,
+            str(source_chat_id) if source_chat_id else None, source_message_id, caption
+        ))
+        conn.commit()
+        return cursor.lastrowid
+
+def is_book_indexed(source_chat_id: Optional[str], source_message_id: Optional[int], file_name: str, file_size: int) -> bool:
+    """Kitob avval bazaga kiritilganmi?"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        if source_chat_id and source_message_id:
+            cursor.execute(
+                "SELECT id FROM books WHERE source_chat_id = ? AND source_message_id = ? LIMIT 1",
+                (str(source_chat_id), source_message_id)
+            )
+            if cursor.fetchone():
+                return True
+        if file_name and file_size:
+            cursor.execute(
+                "SELECT id FROM books WHERE file_name = ? AND file_size = ? LIMIT 1",
+                (file_name, file_size)
+            )
+            if cursor.fetchone():
+                return True
+        return False
+
+def get_book_by_id(book_id: int) -> Optional[Dict[str, Any]]:
+    """ID bo'yicha kitobni olish"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM books WHERE id = ?", (book_id,))
+        row = cursor.fetchone()
+        return to_dict(cursor, row)
+
+def increment_book_download(book_id: int) -> bool:
+    """Kitob yuklab olinganlik sonini 1 taga oshirish"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("UPDATE books SET download_count = download_count + 1 WHERE id = ?", (book_id,))
+        conn.commit()
+        return True
+
+def get_books_count() -> int:
+    """Jami saqlangan kitoblar soni"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM books")
+        return cursor.fetchone()[0]
+
+def search_books_db(query: str, limit: int = 8) -> List[Dict[str, Any]]:
+    """Aqlli va xatoliklarga chidamli kitob qidirish (Fuzzy Search)"""
+    import difflib
+    import re
+
+    clean_q = query.strip()
+    if not clean_q:
+        return []
+
+    def normalize(text: str) -> str:
+        if not text:
+            return ""
+        t = text.lower()
+        t = re.sub(r"[`'ʻʼ’\"]", "", t)
+        t = t.replace("g'", "g").replace("o'", "o").replace("sh", "s").replace("ch", "c")
+        t = t.replace("ғ", "g").replace("ў", "o").replace("ш", "s").replace("ч", "c")
+        t = re.sub(r"[^\w\s]", " ", t)
+        return " ".join(t.split())
+
+    norm_q = normalize(clean_q)
+    words = [w for w in norm_q.split() if len(w) >= 2]
+
+    # 1. SQL LIKE orqali nomzodlarni tez topish
+    with get_db() as conn:
+        cursor = conn.cursor()
+        candidates = []
+        seen_ids = set()
+
+        # To'liq matn bo'yicha
+        cursor.execute(
+            "SELECT * FROM books WHERE title LIKE ? OR file_name LIKE ? OR author LIKE ? LIMIT 50",
+            (f"%{clean_q}%", f"%{clean_q}%", f"%{clean_q}%")
+        )
+        for r in cursor.fetchall():
+            d = to_dict(cursor, r)
+            if d["id"] not in seen_ids:
+                seen_ids.add(d["id"])
+                candidates.append(d)
+
+        # Har bir so'z bo'yicha alohida
+        for word in words:
+            cursor.execute(
+                "SELECT * FROM books WHERE title LIKE ? OR file_name LIKE ? OR author LIKE ? LIMIT 30",
+                (f"%{word}%", f"%{word}%", f"%{word}%")
+            )
+            for r in cursor.fetchall():
+                d = to_dict(cursor, r)
+                if d["id"] not in seen_ids:
+                    seen_ids.add(d["id"])
+                    candidates.append(d)
+
+    # 2. Hech narsa topilmasa, eng so'nggi qo'shilganlardan ko'rib chiqish
+    if not candidates:
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM books ORDER BY id DESC LIMIT 100")
+            for r in cursor.fetchall():
+                d = to_dict(cursor, r)
+                candidates.append(d)
+
+    # 3. Fuzzy matching orqali eng o'xshashlarini saralash
+    scored_results = []
+    for book in candidates:
+        book_title = book.get("title") or ""
+        book_file = book.get("file_name") or ""
+        book_author = book.get("author") or ""
+
+        norm_title = normalize(book_title)
+        norm_file = normalize(book_file)
+        norm_author = normalize(book_author)
+
+        # Matn o'xshashlik koeffitsiyenti
+        score_title = difflib.SequenceMatcher(None, norm_q, norm_title).ratio()
+        score_file = difflib.SequenceMatcher(None, norm_q, norm_file).ratio()
+
+        # Qidiruv so'zi kitob nomida yoki muallifda to'liq qatnashsa bonus
+        bonus = 0.0
+        if norm_q in norm_title or norm_q in norm_file:
+            bonus += 0.5
+        for w in words:
+            if w in norm_title:
+                bonus += 0.2
+            if w in norm_author:
+                bonus += 0.25
+
+        total_score = max(score_title, score_file) + bonus
+        if total_score > 0.35 or norm_q in norm_title or norm_q in norm_file:
+            scored_results.append((total_score, book))
+
+    scored_results.sort(key=lambda x: x[0], reverse=True)
+    return [item[1] for item in scored_results[:limit]]
+
 
 
 
