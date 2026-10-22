@@ -25,7 +25,9 @@ CATEGORY_KEYWORDS: Dict[str, List[str]] = {
     "🔨 Uy ta'miri va qurilish": [
         "tamir", "ta'mir", "remont", "qurilish", "suvoq", "shpaklyovka", "oboy", "kafel", "plitka",
         "gipsokarton", "patalok", "shift", "pol", "laminat", "tom yopish", "profmastil",
-        "shifer", "beton", "fundament", "g'isht", "gisht", "ustachilik", "pardozlash", "fasad"
+        "shifer", "beton", "fundament", "g'isht", "gisht", "ustachilik", "pardozlash", "fasad",
+        "ijara", "ijaraga", "arenda", "uskuna", "uskunalar", "aralashtirgich", "mixer", "perforator",
+        "drel", "bolgarka", "shlifmashina", "leshgi", "leshka", "drabilka", "burg'ilagich"
     ],
     "🐑 Qo'y yungini olish & Chorva": [
         "qo'y", "qoy", "qo'chqor", "qochqor", "yung", "jun", "yungini olish", "jun olish", "qirqish",
@@ -61,39 +63,32 @@ CATEGORY_KEYWORDS: Dict[str, List[str]] = {
 SERVICE_INTENT_WORDS = [
     "xizmat", "xizmati", "xizmatlari", "usta", "ustasi", "qilamiz", "ornatamiz", "o'rnatamiz",
     "tamirlaymiz", "ta'mirlaymiz", "quramiz", "tashiymiz", "kesamiz", "olamiz", "kelishamiz",
-    "zakaz", "buyurtma", "arzon", "sifatli", "kafolat", "bajariladi", "bajarib beramiz"
+    "zakaz", "buyurtma", "arzon", "sifatli", "kafolat", "bajariladi", "bajarib beramiz",
+    "ijara", "ijaraga", "ijarasi", "arenda", "prokat", "uskuna", "uskunalar", "bog'lanish",
+    "boglanish", "aloqa", "murojaat"
 ]
 
-# Reklama EMAS / Istisno so'zlar (masalan kimdir usta qidirayotgan bo'lsa yoki narsa sotayotgan bo'lsa)
+# Reklama EMAS / Istisno so'zlar (masalan kimdir usta qidirayotgan bo'lsa)
 NON_SERVICE_WORDS = [
-    "kerak", "kerakmi", "bormi", "kim biladi", "qidiryapman", "sotiladi", "arenda", "ijara",
-    "narxi qancha", "topib bering"
+    "kerak", "kerakmi", "bormi", "kim biladi", "qidiryapman", "sotiladi",
+    "narxi qancha", "topib bering", "tashavoring"
 ]
 
 def extract_uzbek_phone(text: str) -> Optional[str]:
     """
     Matndan O'zbekiston telefon raqamini aniqlash va +998XXXXXXXXX formatga keltirish.
     """
-    # 1. To'liq yoki qisqa formatdagi raqamlarni qidirish
-    # Masalan: +998 90 123 45 67, 998901234567, 90 123 45 67, 90-123-45-67, 901234567
-    pattern = r'(?:\+?998[\s\-]?)?(?:\(?\b(33|88|90|91|93|94|95|97|98|99|71|77|78|50|55)\b\)?[\s\-]?)(\d{3})[\s\-]?(\d{2})[\s\-]?(\d{2})'
-    match = re.search(pattern, text)
-    if match:
-        code = match.group(1)
-        part1 = match.group(2)
-        part2 = match.group(3)
-        part3 = match.group(4)
-        return f"+998{code}{part1}{part2}{part3}"
+    # 1. +998901234567 yoki 998901234567 (12 xonali, oraliq probel/chiziqchalar bilan yoki birikkan)
+    m = re.search(r'(?:\+?998)\s*\(?([0-9]{2})\)?[\s\-]*([0-9]{3})[\s\-]*([0-9]{2})[\s\-]*([0-9]{2})', text)
+    if m:
+        return f"+998{m.group(1)}{m.group(2)}{m.group(3)}{m.group(4)}"
     
-    # 2. Oddiy 9 ta ketma-ket raqam
-    digits_only = re.findall(r'\b(?:998)?(33|88|90|91|93|94|95|97|98|99|71|77|78|50|55\d{7})\b', re.sub(r'[\s\-\(\)]', '', text))
-    if digits_only:
-        num = digits_only[0]
-        if len(num) == 9:
-            return f"+998{num}"
-        elif len(num) == 12 and num.startswith("998"):
-            return f"+{num}"
-            
+    # 2. Qisqa 9 xonali: (90) 123-45-67 yoki 93 782 06 53
+    # O'zbekiston operator kodlari
+    m2 = re.search(r'(?:^|[^\d])\(?(33|88|90|91|93|94|95|97|98|99|71|77|78|50|55)\)?[\s\-]*([0-9]{3})[\s\-]*([0-9]{2})[\s\-]*([0-9]{2})(?:$|[^\d])', text)
+    if m2:
+        return f"+998{m2.group(1)}{m2.group(2)}{m2.group(3)}{m2.group(4)}"
+        
     return None
 
 def detect_category(text_lower: str) -> str:
@@ -137,15 +132,16 @@ def parse_ad_heuristic(text: str, sender_info: Optional[Dict[str, Any]] = None) 
     if not phone:
         return None
 
-    # Istisno: agar xabar usta QIDIRISH bo'lsa (masalan: "santexnik kerak", "kimda telefon bor?")
-    # Lekin "menga kerak" bilan "arzon narxda kerak bo'lsa murojaat qiling" ni farqlash:
+    # Istisno: agar xabar usta QIDIRISH bo'lsa (masalan: "santexnik kerak", "kim biladi")
     is_seeking = False
-    for non_kw in NON_SERVICE_WORDS:
-        if non_kw in lower:
-            # Agar "kerak bo'lsa murojaat qiling" kabi ibora bo'lmasa:
-            if not ("kerak bo'lsa" in lower or "kerak bolsa" in lower or "murojaat" in lower):
-                is_seeking = True
-                break
+    has_contact_offer = any(c in lower for c in ["bog'lanish", "boglanish", "murojaat", "aloqa", "buyurtma", "zakaz", "biz siz uchun", "manzil"])
+    
+    if not has_contact_offer:
+        for non_kw in NON_SERVICE_WORDS:
+            if non_kw in lower:
+                if not ("kerak bo'lsa" in lower or "kerak bolsa" in lower):
+                    is_seeking = True
+                    break
 
     if is_seeking:
         return None
