@@ -331,26 +331,29 @@ async def start_userbot(scan_history: bool = False, history_limit: int = 50):
     _active_client = client
     bot = Bot(token=BOT_TOKEN)
 
-    logger.info("Telegram Client-ga ulanish...")
-    await client.start()
-    logger.info("Userbot muvaffaqiyatli ulandi va guruhlarni kuzatishni boshladi!")
-    logger.info(f"Kuzatilayotgan guruhlar: {TARGET_CHATS}")
+    try:
+        logger.info("Telegram Client-ga ulanish...")
+        await client.start()
+        logger.info("Userbot muvaffaqiyatli ulandi va guruhlarni kuzatishni boshladi!")
+        logger.info(f"Kuzatilayotgan guruhlar: {TARGET_CHATS}")
 
-    # Agar tarixni ham skanerlash so'ralgan bo'lsa:
-    if scan_history:
-        await scan_recent_history(client, bot, limit=history_limit)
+        # Agar tarixni ham skanerlash so'ralgan bo'lsa:
+        if scan_history:
+            await scan_recent_history(client, bot, limit=history_limit)
 
-    # Yangi xabarlarni jonli rejimda tinglash
-    @client.on(events.NewMessage)
-    async def handler(event):
-        try:
-            # Faqat guruh yoki superguruh xabarlari
-            if event.is_group:
-                await process_raw_message(event.message, bot)
-        except Exception as e:
-            logger.error(f"Xabarni qabul qilishda xatolik: {e}")
+        # Yangi xabarlarni jonli rejimda tinglash
+        @client.on(events.NewMessage)
+        async def handler(event):
+            try:
+                # Faqat guruh yoki superguruh xabarlari
+                if event.is_group:
+                    await process_raw_message(event.message, bot)
+            except Exception as e:
+                logger.error(f"Xabarni qabul qilishda xatolik: {e}")
 
-    await client.run_until_disconnected()
+        await client.run_until_disconnected()
+    except Exception as e:
+        logger.error(f"Userbot ishlashida xatolik yuz berdi: {e}")
 
 async def get_userbot_dialog_groups(limit: int = 100) -> List[Dict[str, Any]]:
     """Akkaunt a'zo bo'lgan guruhlar ro'yxatini olish"""

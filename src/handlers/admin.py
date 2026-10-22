@@ -227,8 +227,18 @@ async def callback_userbot_dialogs(callback: CallbackQuery):
         await callback.message.edit_text(text, parse_mode="HTML", reply_markup=kb)
     except Exception as e:
         logger.error(f"Error fetching userbot dialogs: {e}")
+        err_str = str(e)
+        if "different IP addresses" in err_str or "AuthKeyDuplicatedError" in err_str:
+            friendly_err = (
+                "⚠️ <b>Telegram sessiyasi xavfsizlik sababli to'xtatildi!</b>\n\n"
+                "Sessiya bir vaqtning o'zida ikkita turli IP manzildan (masalan, kompyuter va Render serveridan) "
+                "ishlatilgani sababli Telegram xavfsizlik yuzasidan uni bekor qildi.\n\n"
+                "💡 <b>Yechim:</b> Yangi bir martalik sessiya yaratiladi va u faqat Render'da 24/7 ishlatiladi."
+            )
+        else:
+            friendly_err = f"❌ <b>Guruhlarni olishda xatolik yuz berdi:</b>\n<code>{e}</code>"
         await callback.message.edit_text(
-            f"❌ Guruhlarni olishda xatolik yuz berdi:\n<code>{e}</code>",
+            friendly_err,
             parse_mode="HTML",
             reply_markup=get_admin_back_keyboard()
         )
