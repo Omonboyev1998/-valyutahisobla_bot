@@ -197,6 +197,15 @@ def init_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS userbot_monitored_chats (
+                chat_id INTEGER PRIMARY KEY,
+                title TEXT NOT NULL,
+                username TEXT,
+                is_active INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
         seed_default_football_streams_if_empty(cursor)
         # Yangi ustunlarni tekshirib qo'shish (migratsiya)
         new_columns = [
@@ -1147,4 +1156,58 @@ def seed_default_secretary_schedules_if_empty(user_id: int, force_reset: bool = 
             conn.commit()
     except Exception as e:
         logger.error(f"Default jadvallarni yaratishda xatolik: {e}")
+
+# ==================== USERBOT GURUHLAR BOSHQARUVI ====================
+
+def get_monitored_chats() -> List[Dict[str, Any]]:
+    """Kuzatilayotgan guruhlar ro'yxati"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM userbot_monitored_chats ORDER BY created_at DESC")
+        rows = cursor.fetchall()
+        return [to_dict(cursor, row) for row in rows]
+
+def add_monitored_chat(chat_id: int, title: str, username: Optional[str] = None) -> bool:
+    """Yangi guruhni kuzatuvga qo'shish"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT OR REPLACE INTO userbot_monitored_chats (chat_id, title, username, is_active)
+            VALUES (?, ?, ?, 1)
+        """, (chat_id, title, username))
+        conn.commit()
+        return True
+
+def toggle_monitored_chat(chat_id: int, title: str = "", username: Optional[str] = None) -> bool:
+    """Guruhni faol/nofaol qilish"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT is_active FROM userbot_monitored_chats WHERE chat_id = ?", (chat_id,))
+        row = cursor.fetchone()
+        if row:
+            new_val = 0 if row[0] == 1 else 1
+            cursor.execute("UPDATE userbot_monitored_chats SET is_active = ? WHERE chat_id = ?", (new_val, chat_id))
+            conn.commit()
+            return bool(new_val)
+        else:
+            cursor.execute("""
+                INSERT INTO userbot_monitored_chats (chat_id, title, username, is_active)
+                VALUES (?, ?, ?, 1)
+            """, (chat_id, title, username))
+            conn.commit()
+            return True
+
+def is_chat_monitored(chat_id: int, title: str = "", username: Optional[str] = None) -> bool:
+    """Guruh kuzatilayotganligini tekshirish"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT is_active FROM userbot_monitored_chats WHERE chat_id = ? AND is_active = 1", (chat_id,))
+        if cursor.fetchone():
+            return True
+        if title:
+            cursor.execute("SELECT is_active FROM userbot_monitored_chats WHERE title = ? AND is_active = 1", (title,))
+            if cursor.fetchone():
+                return True
+        return False
+
 

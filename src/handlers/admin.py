@@ -7,15 +7,27 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
 
-from src.config import ADMIN_ID, ADMIN_IDS, WEB_APP_URL
-from src.database import get_statistics, export_users_csv, get_all_users, set_subscription
+from src.config import ADMIN_ID, ADMIN_IDS, WEB_APP_URL, TARGET_CHATS
+from src.database import (
+    get_statistics, export_users_csv, get_all_users, set_subscription,
+    get_monitored_chats, toggle_monitored_chat, add_monitored_chat
+)
 from src.keyboards.admin import (
     get_admin_main_keyboard,
     get_broadcast_confirm_keyboard,
-    get_admin_back_keyboard
+    get_admin_back_keyboard,
+    get_userbot_chats_menu_keyboard,
+    get_userbot_groups_toggle_keyboard,
+    get_userbot_scan_selection_keyboard,
+    get_scan_confirm_keyboard
 )
 from src.keyboards.reply import get_main_keyboard
 from src.services.cbu_service import cbu_service
+from src.userbot.listener import (
+    get_userbot_dialog_groups,
+    join_telegram_group,
+    scan_single_chat
+)
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +36,9 @@ router = Router(name="admin")
 class BroadcastState(StatesGroup):
     waiting_for_message = State()
     confirm = State()
+
+class JoinGroupState(StatesGroup):
+    waiting_for_link = State()
 
 def is_admin(user_id: int) -> bool:
     return user_id in ADMIN_IDS
@@ -85,6 +100,171 @@ async def callback_admin_close(callback: CallbackQuery, state: FSMContext):
     except Exception:
         await callback.message.edit_text("Admin panel yopildi.")
     await callback.answer()
+
+# ==================== USERBOT GURUHLAR BOSHQARUVI ====================
+
+@router.callback_query(F.data == "admin:userbot_chats")
+async def callback_admin_userbot_chats(callback: CallbackQuery, state: FSMContext):
+    if not is_admin(callback.from_user.id):
+        return
+    await state.clear()
+    monitored = get_monitored_chats()
+    active_count = sum(1 for m in monitored if m.get("is_active"))
+
+    text = (
+        "📡 <b>Userbot Guruh Kuzatuvchisi Boshqaruv Paneli</b>\n\n"
+        f"🟢 <b>Faol kuzatilayotgan guruhlar:</b> {active_count} ta\n"
+        f"📊 <b>Ro'yxatdagi jami guruhlar:</b> {len(monitored)} ta\n\n"
+        "Guruhlardan ustalar reklamalarini avtomatik ajratib olib, bot va Mini App'ga joylash uchun quyidagi bo'limlardan foydalaning:"
+    )
+    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=get_userbot_chats_menu_keyboard())
+    await callback.answer()
+
+@router.callback_query(F.data.startswith("ub:dialogs:"))
+async def callback_userbot_dialogs(callback: CallbackQuery):
+    if not is_admin(callback.from_user.id):
+        return
+    page = int(callback.data.split(":")[2])
+    await callback.answer("Guruhlar ro'yxati olinmoqda...")
+    try:
+        groups = await get_userbot_dialog_groups(limit=100)
+        monitored = get_monitored_chats()
+        active_ids = {m["chat_id"] for m in monitored if m.get("is_active")}
+        
+        # Standart TARGET_CHATS dagi guruhlarni ham avtomatik belgilash
+        for g in groups:
+            if any(t.lower() in g["title"].lower() for t in TARGET_CHATS):
+                active_ids.add(g["id"])
+
+        kb = get_userbot_groups_toggle_keyboard(groups, active_ids, page=page)
+        text = (
+            "📋 <b>Akkauntingiz a'zo bo'lgan guruhlar</b>\n\n"
+            "Kuzatmoqchi bo'lgan guruhingiz ustiga bosing:\n"
+            "✅ — Hozir kuzatuvda (reklamalar botga tushadi)\n"
+            "➕ — Kuzatilmayapti (yoqish uchun bosing)\n"
+        )
+        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=kb)
+    except Exception as e:
+        logger.error(f"Error fetching userbot dialogs: {e}")
+        await callback.message.edit_text(
+            f"❌ Guruhlarni olishda xatolik yuz berdi:\n<code>{e}</code>",
+            parse_mode="HTML",
+            reply_markup=get_admin_back_keyboard()
+        )
+
+@router.callback_query(F.data.startswith("ub:toggle:"))
+async def callback_userbot_toggle(callback: CallbackQuery):
+    if not is_admin(callback.from_user.id):
+        return
+    parts = callback.data.split(":")
+    chat_id = int(parts[2])
+    page = int(parts[3])
+
+    groups = await get_userbot_dialog_groups(limit=100)
+    title = next((g["title"] for g in groups if g["id"] == chat_id), "Guruh")
+    username = next((g["username"] for g in groups if g["id"] == chat_id), None)
+
+    new_status = toggle_monitored_chat(chat_id, title, username)
+    status_str = "faollashtirildi ✅" if new_status else "to'xtatildi ❌"
+    await callback.answer(f"{title[:20]} {status_str}!")
+
+    monitored = get_monitored_chats()
+    active_ids = {m["chat_id"] for m in monitored if m.get("is_active")}
+    kb = get_userbot_groups_toggle_keyboard(groups, active_ids, page=page)
+    await callback.message.edit_reply_markup(reply_markup=kb)
+
+@router.callback_query(F.data == "ub:join_prompt")
+async def callback_userbot_join_prompt(callback: CallbackQuery, state: FSMContext):
+    if not is_admin(callback.from_user.id):
+        return
+    await state.set_state(JoinGroupState.waiting_for_link)
+    await callback.message.edit_text(
+        "➕ <b>Havola orqali guruhga qo'shilish</b>\n\n"
+        "Guruhning havolasini yuboring (masalan: <code>https://t.me/+AbCdEf...</code> yoki <code>@guruh_nomi</code>):\n\n"
+        "Akkauntingiz ushbu guruhga o'zi avtomatik a'zo bo'ladi va uni kuzatuv ro'yxatiga kiritadi.\n\n"
+        "❌ Bekor qilish uchun: /cancel",
+        parse_mode="HTML"
+    )
+    await callback.answer()
+
+@router.message(JoinGroupState.waiting_for_link)
+async def process_join_group_link(message: Message, state: FSMContext):
+    if not is_admin(message.from_user.id):
+        return
+    link = (message.text or "").strip()
+    if link == "/cancel":
+        await state.clear()
+        await message.answer("Bekor qilindi.", reply_markup=get_admin_main_keyboard())
+        return
+
+    wait_msg = await message.answer("⏳ Guruhga a'zo bo'linmoqda, kuting...")
+    success, res_msg = await join_telegram_group(link)
+    await state.clear()
+    if success:
+        await wait_msg.edit_text(
+            f"🎉 <b>Muvaffaqiyatli!</b>\n\n{res_msg}\nGuruh avtomatik kuzatuv ro'yxatiga qo'shildi va undan reklamalar ushlanadi.",
+            parse_mode="HTML",
+            reply_markup=get_admin_back_keyboard()
+        )
+    else:
+        await wait_msg.edit_text(
+            f"❌ <b>A'zo bo'lishda xatolik yuz berdi:</b>\n<code>{res_msg}</code>",
+            parse_mode="HTML",
+            reply_markup=get_admin_back_keyboard()
+        )
+
+@router.callback_query(F.data.startswith("ub:scan_menu:"))
+async def callback_scan_menu(callback: CallbackQuery):
+    if not is_admin(callback.from_user.id):
+        return
+    page = int(callback.data.split(":")[2])
+    await callback.answer("Guruhlar ro'yxati olinmoqda...")
+    try:
+        groups = await get_userbot_dialog_groups(limit=100)
+        kb = get_userbot_scan_selection_keyboard(groups, page=page)
+        await callback.message.edit_text(
+            "🔍 <b>Tarixini skanerlamoqchi bo'lgan guruhni tanlang:</b>\n\n"
+            "Guruhdagi avvalgi e'lonlar aylanib chiqiladi va yangi ustalar bazaga qo'shiladi.",
+            parse_mode="HTML",
+            reply_markup=kb
+        )
+    except Exception as e:
+        await callback.message.edit_text(f"Xatolik: {e}", reply_markup=get_admin_back_keyboard())
+
+@router.callback_query(F.data.startswith("ub:scan_pick:"))
+async def callback_scan_pick(callback: CallbackQuery):
+    if not is_admin(callback.from_user.id):
+        return
+    chat_id = int(callback.data.split(":")[2])
+    kb = get_scan_confirm_keyboard(chat_id)
+    await callback.message.edit_text(
+        "⚡️ <b>Ushbu guruhdagi oxirgi nechta xabarni tahlil qilamiz?</b>\n\n"
+        "Tanlang:",
+        parse_mode="HTML",
+        reply_markup=kb
+    )
+    await callback.answer()
+
+@router.callback_query(F.data.startswith("ub:do_scan:"))
+async def callback_do_scan(callback: CallbackQuery, bot: Bot):
+    if not is_admin(callback.from_user.id):
+        return
+    parts = callback.data.split(":")
+    chat_id = int(parts[2])
+    limit = int(parts[3])
+    await callback.message.edit_text(f"⏳ Oxirgi {limit} ta xabar tahlil qilinmoqda, iltimos kuting...")
+    try:
+        added = await scan_single_chat(chat_id, bot, limit=limit)
+        await callback.message.edit_text(
+            f"🎉 <b>Skanerlash muvaffaqiyatli yakunlandi!</b>\n\n"
+            f"✅ <b>Jami qo'shilgan yangi ustalar soni:</b> {added} ta\n\n"
+            f"Barcha yangi ustalar bot va Mini App'dagi ro'yxatga muvaffaqiyatli kiritildi.",
+            parse_mode="HTML",
+            reply_markup=get_admin_back_keyboard()
+        )
+    except Exception as e:
+        logger.error(f"Error in scan: {e}")
+        await callback.message.edit_text(f"❌ Skanerlashda xatolik yuz berdi:\n<code>{e}</code>", parse_mode="HTML", reply_markup=get_admin_back_keyboard())
 
 # --- STATISTIKA ---
 @router.callback_query(F.data == "admin:stats")

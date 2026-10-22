@@ -2,7 +2,7 @@ import asyncio
 import logging
 import os
 import sys
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
@@ -31,8 +31,35 @@ logging.basicConfig(
 )
 logger = logging.getLogger("UserbotListener")
 
-def is_target_chat(chat_title: str, chat_username: Optional[str]) -> bool:
+_active_client: Optional[TelegramClient] = None
+
+async def get_or_create_client() -> TelegramClient:
+    """Telethon mijozini olish yoki ulash"""
+    global _active_client
+    if _active_client and _active_client.is_connected():
+        return _active_client
+
+    if TG_SESSION_STRING:
+        session = StringSession(TG_SESSION_STRING)
+    else:
+        os.makedirs(os.path.dirname(USERBOT_SESSION) or ".", exist_ok=True)
+        session = USERBOT_SESSION
+
+    _active_client = TelegramClient(session, TG_API_ID, TG_API_HASH)
+    await _active_client.connect()
+    return _active_client
+
+def is_target_chat(chat_id: int, chat_title: str, chat_username: Optional[str]) -> bool:
     """Xabar kelgan guruh biz kuzatmoqchi bo'lgan guruhlar ro'yxatida bormi?"""
+    # 1. Admin panel orqali bazada faollashtirilganmi?
+    from src.database import is_chat_monitored
+    try:
+        if is_chat_monitored(chat_id, chat_title, chat_username):
+            return True
+    except Exception:
+        pass
+
+    # 2. Config dagi standart TARGET_CHATS ro'yxatida bormi?
     if not TARGET_CHATS or "*" in TARGET_CHATS:
         return True
 
@@ -98,9 +125,10 @@ async def process_raw_message(message, bot: Optional[Bot] = None) -> bool:
     chat = await message.get_chat()
     chat_title = getattr(chat, 'title', 'Shaxsiy chat / Noma\'lum')
     chat_username = getattr(chat, 'username', None)
+    chat_id = getattr(chat, 'id', 0)
 
     # 1. Guruh biz kuzatayotgan guruh ekanligini tekshirish
-    if not is_target_chat(chat_title, chat_username):
+    if not is_target_chat(chat_id, chat_title, chat_username):
         return False
 
     sender = await message.get_sender()
@@ -223,7 +251,9 @@ async def start_userbot(scan_history: bool = False, history_limit: int = 50):
         session = USERBOT_SESSION
         logger.info(f"Userbot fayl sessiyasi orqali yuklanmoqda: {USERBOT_SESSION}")
 
+    global _active_client
     client = TelegramClient(session, TG_API_ID, TG_API_HASH)
+    _active_client = client
     bot = Bot(token=BOT_TOKEN)
 
     logger.info("Telegram Client-ga ulanish...")
@@ -246,6 +276,65 @@ async def start_userbot(scan_history: bool = False, history_limit: int = 50):
             logger.error(f"Xabarni qabul qilishda xatolik: {e}")
 
     await client.run_until_disconnected()
+
+async def get_userbot_dialog_groups(limit: int = 100) -> List[Dict[str, Any]]:
+    """Akkaunt a'zo bo'lgan guruhlar ro'yxatini olish"""
+    client = await get_or_create_client()
+    dialogs = await client.get_dialogs(limit=limit)
+    res = []
+    for d in dialogs:
+        if d.is_group:
+            res.append({
+                "id": d.id,
+                "title": d.title,
+                "username": getattr(d.entity, "username", None)
+            })
+    return res
+
+async def join_telegram_group(invite: str) -> Tuple[bool, str]:
+    """Guruhga havola orqali a'zo bo'lish"""
+    client = await get_or_create_client()
+    clean_invite = invite.strip()
+    try:
+        from telethon.tl.functions.channels import JoinChannelRequest
+        from telethon.tl.functions.messages import ImportChatInviteRequest
+        from src.database import add_monitored_chat
+
+        if "+" in clean_invite or "joinchat/" in clean_invite:
+            hash_str = clean_invite.split("+")[-1].split("joinchat/")[-1].strip("/")
+            res = await client(ImportChatInviteRequest(hash_str))
+            title = getattr(res.chats[0], "title", "Guruh") if res.chats else "Guruh"
+            chat_id = res.chats[0].id if res.chats else 0
+            if chat_id:
+                add_monitored_chat(chat_id, title)
+            return True, f"Muvaffaqiyatli a'zo bo'lindi: {title}"
+        else:
+            clean_username = clean_invite.replace("https://t.me/", "").replace("t.me/", "").lstrip("@")
+            entity = await client.get_entity(clean_username)
+            await client(JoinChannelRequest(entity))
+            title = getattr(entity, "title", clean_username)
+            chat_id = getattr(entity, "id", 0)
+            if chat_id:
+                add_monitored_chat(chat_id, title, getattr(entity, "username", None))
+            return True, f"Muvaffaqiyatli a'zo bo'lindi: {title}"
+    except Exception as e:
+        logger.error(f"Guruhga a'zo bo'lishda xatolik: {e}")
+        return False, str(e)
+
+async def scan_single_chat(chat_id: int, bot: Bot, limit: int = 50) -> int:
+    """Aynan bitta guruh tarixini skanerlash"""
+    client = await get_or_create_client()
+    entity = await client.get_entity(chat_id)
+    added_count = 0
+    async for msg in client.iter_messages(entity, limit=limit):
+        try:
+            res = await process_raw_message(msg, bot)
+            if res:
+                added_count += 1
+            await asyncio.sleep(0.2)
+        except Exception as e:
+            logger.error(f"Xabarni skanerlashda xatolik: {e}")
+    return added_count
 
 if __name__ == "__main__":
     scan = "--scan" in sys.argv
