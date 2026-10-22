@@ -116,6 +116,68 @@ async def notify_admin_about_new_service(
 
     return photo_id
 
+async def send_auto_dm_to_master(
+    client: TelegramClient,
+    sender_id: int,
+    sender_username: Optional[str],
+    master_name: str,
+    chat_title: str,
+    service_id: int
+) -> bool:
+    """Yangi qo'shilgan ustaga xushmuomala xabar yuborish (Auto-DM Onboarding)"""
+    from src.database import (
+        get_userbot_setting,
+        has_dm_been_sent_to_user,
+        log_auto_dm_sent,
+        DEFAULT_AUTO_DM_TEMPLATE
+    )
+
+    # 1. Sozlama yoqilganligini tekshirish (1 = yoqilgan, 0 = o'chirilgan)
+    is_enabled = get_userbot_setting("auto_dm_enabled", "1")
+    if is_enabled != "1":
+        logger.info("Auto-DM o'chirilgan, xabar yuborilmadi.")
+        return False
+
+    # 2. O'zimizga xabar yubormaslik
+    try:
+        me = await client.get_me()
+        if sender_id == me.id:
+            return False
+    except Exception:
+        pass
+
+    # 3. Ushbu ustaga avval xabar yuborilganmi? (Spamdan himoya)
+    if has_dm_been_sent_to_user(sender_id):
+        logger.info(f"Foydalanuvchiga ({sender_id}) allaqachon avto-xabar yuborilgan, qayta yuborilmadi.")
+        return False
+
+    # 4. Xabar matnini tayyorlash
+    template = get_userbot_setting("auto_dm_template", DEFAULT_AUTO_DM_TEMPLATE)
+    try:
+        message_text = template.format(
+            master_name=master_name,
+            chat_title=chat_title,
+            service_id=service_id
+        )
+    except Exception:
+        message_text = DEFAULT_AUTO_DM_TEMPLATE.format(
+            master_name=master_name,
+            chat_title=chat_title,
+            service_id=service_id
+        )
+
+    try:
+        # Xavfsizlik uchun kutish (Telegram flood limitlarini buzmaslik uchun)
+        await asyncio.sleep(3.0)
+        target = sender_username or sender_id
+        await client.send_message(target, message_text)
+        log_auto_dm_sent(sender_id, sender_username, service_id, message_text)
+        logger.info(f"✅ Ustaga ({master_name} - {sender_id}) muvaffaqiyatli xush kelibsiz xabari yuborildi!")
+        return True
+    except Exception as e:
+        logger.warning(f"Ustaga xabar yuborishda xatolik: {e}")
+        return False
+
 async def process_raw_message(message, bot: Optional[Bot] = None) -> bool:
     """Xabarni qabul qilish, tahlil qilish va bazaga qo'shish"""
     raw_text = message.text or message.message or ""
@@ -184,6 +246,19 @@ async def process_raw_message(message, bot: Optional[Bot] = None) -> bool:
             photo_id=None
         )
         logger.info(f"Muvaffaqiyatli saqlandi! Yangi Usta ID: #{new_id} ({ad_data['master_name']} - {phone})")
+        
+        # Ustaga shaxsiyida avtomatik xush kelibsiz xabarini yuborish (Auto-DM)
+        if sender_info.get("id") and hasattr(message, "client") and message.client:
+            asyncio.create_task(
+                send_auto_dm_to_master(
+                    client=message.client,
+                    sender_id=sender_info["id"],
+                    sender_username=sender_info.get("username"),
+                    master_name=ad_data["master_name"],
+                    chat_title=chat_title,
+                    service_id=new_id
+                )
+            )
     except Exception as e:
         logger.error(f"Xizmatni saqlashda xatolik: {e}")
         return False

@@ -10,7 +10,9 @@ from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
 from src.config import ADMIN_ID, ADMIN_IDS, WEB_APP_URL, TARGET_CHATS
 from src.database import (
     get_statistics, export_users_csv, get_all_users, set_subscription,
-    get_monitored_chats, toggle_monitored_chat, add_monitored_chat
+    get_monitored_chats, toggle_monitored_chat, add_monitored_chat,
+    get_userbot_setting, set_userbot_setting, count_auto_dms_sent,
+    DEFAULT_AUTO_DM_TEMPLATE
 )
 from src.keyboards.admin import (
     get_admin_main_keyboard,
@@ -39,6 +41,9 @@ class BroadcastState(StatesGroup):
 
 class JoinGroupState(StatesGroup):
     waiting_for_link = State()
+
+class AutoDmState(StatesGroup):
+    waiting_for_template = State()
 
 def is_admin(user_id: int) -> bool:
     return user_id in ADMIN_IDS
@@ -110,15 +115,91 @@ async def callback_admin_userbot_chats(callback: CallbackQuery, state: FSMContex
     await state.clear()
     monitored = get_monitored_chats()
     active_count = sum(1 for m in monitored if m.get("is_active"))
+    auto_dm_enabled = get_userbot_setting("auto_dm_enabled", "1") == "1"
+    auto_dm_status = "✅ Yoqilgan" if auto_dm_enabled else "❌ O'chirilgan"
+    dms_sent_count = count_auto_dms_sent()
 
     text = (
         "📡 <b>Userbot Guruh Kuzatuvchisi Boshqaruv Paneli</b>\n\n"
         f"🟢 <b>Faol kuzatilayotgan guruhlar:</b> {active_count} ta\n"
-        f"📊 <b>Ro'yxatdagi jami guruhlar:</b> {len(monitored)} ta\n\n"
-        "Guruhlardan ustalar reklamalarini avtomatik ajratib olib, bot va Mini App'ga joylash uchun quyidagi bo'limlardan foydalaning:"
+        f"📊 <b>Ro'yxatdagi jami guruhlar:</b> {len(monitored)} ta\n"
+        f"💬 <b>Ustaga avto-xabar (Auto-DM):</b> {auto_dm_status}\n"
+        f"📩 <b>Jami yuborilgan avto-xabarlar:</b> {dms_sent_count} ta\n\n"
+        "Guruhlardan ustalar reklamalarini avtomatik ajratib olib, bot va Mini App'ga joylash hamda ustalar bilan shaxsiyda bog'lanish uchun quyidagi bo'limlardan foydalaning:"
     )
-    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=get_userbot_chats_menu_keyboard())
+    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=get_userbot_chats_menu_keyboard(auto_dm_enabled=auto_dm_enabled))
     await callback.answer()
+
+@router.callback_query(F.data == "ub:toggle_autodm")
+async def callback_userbot_toggle_autodm(callback: CallbackQuery):
+    if not is_admin(callback.from_user.id):
+        return
+    current = get_userbot_setting("auto_dm_enabled", "1")
+    new_val = "0" if current == "1" else "1"
+    set_userbot_setting("auto_dm_enabled", new_val)
+    status_str = "faollashtirildi ✅" if new_val == "1" else "to'xtatildi ❌"
+    await callback.answer(f"Avto-xabar yuborish {status_str}!")
+
+    monitored = get_monitored_chats()
+    active_count = sum(1 for m in monitored if m.get("is_active"))
+    auto_dm_enabled = new_val == "1"
+    auto_dm_status = "✅ Yoqilgan" if auto_dm_enabled else "❌ O'chirilgan"
+    dms_sent_count = count_auto_dms_sent()
+
+    text = (
+        "📡 <b>Userbot Guruh Kuzatuvchisi Boshqaruv Paneli</b>\n\n"
+        f"🟢 <b>Faol kuzatilayotgan guruhlar:</b> {active_count} ta\n"
+        f"📊 <b>Ro'yxatdagi jami guruhlar:</b> {len(monitored)} ta\n"
+        f"💬 <b>Ustaga avto-xabar (Auto-DM):</b> {auto_dm_status}\n"
+        f"📩 <b>Jami yuborilgan avto-xabarlar:</b> {dms_sent_count} ta\n\n"
+        "Guruhlardan ustalar reklamalarini avtomatik ajratib olib, bot va Mini App'ga joylash hamda ustalar bilan shaxsiyda bog'lanish uchun quyidagi bo'limlardan foydalaning:"
+    )
+    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=get_userbot_chats_menu_keyboard(auto_dm_enabled=auto_dm_enabled))
+
+@router.callback_query(F.data == "ub:edit_dm_template")
+async def callback_userbot_edit_dm_template(callback: CallbackQuery, state: FSMContext):
+    if not is_admin(callback.from_user.id):
+        return
+    await state.set_state(AutoDmState.waiting_for_template)
+    current_tmpl = get_userbot_setting("auto_dm_template", DEFAULT_AUTO_DM_TEMPLATE)
+    text = (
+        "✏️ <b>Ustaga yuboriladigan avto-xabar matnini tahrirlash</b>\n\n"
+        "Guruhda yangi usta topilganda uning shaxsiyiga yuboriladigan yangi matnni yozing.\n\n"
+        "<b>Mavjud o'zgaruvchilar:</b>\n"
+        "• <code>{master_name}</code> — Usta ismi\n"
+        "• <code>{chat_title}</code> — Guruh nomi\n"
+        "• <code>{service_id}</code> — E'lon ID raqami\n\n"
+        f"<b>Hozirgi matn:</b>\n<i>{current_tmpl}</i>\n\n"
+        "Standart holatga qaytarish uchun: <code>/default</code>\n"
+        "Bekor qilish uchun: /cancel"
+    )
+    await callback.message.edit_text(text, parse_mode="HTML")
+    await callback.answer()
+
+@router.message(AutoDmState.waiting_for_template)
+async def process_new_auto_dm_template(message: Message, state: FSMContext):
+    if not is_admin(message.from_user.id):
+        return
+    text = (message.text or "").strip()
+    if text == "/cancel":
+        await state.clear()
+        await message.answer("Tahrirlash bekor qilindi.", reply_markup=get_admin_main_keyboard())
+        return
+
+    if text == "/default":
+        set_userbot_setting("auto_dm_template", DEFAULT_AUTO_DM_TEMPLATE)
+        await state.clear()
+        await message.answer("✅ Avto-xabar matni standart holatga qaytarildi!", reply_markup=get_admin_back_keyboard())
+        return
+
+    set_userbot_setting("auto_dm_template", text)
+    await state.clear()
+    await message.answer(
+        "🎉 <b>Yangi avto-xabar matni muvaffaqiyatli saqlandi!</b>\n\n"
+        f"Endi har bir yangi usta topilganda unga ushbu matn yuboriladi:\n\n<i>{text}</i>",
+        parse_mode="HTML",
+        reply_markup=get_admin_back_keyboard()
+    )
 
 @router.callback_query(F.data.startswith("ub:dialogs:"))
 async def callback_userbot_dialogs(callback: CallbackQuery):

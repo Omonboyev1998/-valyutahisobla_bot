@@ -21,8 +21,9 @@ def get_admin_main_keyboard() -> InlineKeyboardMarkup:
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-def get_userbot_chats_menu_keyboard() -> InlineKeyboardMarkup:
+def get_userbot_chats_menu_keyboard(auto_dm_enabled: bool = True) -> InlineKeyboardMarkup:
     """Userbot guruhlar boshqaruv menyusi"""
+    dm_status = "✅ Yoqilgan" if auto_dm_enabled else "❌ O'chirilgan"
     buttons = [
         [
             InlineKeyboardButton(text="📋 Guruhlarni yoqish / o'chirish", callback_data="ub:dialogs:0")
@@ -32,6 +33,12 @@ def get_userbot_chats_menu_keyboard() -> InlineKeyboardMarkup:
         ],
         [
             InlineKeyboardButton(text="🔍 Guruh tarixini skanerlash", callback_data="ub:scan_menu:0")
+        ],
+        [
+            InlineKeyboardButton(text=f"💬 Ustaga avto-xabar: {dm_status}", callback_data="ub:toggle_autodm")
+        ],
+        [
+            InlineKeyboardButton(text="✏️ Avto-xabar matnini tahrirlash", callback_data="ub:edit_dm_template")
         ],
         [
             InlineKeyboardButton(text="◀️ Admin panelga qaytish", callback_data="admin:back")

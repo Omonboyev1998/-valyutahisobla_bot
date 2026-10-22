@@ -206,6 +206,22 @@ def init_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS userbot_auto_dm_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                recipient_id INTEGER NOT NULL,
+                recipient_username TEXT,
+                service_id INTEGER,
+                message_text TEXT,
+                sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS userbot_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT
+            )
+        """)
         seed_default_football_streams_if_empty(cursor)
         # Yangi ustunlarni tekshirib qo'shish (migratsiya)
         new_columns = [
@@ -1209,5 +1225,62 @@ def is_chat_monitored(chat_id: int, title: str = "", username: Optional[str] = N
             if cursor.fetchone():
                 return True
         return False
+
+# ==================== USERBOT AUTO-DM (USTAGA XABAR YUBORISH) ====================
+
+DEFAULT_AUTO_DM_TEMPLATE = (
+    "Assalomu alaykum, {master_name}! 🤝\n\n"
+    "Sizning \"{chat_title}\" guruhidagi xizmat e'loningizni ko'rdik. "
+    "Xizmatingizni hududimizdagi minglab aholi tez va oson topishi uchun @valyutahisobla_bot ning \"Ustalar / Xizmatlar\" bo'limiga bepul kartochka qilib joyladik. 🛠✨\n\n"
+    "Kartochkangizni ko'rish, tahrirlash yoki yangilash uchun botimizga kiring:\n"
+    "👉 @valyutahisobla_bot"
+)
+
+def get_userbot_setting(key: str, default: str = "") -> str:
+    """Userbot sozlamasini olish"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT value FROM userbot_settings WHERE key = ?", (key,))
+        row = cursor.fetchone()
+        return row[0] if row and row[0] is not None else default
+
+def set_userbot_setting(key: str, value: str) -> bool:
+    """Userbot sozlamasini saqlash"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT OR REPLACE INTO userbot_settings (key, value)
+            VALUES (?, ?)
+        """, (key, str(value)))
+        conn.commit()
+        return True
+
+def has_dm_been_sent_to_user(recipient_id: int) -> bool:
+    """Ushbu foydalanuvchiga avval avto-xabar yuborilganmi?"""
+    if not recipient_id:
+        return False
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM userbot_auto_dm_logs WHERE recipient_id = ? LIMIT 1", (recipient_id,))
+        return cursor.fetchone() is not None
+
+def log_auto_dm_sent(recipient_id: int, recipient_username: Optional[str], service_id: int, message_text: str) -> bool:
+    """Yuborilgan xabarni qayd etish"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO userbot_auto_dm_logs (recipient_id, recipient_username, service_id, message_text)
+            VALUES (?, ?, ?, ?)
+        """, (recipient_id, recipient_username, service_id, message_text))
+        conn.commit()
+        return True
+
+def count_auto_dms_sent() -> int:
+    """Yuborilgan jami avto-xabarlar soni"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM userbot_auto_dm_logs")
+        return cursor.fetchone()[0]
+
 
 
