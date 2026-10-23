@@ -565,6 +565,93 @@ def add_service(
         conn.commit()
         return cursor.lastrowid
 
+def find_matching_service(
+    phone: Optional[str] = None,
+    user_id: Optional[int] = None,
+    username: Optional[str] = None
+) -> Optional[Dict[str, Any]]:
+    """Mavjud xizmatni telefon raqam, user_id yoki username bo'yicha topish (dublikatni aniqlash)"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        
+        # 1. Telefon raqam oxirgi 9 raqami bo'yicha
+        if phone:
+            clean_digits = "".join(filter(str.isdigit, phone))
+            search_suffix = clean_digits[-9:] if len(clean_digits) >= 9 else clean_digits
+            if len(search_suffix) >= 7:
+                cursor.execute("SELECT * FROM services WHERE phone LIKE ? LIMIT 1", (f"%{search_suffix}%",))
+                row = cursor.fetchone()
+                if row:
+                    return to_dict(cursor, row)
+
+        # 2. Telegram user_id bo'yicha (agar haqiqiy user_id bo'lsa)
+        if user_id and user_id > 100:
+            cursor.execute("SELECT * FROM services WHERE user_id = ? LIMIT 1", (user_id,))
+            row = cursor.fetchone()
+            if row:
+                return to_dict(cursor, row)
+
+        # 3. Telegram username bo'yicha
+        if username:
+            clean_u = username.lstrip("@").strip().lower()
+            if clean_u:
+                cursor.execute("SELECT * FROM services WHERE LOWER(username) = ? LIMIT 1", (clean_u,))
+                row = cursor.fetchone()
+                if row:
+                    return to_dict(cursor, row)
+
+        return None
+
+def update_service_info(
+    service_id: int,
+    master_name: Optional[str] = None,
+    phone: Optional[str] = None,
+    category: Optional[str] = None,
+    title: Optional[str] = None,
+    description: Optional[str] = None,
+    region: Optional[str] = None,
+    price: Optional[str] = None,
+    photo_id: Optional[str] = None
+) -> bool:
+    """Mavjud xizmat kartochkasini yangi ma'lumotlar bilan yangilash (dublikat hosil qilmaslik uchun)"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        updates = []
+        params = []
+        if master_name:
+            updates.append("master_name = ?")
+            params.append(master_name)
+        if phone:
+            updates.append("phone = ?")
+            params.append(phone)
+        if category:
+            updates.append("category = ?")
+            params.append(category)
+        if title:
+            updates.append("title = ?")
+            params.append(title)
+        if description:
+            updates.append("description = ?")
+            params.append(description)
+        if region:
+            updates.append("region = ?")
+            params.append(region)
+        if price:
+            updates.append("price = ?")
+            params.append(price)
+        if photo_id:
+            updates.append("photo_id = ?")
+            params.append(photo_id)
+
+        updates.append("created_at = CURRENT_TIMESTAMP")
+        updates.append("is_active = 1")
+
+        query = f"UPDATE services SET {', '.join(updates)} WHERE id = ?"
+        params.append(service_id)
+        cursor.execute(query, tuple(params))
+        conn.commit()
+        return True
+
 def get_services(
     category: Optional[str] = None,
     region: Optional[str] = None,
@@ -579,8 +666,11 @@ def get_services(
         params: List[Any] = []
 
         if category and category != "Barchasi":
-            query += " AND category = ?"
-            params.append(category)
+            import re
+            clean_c = re.sub(r"[^\w\s]", "", category).strip()
+            first_w = clean_c.split()[0] if clean_c else category
+            query += " AND (category = ? OR category LIKE ? OR ? LIKE ('%' || category || '%'))"
+            params.extend([category, f"%{first_w}%", category])
 
         if region and region != "Barcha hududlar":
             query += " AND (region = ? OR region = 'Barcha hududlar')"
@@ -609,8 +699,11 @@ def count_services(
         params: List[Any] = []
 
         if category and category != "Barchasi":
-            query += " AND category = ?"
-            params.append(category)
+            import re
+            clean_c = re.sub(r"[^\w\s]", "", category).strip()
+            first_w = clean_c.split()[0] if clean_c else category
+            query += " AND (category = ? OR category LIKE ? OR ? LIKE ('%' || category || '%'))"
+            params.extend([category, f"%{first_w}%", category])
 
         if region and region != "Barcha hududlar":
             query += " AND (region = ? OR region = 'Barcha hududlar')"

@@ -68,11 +68,41 @@ SERVICE_INTENT_WORDS = [
     "boglanish", "aloqa", "murojaat"
 ]
 
-# Reklama EMAS / Istisno so'zlar (masalan kimdir usta qidirayotgan bo'lsa)
+# Reklama EMAS / Istisno so'zlar (masalan kimdir usta qidirayotgan yoki savdo do'koni bo'lsa)
 NON_SERVICE_WORDS = [
     "kerak", "kerakmi", "bormi", "kim biladi", "qidiryapman", "sotiladi",
-    "narxi qancha", "topib bering", "tashavoring"
+    "narxi qancha", "topib bering", "tashavoring", "do'kon ochildi", "dokon ochildi",
+    "magazin ochildi", "do'konimiz ochildi", "dokonimiz ochildi", "optom", "ulgurji",
+    "dorixona", "apteka", "aksiya boshlandi", "skidka"
 ]
+
+def clean_master_name(raw_name: str) -> str:
+    """Usta ismidan telefon raqamlari, ortiqcha belgi va reklamalarni tozalash"""
+    if not raw_name:
+        return "Usta"
+    name = re.sub(r'(?:\+?998|\b9[01345789]|\b33|\b88|\b71)[\s\d\-]{5,}', '', raw_name)
+    name = re.sub(r'(?i)\btel(?:\s*[\.:])?|\bnomer|\braqam', '', name)
+    name = re.sub(r'[\.\:\;\*\#\_\~\!\?\|\/\\]+', ' ', name)
+    name = re.sub(r'[^\w\s\']', '', name)
+    name = " ".join(name.split())
+    if len(name) < 2 or name.lower() in ["noma'lum", "unknown", "admin", "null", "user"]:
+        return "Usta"
+    return name[:40].strip()
+
+def clean_service_title(raw_title: str, category: str) -> str:
+    """Sarlavhadan markdown (**), telefonlar va reklamalarni tozalash"""
+    if not raw_title:
+        clean_cat = category.split(" ", 1)[-1]
+        return f"{clean_cat} xizmati"
+    t = re.sub(r'[*#_~`]+', '', raw_title)
+    t = re.sub(r'(?:\+?998|\b9[01345789]|\b33|\b88|\b71)[\s\d\-]{5,}', '', t)
+    t = re.sub(r'https?://\S+|t\.me/\S+|@[a-zA-Z0-9_]+', '', t)
+    t = " ".join(t.split()).strip(" -—:,.")
+    if len(t) < 4:
+        clean_cat = category.split(" ", 1)[-1]
+        return f"{clean_cat} xizmati"
+    return t[:80]
+
 
 def extract_uzbek_phone(text: str) -> Optional[str]:
     """
@@ -183,7 +213,9 @@ def parse_ad_heuristic(text: str, sender_info: Optional[Dict[str, Any]] = None) 
             break
 
     clean_cat_name = matched_category.split(" ", 1)[-1]
-    title = candidate_title if candidate_title else f"{clean_cat_name} xizmati"
+    raw_cand_title = candidate_title if candidate_title else f"{clean_cat_name} xizmati"
+    title = clean_service_title(raw_cand_title, matched_category)
+    sender_name = clean_master_name(sender_name)
 
     # Region aniqlash (Default: Andijon / Xortum)
     region = "Andijon"
@@ -232,11 +264,12 @@ Kategoriyalar ro'yxati (faqat shu ro'yxatdan birini tanlang):
 QOIDALAR:
 1. Agar bu oddiy gaplashish, savol ("santexnik bormi?"), narsa sotish (mashina, telefon, velosiped sotiladi) yoki spam bo'lsa:
    {{"is_service_ad": false}} qaytaring.
-2. Agar usta/xizmat o'z xizmatini taklif qilayotgan bo'lsa:
+2. DO'KON/MAGAZIN OCHILISHI ("Do'kon ochildi", "Magazinimizga marhamat", "Do'konimiz ochildi"), tovarlar, kiyim-kechak, oziq-ovqat, optom savdo yoki dorixona e'lonlarini MAISHIY XIZMAT DEB QABUL QILMANG! Bunday holatlarda: {{"is_service_ad": false}} qaytaring.
+3. Agar usta/xizmat (santexnik, elektrik, remont, yuk tashish, klining, tozalash, chorva, bog'bon) o'z xizmatini taklif qilayotgan bo'lsa:
    - "is_service_ad": true
-   - "category": Ro'yxatdagi mos kategoriya
-   - "title": Qisqa va aniq sarlavha (masalan: "Uy ta'miri va kafel terish")
-   - "master_name": Usta ismi (agar bo'lsa, aks holda "Usta")
+   - "category": Ro'yxatdagi eng mos kategoriya
+   - "title": Qisqa va aniq toza sarlavha (hech qanday ** yoki emojilar qo'shmang)
+   - "master_name": Usta ismi (agar xabarda ismi bo'lsa, aks holda "Usta". Telefon raqamlarni ismga qo'shmang!)
    - "phone": Telefon raqami (+998XXXXXXXXX formatda). Agar xabarda telefon bo'lmasa, bo'sh satr ""
    - "description": Xizmat haqida tozalangan, chiroyli tavsif
    - "region": Xizmat hududi (agar Andijon yoki Xortum bo'lsa "Andijon", aks holda mos viloyat yoki "Barcha hududlar")
@@ -281,6 +314,9 @@ Faqat toza JSON formatida javob bering, hech qanday markdown (` ```json `) yoki 
                             clean_json = clean_json[:-3]
                         result = json.loads(clean_json.strip())
                         if result.get("is_service_ad") and result.get("phone"):
+                            # Usta ismi va sarlavhani tozalash
+                            result["master_name"] = clean_master_name(result.get("master_name", ""))
+                            result["title"] = clean_service_title(result.get("title", ""), result.get("category", ""))
                             # Agar username yuborilgan bo'lsa
                             if sender_info and sender_info.get("username"):
                                 result["username"] = sender_info.get("username")

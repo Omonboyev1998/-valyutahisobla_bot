@@ -18,7 +18,7 @@ from src.config import (
     ADMIN_ID,
     GEMINI_API_KEY
 )
-from src.database import add_service, get_service_by_phone
+from src.database import add_service, get_service_by_phone, find_matching_service, update_service_info
 from src.services.ad_parser_service import parse_ad_with_gemini
 
 # Aiogram bot orqali adminga xabar va rasm yuborish
@@ -218,11 +218,26 @@ async def process_raw_message(message, bot: Optional[Bot] = None) -> bool:
     if not phone:
         return False
 
-    # 4. Dublikatni tekshirish: bu telefon raqam allaqachon bormi?
-    existing = get_service_by_phone(phone)
+    # 4. Dublikatni tekshirish: bu usta allaqachon bormi? (telefon, user_id yoki username bo'yicha)
+    existing = find_matching_service(
+        phone=phone,
+        user_id=sender_info.get("id"),
+        username=sender_info.get("username")
+    )
     if existing:
-        logger.info(f"O'tkazib yuborildi: {phone} raqamli usta allaqachon mavjud (ID: #{existing['id']})")
-        return False
+        existing_id = existing["id"]
+        logger.info(f"Mavjud usta yangilanmoqda: #{existing_id} ({ad_data['master_name']} - {phone})")
+        update_service_info(
+            service_id=existing_id,
+            master_name=ad_data["master_name"],
+            phone=phone,
+            category=ad_data["category"],
+            title=ad_data["title"],
+            description=ad_data["description"],
+            region=ad_data.get("region", "Andijon"),
+            price=ad_data.get("price", "Kelishilgan holda")
+        )
+        return True
 
     # Agar xizmat tasdiqlangan bo'lsa va rasm bo'lsa (lekin hali yuklanmagan bo'lsa), yuklab olamiz
     if message.photo and not photo_bytes:
