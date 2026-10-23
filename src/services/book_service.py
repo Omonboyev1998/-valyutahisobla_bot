@@ -35,6 +35,7 @@ _last_scanned_title = ""
 def get_copier_debug_status() -> Dict[str, Any]:
     global _indexing_running, _last_copier_status, _last_copier_error, _last_scanned_title
     return {
+        "version": "v3-inputfilter-dialogsearch",
         "running": _indexing_running,
         "status": _last_copier_status,
         "error": _last_copier_error,
@@ -154,14 +155,30 @@ async def run_book_copier(limit_total: int = 50000):
             source_entity = await client.get_entity(BOOK_SOURCE_CHAT)
 
             dest_entity = None
-            candidates_to_try = [BOOK_STORAGE_CHAT_ID, BOOK_STORAGE_CHAT, "dunyokitoblari1"]
-            for target_id in candidates_to_try:
+            raw_target_id = int(str(BOOK_STORAGE_CHAT_ID).replace("-100", "").lstrip("-"))
+            target_ids = [BOOK_STORAGE_CHAT_ID, raw_target_id, BOOK_STORAGE_CHAT, "dunyokitoblari1"]
+            for target_id in target_ids:
                 try:
                     dest_entity = await client.get_entity(target_id)
                     if dest_entity:
                         break
                 except Exception:
                     pass
+
+            if not dest_entity:
+                # Agar to'g'ridan-to'g'ri get_entity topolmasa, userbotning dialoglar ro'yxatidan qidiramiz
+                async for dialog in client.iter_dialogs(limit=250):
+                    clean_d_id = str(dialog.id).replace("-100", "").lstrip("-")
+                    target_clean_id = str(BOOK_STORAGE_CHAT_ID).replace("-100", "").lstrip("-")
+                    d_username = (getattr(dialog.entity, "username", "") or "").lower()
+                    if (
+                        clean_d_id == target_clean_id 
+                        or dialog.id == BOOK_STORAGE_CHAT_ID 
+                        or d_username in ("dunyokitoblari1", str(BOOK_STORAGE_CHAT).lstrip("@").lower())
+                    ):
+                        dest_entity = dialog.entity
+                        logger.info(f"Ombor kanal dialoglar ro'yxatidan topildi: {dialog.name} (id={dialog.id})")
+                        break
 
             if not dest_entity:
                 raise ValueError(f"Ombor kanal topilmadi: {BOOK_STORAGE_CHAT} ({BOOK_STORAGE_CHAT_ID})")
