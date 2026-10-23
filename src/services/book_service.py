@@ -102,6 +102,10 @@ def is_indexing_active() -> bool:
 def stop_indexing():
     global _indexing_running, _indexing_task
     _indexing_running = False
+    try:
+        set_userbot_setting("is_book_indexing_enabled", "0")
+    except Exception:
+        pass
     if _indexing_task and not _indexing_task.done():
         _indexing_task.cancel()
 
@@ -109,6 +113,7 @@ async def run_book_copier(limit_total: int = 50000):
     """
     Userbot orqali source guruhdagi kitoblarni private kanalga nusxalab,
     bazaga indekslaydigan asosiy asinxron jarayon.
+    Uzilishlar va tarmoq xatolariga chidamli (Auto-retry).
     """
     global _indexing_running
     _indexing_running = True
@@ -116,95 +121,109 @@ async def run_book_copier(limit_total: int = 50000):
     from src.userbot.listener import get_or_create_client
     logger.info("Kitoblar nusxalash jarayoni boshlanmoqda...")
 
-    try:
-        client = await get_or_create_client()
-        source_entity = await client.get_entity(BOOK_SOURCE_CHAT)
-        dest_entity = await client.get_entity(BOOK_STORAGE_CHAT)
+    indexed_in_this_run = 0
 
-        last_id_str = get_userbot_setting("last_scanned_book_msg_id", "0")
-        min_id = int(last_id_str) if last_id_str.isdigit() else 0
+    while _indexing_running:
+        try:
+            client = await get_or_create_client()
+            source_entity = await client.get_entity(BOOK_SOURCE_CHAT)
+            dest_entity = await client.get_entity(BOOK_STORAGE_CHAT)
 
-        indexed_in_this_run = 0
-        current_highest_id = min_id
+            last_id_str = get_userbot_setting("last_scanned_book_msg_id", "0")
+            min_id = int(last_id_str) if last_id_str.isdigit() else 0
+            current_highest_id = min_id
 
-        # Orqadan oldinga (eng eskidan yangigacha yoki yangidan eskisigacha)
-        # reverse=True qilsak eng birinchi xabarlardan boshlab o'qiydi
-        async for msg in client.iter_messages(source_entity, min_id=min_id, reverse=True):
-            if not _indexing_running:
-                logger.info("Kitoblar nusxalash jarayoni foydalanuvchi tomonidan to'xtatildi.")
-                break
+            logger.info(f"Nusxalash #{min_id} xabardan davom ettirilmoqda...")
 
-            current_highest_id = max(current_highest_id, msg.id)
-            set_userbot_setting("last_scanned_book_msg_id", str(current_highest_id))
+            async for msg in client.iter_messages(source_entity, min_id=min_id, reverse=True):
+                if not _indexing_running:
+                    logger.info("Kitoblar nusxalash jarayoni foydalanuvchi tomonidan to'xtatildi.")
+                    return
 
-            # Xabarda hujjat (fayl) bormi?
-            if not msg.media or not getattr(msg, "file", None):
-                continue
+                current_highest_id = max(current_highest_id, msg.id)
+                # Har 10 ta xabarda bir oxirgi o'qilgan ID ni bazaga yangilash
+                if msg.id % 10 == 0 or msg.media:
+                    set_userbot_setting("last_scanned_book_msg_id", str(current_highest_id))
 
-            file_obj = msg.file
-            file_name = file_obj.name or ""
-            file_ext = (file_obj.ext or "").lower().lstrip(".")
-            mime_type = file_obj.mime_type or ""
-
-            # Faqat elektron kitob formatlari
-            if file_ext not in BOOK_EXTENSIONS and "pdf" not in mime_type and "epub" not in mime_type:
-                continue
-
-            # Avval nusxalanganmi?
-            if is_book_indexed(str(source_entity.id), msg.id, file_name, file_obj.size):
-                continue
-
-            # 1. Shaxsiy ombor kanalimizga forward/copy qilamiz
-            try:
-                copied_msgs = await client.forward_messages(dest_entity, msg)
-                if not copied_msgs:
+                # Xabarda hujjat (fayl) bormi?
+                if not msg.media or not getattr(msg, "file", None):
                     continue
-                copied_msg = copied_msgs[0] if isinstance(copied_msgs, list) else copied_msgs
 
-                # 2. Metadatalarni tozalash va ajratish
-                title, author, clean_cap = clean_book_metadata(file_name, msg.message or "")
+                file_obj = msg.file
+                file_name = file_obj.name or ""
+                file_ext = (file_obj.ext or "").lower().lstrip(".")
+                mime_type = file_obj.mime_type or ""
 
-                # 3. Bazaga kiritish
-                add_book(
-                    title=title,
-                    author=author,
-                    file_name=file_name,
-                    file_size=file_obj.size or 0,
-                    file_extension=file_ext,
-                    mime_type=mime_type,
-                    storage_chat_id=str(dest_entity.id),
-                    storage_message_id=copied_msg.id,
-                    source_chat_id=str(source_entity.id),
-                    source_message_id=msg.id,
-                    caption=clean_cap
-                )
+                # Faqat elektron kitob va audio kitob formatlari
+                if file_ext not in BOOK_EXTENSIONS and "pdf" not in mime_type and "epub" not in mime_type:
+                    continue
 
-                indexed_in_this_run += 1
-                logger.info(f"Yangi kitob nusxalandi (#{indexed_in_this_run}): {title} [{file_ext.upper()}]")
+                # Avval nusxalanganmi?
+                if is_book_indexed(str(source_entity.id), msg.id, file_name, file_obj.size):
+                    continue
 
-                # Telegram cheklovlariga (FloodWait) tushmaslik uchun tanaffus
-                await asyncio.sleep(1.2)
+                # 1. Shaxsiy ombor kanalimizga forward/copy qilamiz
+                try:
+                    copied_msgs = await client.forward_messages(dest_entity, msg)
+                    if not copied_msgs:
+                        continue
+                    copied_msg = copied_msgs[0] if isinstance(copied_msgs, list) else copied_msgs
 
-            except FloodWaitError as fwe:
-                wait_time = fwe.seconds + 3
-                logger.warning(f"Telegram FloodWait: {wait_time} sekund kutilmoqda...")
-                await asyncio.sleep(wait_time)
-            except Exception as e:
-                logger.error(f"Kitobni nusxalashda xatolik (msg #{msg.id}): {e}")
-                await asyncio.sleep(1.0)
+                    # 2. Metadatalarni tozalash va ajratish
+                    title, author, clean_cap = clean_book_metadata(file_name, msg.message or "")
 
-            if indexed_in_this_run >= limit_total:
-                break
+                    # 3. Bazaga kiritish
+                    add_book(
+                        title=title,
+                        author=author,
+                        file_name=file_name,
+                        file_size=file_obj.size or 0,
+                        file_extension=file_ext,
+                        mime_type=mime_type,
+                        storage_chat_id=str(dest_entity.id),
+                        storage_message_id=copied_msg.id,
+                        source_chat_id=str(source_entity.id),
+                        source_message_id=msg.id,
+                        caption=clean_cap
+                    )
 
-    except Exception as e:
-        logger.error(f"Kitoblar nusxalash xizmatida kutilmagan xatolik: {e}")
-    finally:
-        _indexing_running = False
-        logger.info(f"Nusxalash jarayoni yakunlandi. Ushbu sessiyada saqlangan: {indexed_in_this_run}")
+                    indexed_in_this_run += 1
+                    set_userbot_setting("last_scanned_book_msg_id", str(msg.id))
+                    logger.info(f"Yangi kitob nusxalandi (#{indexed_in_this_run}): {title} [{file_ext.upper()}]")
+
+                    # Telegram limitlariga tushmaslik uchun tanaffus
+                    await asyncio.sleep(1.2)
+
+                except FloodWaitError as fwe:
+                    wait_time = fwe.seconds + 5
+                    logger.warning(f"Telegram FloodWait: {wait_time} sekund kutilmoqda...")
+                    await asyncio.sleep(wait_time)
+                except Exception as e:
+                    logger.error(f"Kitobni nusxalashda xatolik (msg #{msg.id}): {e}")
+                    await asyncio.sleep(1.0)
+
+                if indexed_in_this_run >= limit_total:
+                    logger.info(f"Limitga yetildi ({limit_total}).")
+                    _indexing_running = False
+                    return
+
+            # Agar iteratsiya oxiriga yetgan bo'lsa (yangi xabarlar qolmagan bo'lsa)
+            logger.info("Guruhdagi barcha mavjud xabarlar to'liq ko'chirildi. Yangi xabarlar kutilmoqda...")
+            await asyncio.sleep(30)
+
+        except Exception as e:
+            logger.error(f"Kitoblar nusxalashda tarmoq yoki kutilmagan xatolik: {e}. 15 soniyadan so'ng qayta ulanadi...")
+            await asyncio.sleep(15)
+
+    _indexing_running = False
 
 def start_indexing():
     global _indexing_running, _indexing_task
     if _indexing_running:
         return False
+    try:
+        set_userbot_setting("is_book_indexing_enabled", "1")
+    except Exception:
+        pass
     _indexing_task = asyncio.create_task(run_book_copier())
     return True

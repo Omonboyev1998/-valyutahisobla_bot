@@ -109,6 +109,16 @@ async def main():
         except Exception as e:
             logger.warning(f"Userbotni fonda ishga tushirishda xatolik: {e}")
 
+    # 6. Kitoblar nusxalash jarayonini avtomatik davom ettirish (agar yoqilgan bo'lsa)
+    try:
+        from src.database import get_userbot_setting
+        if get_userbot_setting("is_book_indexing_enabled", "0") == "1":
+            from src.services.book_service import start_indexing
+            start_indexing()
+            logger.info("Kitoblar nusxalash jarayoni avtomatik davom ettirildi.")
+    except Exception as e:
+        logger.warning(f"Kitoblar nusxalashni avto-tiklashda xatolik: {e}")
+
     # Telegram API ga ulanish va polling
     while True:
         try:
