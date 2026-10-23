@@ -128,6 +128,13 @@ async def handle_download_book(callback: CallbackQuery, bot: Bot):
     storage_chat = book.get("storage_chat_id") or str(BOOK_STORAGE_CHAT_ID)
     msg_id = book.get("storage_message_id")
 
+    s_chat_str = str(storage_chat).strip()
+    if s_chat_str.lstrip("-").isdigit():
+        clean_num = s_chat_str.lstrip("-")
+        from_chat = int(f"-100{clean_num}") if not s_chat_str.startswith("-100") else int(s_chat_str)
+    else:
+        from_chat = s_chat_str
+
     title = book.get("title") or "Kitob"
     author = book.get("author")
     caption = f"📖 <b>{html.escape(title)}</b>\n"
@@ -139,7 +146,7 @@ async def handle_download_book(callback: CallbackQuery, bot: Bot):
         # Shaxsiy ombor kanalimizdan to'g'ridan-to'g'ri foydalanuvchiga nusxalash
         await bot.copy_message(
             chat_id=callback.from_user.id,
-            from_chat_id=int(storage_chat) if storage_chat.lstrip("-").isdigit() else storage_chat,
+            from_chat_id=from_chat,
             message_id=msg_id,
             caption=caption,
             parse_mode="HTML"

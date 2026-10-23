@@ -146,9 +146,27 @@ async def run_book_copier(limit_total: int = 50000):
         try:
             _last_copier_status = "Telethon mijoziga ulanmoqda..."
             client = await get_or_create_client()
+
+            _last_copier_status = "Dialoglar keshlanmoqda..."
+            await client.get_dialogs(limit=50)
+
             _last_copier_status = "Guruh va kanal obyektlari olinmoqda..."
             source_entity = await client.get_entity(BOOK_SOURCE_CHAT)
-            dest_entity = await client.get_entity(BOOK_STORAGE_CHAT)
+
+            dest_entity = None
+            candidates_to_try = [BOOK_STORAGE_CHAT_ID, BOOK_STORAGE_CHAT, "dunyokitoblari1"]
+            for target_id in candidates_to_try:
+                try:
+                    dest_entity = await client.get_entity(target_id)
+                    if dest_entity:
+                        break
+                except Exception:
+                    pass
+
+            if not dest_entity:
+                raise ValueError(f"Ombor kanal topilmadi: {BOOK_STORAGE_CHAT} ({BOOK_STORAGE_CHAT_ID})")
+
+            dest_storage_id = f"-100{str(dest_entity.id).lstrip('-')}" if not str(dest_entity.id).startswith("-100") else str(dest_entity.id)
 
             last_id_str = get_userbot_setting("last_book_offset_id", "0")
             offset_id = int(last_id_str) if last_id_str.isdigit() else 0
@@ -205,7 +223,7 @@ async def run_book_copier(limit_total: int = 50000):
                         file_size=file_obj.size or 0,
                         file_extension=file_ext,
                         mime_type=mime_type,
-                        storage_chat_id=str(dest_entity.id),
+                        storage_chat_id=dest_storage_id,
                         storage_message_id=copied_msg.id,
                         source_chat_id=str(source_entity.id),
                         source_message_id=msg.id,
