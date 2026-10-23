@@ -28,6 +28,22 @@ logger = logging.getLogger("BookService")
 
 _indexing_running = False
 _indexing_task: Optional[asyncio.Task] = None
+_last_copier_status = "Boshlanmagan"
+_last_copier_error = "Xatolik yo'q"
+_last_scanned_title = ""
+
+def get_copier_debug_status() -> Dict[str, Any]:
+    global _indexing_running, _last_copier_status, _last_copier_error, _last_scanned_title
+    return {
+        "running": _indexing_running,
+        "status": _last_copier_status,
+        "error": _last_copier_error,
+        "last_title": _last_scanned_title,
+        "last_offset_id": get_userbot_setting("last_book_offset_id", "0"),
+        "last_scanned_id": get_userbot_setting("last_scanned_book_msg_id", "0"),
+        "is_enabled": get_userbot_setting("is_book_indexing_enabled", "0"),
+        "books_in_db": get_books_count()
+    }
 
 BOOK_EXTENSIONS = {"pdf", "epub", "fb2", "djvu", "mobi", "doc", "docx", "txt", "mp3", "m4b"}
 
@@ -116,8 +132,9 @@ async def run_book_copier(limit_total: int = 50000):
     faqat haqiqiy hujjat va kitoblarni to'g'ridan-to'g'ri filtrlab nusxalash.
     Uzilishlar va tarmoq xatolariga chidamli (Auto-retry).
     """
-    global _indexing_running
+    global _indexing_running, _last_copier_status, _last_copier_error, _last_scanned_title
     _indexing_running = True
+    _last_copier_status = "Boshlandi, ulanmoqda..."
 
     from telethon.tl.types import InputMessagesFilterDocument
     from src.userbot.listener import get_or_create_client
@@ -127,13 +144,16 @@ async def run_book_copier(limit_total: int = 50000):
 
     while _indexing_running:
         try:
+            _last_copier_status = "Telethon mijoziga ulanmoqda..."
             client = await get_or_create_client()
+            _last_copier_status = "Guruh va kanal obyektlari olinmoqda..."
             source_entity = await client.get_entity(BOOK_SOURCE_CHAT)
             dest_entity = await client.get_entity(BOOK_STORAGE_CHAT)
 
             last_id_str = get_userbot_setting("last_book_offset_id", "0")
             offset_id = int(last_id_str) if last_id_str.isdigit() else 0
 
+            _last_copier_status = f"Hujjatlar filtri orqali skanerlanmoqda (offset_id={offset_id})..."
             logger.info(f"Nusxalash offset_id={offset_id} dan boshlanmoqda...")
 
             async for msg in client.iter_messages(
@@ -142,6 +162,7 @@ async def run_book_copier(limit_total: int = 50000):
                 filter=InputMessagesFilterDocument
             ):
                 if not _indexing_running:
+                    _last_copier_status = "To'xtatildi"
                     logger.info("Kitoblar nusxalash jarayoni foydalanuvchi tomonidan to'xtatildi.")
                     return
 
@@ -174,6 +195,7 @@ async def run_book_copier(limit_total: int = 50000):
 
                     # 2. Metadatalarni tozalash va ajratish
                     title, author, clean_cap = clean_book_metadata(file_name, msg.message or "")
+                    _last_scanned_title = title
 
                     # 3. Bazaga kiritish
                     add_book(
@@ -191,6 +213,7 @@ async def run_book_copier(limit_total: int = 50000):
                     )
 
                     indexed_in_this_run += 1
+                    _last_copier_status = f"Nusxalanmoqda (#{indexed_in_this_run}): {title[:30]}"
                     logger.info(f"Yangi kitob nusxalandi (#{indexed_in_this_run}): {title} [{file_ext.upper()}] (msg #{msg.id})")
 
                     # Telegram limitlariga tushmaslik uchun xavfsiz tanaffus
@@ -198,27 +221,35 @@ async def run_book_copier(limit_total: int = 50000):
 
                 except FloodWaitError as fwe:
                     wait_time = fwe.seconds + 5
+                    _last_copier_status = f"FloodWait kutilmoqda ({wait_time}s)"
                     logger.warning(f"Telegram FloodWait: {wait_time} sekund kutilmoqda...")
                     await asyncio.sleep(wait_time)
                 except Exception as e:
+                    _last_copier_error = f"Forward error (msg #{msg.id}): {e}"
                     logger.error(f"Kitobni nusxalashda xatolik (msg #{msg.id}): {e}")
                     await asyncio.sleep(1.0)
 
                 if indexed_in_this_run >= limit_total:
                     logger.info(f"Limitga yetildi ({limit_total}).")
                     _indexing_running = False
+                    _last_copier_status = "Limitga yetildi"
                     return
 
+            _last_copier_status = "Barcha kitoblar tugadi, kutish rejimida"
             logger.info("Guruhdagi barcha kitoblar to'liq skanerlandi va nusxalandi!")
             # Guruhdagi barcha hujjatlar tugasa, yangilari kelishini kutish uchun offset_id ni 0 qilamiz
             set_userbot_setting("last_book_offset_id", "0")
             await asyncio.sleep(60)
 
         except Exception as e:
+            import traceback
+            _last_copier_error = f"{type(e).__name__}: {str(e)}"
+            _last_copier_status = f"Xatolik: {type(e).__name__}"
             logger.error(f"Kitoblar nusxalashda tarmoq xatoligi: {e}. 15 soniyadan so'ng qayta ulanadi...")
             await asyncio.sleep(15)
 
     _indexing_running = False
+    _last_copier_status = "To'xtatilgan"
 
 def start_indexing():
     global _indexing_running, _indexing_task

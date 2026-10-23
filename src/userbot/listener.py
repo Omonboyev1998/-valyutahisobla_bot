@@ -32,22 +32,27 @@ logging.basicConfig(
 logger = logging.getLogger("UserbotListener")
 
 _active_client: Optional[TelegramClient] = None
+_client_lock = asyncio.Lock()
 
 async def get_or_create_client() -> TelegramClient:
-    """Telethon mijozini olish yoki ulash"""
+    """Yagona va xavfsiz Telethon singleton mijozini olish (Lock bilan himoyalangan)"""
     global _active_client
-    if _active_client and _active_client.is_connected():
+    async with _client_lock:
+        if _active_client is not None and _active_client.is_connected():
+            return _active_client
+
+        if _active_client is None:
+            if TG_SESSION_STRING:
+                session = StringSession(TG_SESSION_STRING)
+            else:
+                os.makedirs(os.path.dirname(USERBOT_SESSION) or ".", exist_ok=True)
+                session = USERBOT_SESSION
+            _active_client = TelegramClient(session, TG_API_ID, TG_API_HASH)
+
+        if not _active_client.is_connected():
+            await _active_client.connect()
+
         return _active_client
-
-    if TG_SESSION_STRING:
-        session = StringSession(TG_SESSION_STRING)
-    else:
-        os.makedirs(os.path.dirname(USERBOT_SESSION) or ".", exist_ok=True)
-        session = USERBOT_SESSION
-
-    _active_client = TelegramClient(session, TG_API_ID, TG_API_HASH)
-    await _active_client.connect()
-    return _active_client
 
 def is_target_chat(chat_id: int, chat_title: str, chat_username: Optional[str]) -> bool:
     """Xabar kelgan guruh biz kuzatmoqchi bo'lgan guruhlar ro'yxatida bormi?"""
@@ -341,23 +346,14 @@ async def start_userbot(scan_history: bool = False, history_limit: int = 50):
         )
         return
 
-    # Sessiyani aniqlash (StringSession bulutli muhitlar/Render uchun, fayl esa lokal uchun)
-    if TG_SESSION_STRING:
-        session = StringSession(TG_SESSION_STRING)
-        logger.info("Userbot StringSession orqali yuklanmoqda (Bulutli muhit/Render).")
-    else:
-        os.makedirs(os.path.dirname(USERBOT_SESSION) or ".", exist_ok=True)
-        session = USERBOT_SESSION
-        logger.info(f"Userbot fayl sessiyasi orqali yuklanmoqda: {USERBOT_SESSION}")
-
-    global _active_client
-    client = TelegramClient(session, TG_API_ID, TG_API_HASH)
-    _active_client = client
+    client = await get_or_create_client()
     bot = Bot(token=BOT_TOKEN)
 
     try:
         logger.info("Telegram Client-ga ulanish...")
-        await client.start()
+        if not await client.is_user_authorized():
+            logger.warning("Userbot sessiyasi avtorizatsiyadan o'tmagan!")
+            return
         logger.info("Userbot muvaffaqiyatli ulandi va guruhlarni kuzatishni boshladi!")
         logger.info(f"Kuzatilayotgan guruhlar: {TARGET_CHATS}")
 

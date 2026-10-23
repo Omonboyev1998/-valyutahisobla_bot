@@ -571,5 +571,15 @@ def create_web_app(bot: Optional[Any] = None) -> web.Application:
     app.router.add_post("/api/secretary/schedules/clear", api_clear_secretary_schedules)
     app.router.add_post("/api/secretary/schedules/{id}/toggle", api_toggle_secretary_schedule)
     app.router.add_delete("/api/secretary/schedules/{id}", api_delete_secretary_schedule)
+    app.router.add_get("/api/copier_status", api_copier_status)
 
     return app
+
+async def api_copier_status(request: web.Request) -> web.Response:
+    """Kitoblar nusxalash jarayoni holati va xatoliklarini tekshirish API"""
+    try:
+        from src.services.book_service import get_copier_debug_status
+        return web.json_response(get_copier_debug_status(), headers={"Access-Control-Allow-Origin": "*"})
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500, headers={"Access-Control-Allow-Origin": "*"})
+
