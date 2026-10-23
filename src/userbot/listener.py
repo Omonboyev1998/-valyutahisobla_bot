@@ -173,6 +173,15 @@ async def send_auto_dm_to_master(
         await client.send_message(target, message_text)
         log_auto_dm_sent(sender_id, sender_username, service_id, message_text)
         logger.info(f"✅ Ustaga ({master_name} - {sender_id}) muvaffaqiyatli xush kelibsiz xabari yuborildi!")
+
+        # Chatni faqat o'zimizdan (lichkamizdan) o'chirish (ustada esa saqlanib qoladi)
+        try:
+            await asyncio.sleep(1.0)
+            await client.delete_dialog(target, revoke=False)
+            logger.info(f"🗑 Chat muvaffaqiyatli faqat o'zimizdan tozalandi (ustada saqlanib qoldi).")
+        except Exception as del_err:
+            logger.warning(f"Chatni faqat o'zimizdan tozalashda xatolik: {del_err}")
+
         return True
     except Exception as e:
         logger.warning(f"Ustaga xabar yuborishda xatolik: {e}")
