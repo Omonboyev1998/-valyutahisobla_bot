@@ -35,7 +35,7 @@ _last_scanned_title = ""
 def get_copier_debug_status() -> Dict[str, Any]:
     global _indexing_running, _last_copier_status, _last_copier_error, _last_scanned_title
     return {
-        "version": "v3-inputfilter-dialogsearch",
+        "version": "v4-speed-0.4s",
         "running": _indexing_running,
         "status": _last_copier_status,
         "error": _last_copier_error,
@@ -251,8 +251,8 @@ async def run_book_copier(limit_total: int = 50000):
                     _last_copier_status = f"Nusxalanmoqda (#{indexed_in_this_run}): {title[:30]}"
                     logger.info(f"Yangi kitob nusxalandi (#{indexed_in_this_run}): {title} [{file_ext.upper()}] (msg #{msg.id})")
 
-                    # Telegram limitlariga tushmaslik uchun xavfsiz tanaffus
-                    await asyncio.sleep(1.2)
+                    # Telegram limitlariga tushmaslik uchun optimallashtirilgan xavfsiz tanaffus (2.5x tezlik)
+                    await asyncio.sleep(0.4)
 
                 except FloodWaitError as fwe:
                     wait_time = fwe.seconds + 5
