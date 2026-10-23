@@ -111,15 +111,17 @@ def stop_indexing():
 
 async def run_book_copier(limit_total: int = 50000):
     """
-    Userbot orqali source guruhdagi kitoblarni private kanalga nusxalab,
-    bazaga indekslaydigan asosiy asinxron jarayon.
+    Telegramning rasmiy InputMessagesFilterDocument filtri orqali
+    guruhdagi yuz minglab chat xabarlarini tashlab o'tib,
+    faqat haqiqiy hujjat va kitoblarni to'g'ridan-to'g'ri filtrlab nusxalash.
     Uzilishlar va tarmoq xatolariga chidamli (Auto-retry).
     """
     global _indexing_running
     _indexing_running = True
 
+    from telethon.tl.types import InputMessagesFilterDocument
     from src.userbot.listener import get_or_create_client
-    logger.info("Kitoblar nusxalash jarayoni boshlanmoqda...")
+    logger.info("Kitoblar nusxalash jarayoni (Document Filter) boshlanmoqda...")
 
     indexed_in_this_run = 0
 
@@ -129,23 +131,24 @@ async def run_book_copier(limit_total: int = 50000):
             source_entity = await client.get_entity(BOOK_SOURCE_CHAT)
             dest_entity = await client.get_entity(BOOK_STORAGE_CHAT)
 
-            last_id_str = get_userbot_setting("last_scanned_book_msg_id", "0")
-            min_id = int(last_id_str) if last_id_str.isdigit() else 0
-            current_highest_id = min_id
+            last_id_str = get_userbot_setting("last_book_offset_id", "0")
+            offset_id = int(last_id_str) if last_id_str.isdigit() else 0
 
-            logger.info(f"Nusxalash #{min_id} xabardan davom ettirilmoqda...")
+            logger.info(f"Nusxalash offset_id={offset_id} dan boshlanmoqda...")
 
-            async for msg in client.iter_messages(source_entity, min_id=min_id, reverse=True):
+            async for msg in client.iter_messages(
+                source_entity,
+                offset_id=offset_id,
+                filter=InputMessagesFilterDocument
+            ):
                 if not _indexing_running:
                     logger.info("Kitoblar nusxalash jarayoni foydalanuvchi tomonidan to'xtatildi.")
                     return
 
-                current_highest_id = max(current_highest_id, msg.id)
-                # Har 10 ta xabarda bir oxirgi o'qilgan ID ni bazaga yangilash
-                if msg.id % 10 == 0 or msg.media:
-                    set_userbot_setting("last_scanned_book_msg_id", str(current_highest_id))
+                # Har bir xabarda offset_id ni saqlab boramiz
+                set_userbot_setting("last_book_offset_id", str(msg.id))
+                set_userbot_setting("last_scanned_book_msg_id", str(msg.id))
 
-                # Xabarda hujjat (fayl) bormi?
                 if not msg.media or not getattr(msg, "file", None):
                     continue
 
@@ -158,7 +161,7 @@ async def run_book_copier(limit_total: int = 50000):
                 if file_ext not in BOOK_EXTENSIONS and "pdf" not in mime_type and "epub" not in mime_type:
                     continue
 
-                # Avval nusxalanganmi?
+                # Avval nusxalanganmi? (Dublikat tekshiruvi)
                 if is_book_indexed(str(source_entity.id), msg.id, file_name, file_obj.size):
                     continue
 
@@ -188,10 +191,9 @@ async def run_book_copier(limit_total: int = 50000):
                     )
 
                     indexed_in_this_run += 1
-                    set_userbot_setting("last_scanned_book_msg_id", str(msg.id))
-                    logger.info(f"Yangi kitob nusxalandi (#{indexed_in_this_run}): {title} [{file_ext.upper()}]")
+                    logger.info(f"Yangi kitob nusxalandi (#{indexed_in_this_run}): {title} [{file_ext.upper()}] (msg #{msg.id})")
 
-                    # Telegram limitlariga tushmaslik uchun tanaffus
+                    # Telegram limitlariga tushmaslik uchun xavfsiz tanaffus
                     await asyncio.sleep(1.2)
 
                 except FloodWaitError as fwe:
@@ -207,12 +209,13 @@ async def run_book_copier(limit_total: int = 50000):
                     _indexing_running = False
                     return
 
-            # Agar iteratsiya oxiriga yetgan bo'lsa (yangi xabarlar qolmagan bo'lsa)
-            logger.info("Guruhdagi barcha mavjud xabarlar to'liq ko'chirildi. Yangi xabarlar kutilmoqda...")
-            await asyncio.sleep(30)
+            logger.info("Guruhdagi barcha kitoblar to'liq skanerlandi va nusxalandi!")
+            # Guruhdagi barcha hujjatlar tugasa, yangilari kelishini kutish uchun offset_id ni 0 qilamiz
+            set_userbot_setting("last_book_offset_id", "0")
+            await asyncio.sleep(60)
 
         except Exception as e:
-            logger.error(f"Kitoblar nusxalashda tarmoq yoki kutilmagan xatolik: {e}. 15 soniyadan so'ng qayta ulanadi...")
+            logger.error(f"Kitoblar nusxalashda tarmoq xatoligi: {e}. 15 soniyadan so'ng qayta ulanadi...")
             await asyncio.sleep(15)
 
     _indexing_running = False
