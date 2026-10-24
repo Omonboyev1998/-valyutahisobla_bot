@@ -27,8 +27,35 @@ logger = logging.getLogger(__name__)
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 HTML_FILE = os.path.join(STATIC_DIR, "webapp.html")
 
+# initData yangiligi (freshness) chegaralari. Maxfiy ma'lumot emas, oddiy sozlama.
+INIT_DATA_MAX_AGE_SEC = int(os.getenv("INIT_DATA_MAX_AGE_SEC", "86400"))  # 24 soat
+INIT_DATA_FUTURE_SKEW_SEC = int(os.getenv("INIT_DATA_FUTURE_SKEW_SEC", "300"))  # 5 daqiqa
+
+
+# CORS siyosati: ochiq ma'lumot uchun wildcard, shaxsiy/yozuv javoblari uchun yo'q.
+# Mini App sahifasi shu serverdan beriladi, shuning uchun shaxsiy so'rovlar same-origin.
+PUBLIC_CORS = {"Access-Control-Allow-Origin": "*"}
+PRIVATE_CORS = {"Vary": "Origin", "Cache-Control": "no-store"}
+
+
+def _is_fresh_auth_date(raw_auth_date: Optional[str]) -> bool:
+    """auth_date mavjud, raqamli va ruxsat etilgan vaqt oynasida ekanligini tekshirish"""
+    if raw_auth_date is None:
+        return False
+    try:
+        auth_ts = int(str(raw_auth_date).strip())
+    except (TypeError, ValueError):
+        return False
+    age = time.time() - auth_ts
+    if age > INIT_DATA_MAX_AGE_SEC:
+        return False
+    if age < -INIT_DATA_FUTURE_SKEW_SEC:
+        return False
+    return True
+
+
 def validate_telegram_init_data(init_data: str) -> Optional[Dict[str, Any]]:
-    """Telegram WebApp initData ni HMAC-SHA256 yordamida tekshirish"""
+    """Telegram WebApp initData ni HMAC-SHA256 va auth_date yangiligi bilan tekshirish"""
     if not init_data or not BOT_TOKEN:
         return None
     try:
@@ -42,6 +69,9 @@ def validate_telegram_init_data(init_data: str) -> Optional[Dict[str, Any]]:
         calculated_hash = hmac.new(secret_key, data_check_string.encode("utf-8"), hashlib.sha256).hexdigest()
         
         if hmac.compare_digest(calculated_hash, received_hash):
+            if not _is_fresh_auth_date(parsed_data.get("auth_date")):
+                logger.warning("Telegram initData rad etildi: auth_date yaroqsiz yoki muddati o'tgan")
+                return None
             if "user" in parsed_data:
                 try:
                     parsed_data["user"] = json.loads(parsed_data["user"])
@@ -113,7 +143,7 @@ async def api_rates_history(request: web.Request) -> web.Response:
     data = await cbu_service.get_currency_history(ccy=ccy, days=days)
     if data and "points" in data:
         data["rates"] = data["points"]
-    return web.json_response(data, headers={"Access-Control-Allow-Origin": "*"})
+    return web.json_response(data, headers=PUBLIC_CORS)
 
 async def api_rates_current(request: web.Request) -> web.Response:
     """Barcha valyutalar joriy kursi (ro'yxat va xarita formatida)"""
@@ -124,7 +154,7 @@ async def api_rates_current(request: web.Request) -> web.Response:
         item["Ccy"] = ccy_code
         item["Rate"] = str(r["rate"])
         rates_list.append(item)
-    return web.json_response(rates_list, headers={"Access-Control-Allow-Origin": "*"})
+    return web.json_response(rates_list, headers=PUBLIC_CORS)
 
 async def api_prayer(request: web.Request) -> web.Response:
     """Namoz vaqtlari API"""
@@ -140,7 +170,7 @@ async def api_prayer(request: web.Request) -> web.Response:
             "shom": data.get("maghrib"),
             "xufton": data.get("isha")
         }
-    return web.json_response(data or {}, headers={"Access-Control-Allow-Origin": "*"})
+    return web.json_response(data or {}, headers=PUBLIC_CORS)
 
 async def api_football_standings(request: web.Request) -> web.Response:
     """Futbol turnir jadvali API"""
@@ -160,13 +190,13 @@ async def api_football_standings(request: web.Request) -> web.Response:
             r["name"] = r.get("team", "")
             standings.append(r)
         data["standings"] = standings
-    return web.json_response(data or {}, headers={"Access-Control-Allow-Origin": "*"})
+    return web.json_response(data or {}, headers=PUBLIC_CORS)
 
 async def api_football_matches(request: web.Request) -> web.Response:
     """Futbol o'yinlari API"""
     league = request.query.get("league", "eng.1")
     data = await football_service.get_matches(league_code=league)
-    return web.json_response(data or {}, headers={"Access-Control-Allow-Origin": "*"})
+    return web.json_response(data or {}, headers=PUBLIC_CORS)
 
 from src.database import get_football_streams, add_football_stream, delete_football_stream
 
@@ -195,10 +225,10 @@ async def api_football_streams(request: web.Request) -> web.Response:
         if live_only:
             all_items = [s for s in all_items if s.get("is_live") == 1]
 
-        return web.json_response(all_items, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response(all_items, headers=PUBLIC_CORS)
     except Exception as e:
         logger.error(f"Translatsiyalarni olishda xatolik: {e}")
-        return web.json_response([], headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response([], headers=PUBLIC_CORS)
 
 async def api_tv_channels(request: web.Request) -> web.Response:
     """Famelack barcha telekanallar (O'zbekiston + Dunyo sport) katalogi API"""
@@ -209,23 +239,23 @@ async def api_tv_channels(request: web.Request) -> web.Response:
         if os.path.exists(json_path):
             with open(json_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            return web.json_response(data, headers={"Access-Control-Allow-Origin": "*"})
+            return web.json_response(data, headers=PUBLIC_CORS)
     except Exception as e:
         logger.error(f"Telekanallar JSON faylini o'qishda xatolik: {e}")
-    return web.json_response({"uz_channels": [], "sports_channels": []}, headers={"Access-Control-Allow-Origin": "*"})
+    return web.json_response({"uz_channels": [], "sports_channels": []}, headers=PUBLIC_CORS)
 
 async def api_add_football_stream(request: web.Request) -> web.Response:
     """Yangi translatsiya qo'shish API (Faqat Administrator uchun)"""
     auth_user = get_auth_user(request)
     if not auth_user or int(auth_user.get("id", 0)) not in ADMIN_IDS:
-        return web.json_response({"success": False, "error": "Ruxsat etilmagan: faqat administratorlar uchun"}, status=403, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"success": False, "error": "Ruxsat etilmagan: faqat administratorlar uchun"}, status=403, headers=PRIVATE_CORS)
 
     try:
         data = await request.json()
         title = data.get("title", "").strip()
         stream_url = data.get("stream_url", "").strip()
         if not title or not stream_url:
-            return web.json_response({"success": False, "error": "Sarlavha va stream havolasi majburiy!"}, status=400, headers={"Access-Control-Allow-Origin": "*"})
+            return web.json_response({"success": False, "error": "Sarlavha va stream havolasi majburiy!"}, status=400, headers=PRIVATE_CORS)
         
         league = data.get("league", "APL")
         channel_name = data.get("channel_name", "Sport TV")
@@ -250,25 +280,25 @@ async def api_add_football_stream(request: web.Request) -> web.Response:
             away_logo=away_logo,
             score=score
         )
-        return web.json_response({"success": True, "id": s_id}, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"success": True, "id": s_id}, headers=PRIVATE_CORS)
     except Exception as e:
         logger.error(f"Translatsiya qo'shishda xatolik: {e}")
-        return web.json_response({"success": False, "error": "Translatsiyani saqlashda xatolik yuz berdi"}, status=500, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"success": False, "error": "Translatsiyani saqlashda xatolik yuz berdi"}, status=500, headers=PRIVATE_CORS)
 
 async def api_delete_football_stream(request: web.Request) -> web.Response:
     """Translatsiyani o'chirish API (Faqat Administrator uchun)"""
     auth_user = get_auth_user(request)
     if not auth_user or int(auth_user.get("id", 0)) not in ADMIN_IDS:
-        return web.json_response({"success": False, "error": "Ruxsat etilmagan: faqat administratorlar uchun"}, status=403, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"success": False, "error": "Ruxsat etilmagan: faqat administratorlar uchun"}, status=403, headers=PRIVATE_CORS)
 
     try:
         s_id = request.match_info.get("id")
         if s_id:
             delete_football_stream(int(s_id))
-            return web.json_response({"success": True}, headers={"Access-Control-Allow-Origin": "*"})
+            return web.json_response({"success": True}, headers=PRIVATE_CORS)
     except Exception as e:
         logger.error(f"Translatsiyani o'chirishda xatolik: {e}")
-    return web.json_response({"success": False, "error": "O'chirishda xatolik yuz berdi"}, status=400, headers={"Access-Control-Allow-Origin": "*"})
+    return web.json_response({"success": False, "error": "O'chirishda xatolik yuz berdi"}, status=400, headers=PRIVATE_CORS)
 
 async def api_weather(request: web.Request) -> web.Response:
     """Ob-havo API"""
@@ -278,8 +308,8 @@ async def api_weather(request: web.Request) -> web.Response:
         lat, lon, real_name, intl_name = coords
         data = await weather_service.get_weather(lat, lon, real_name, intl_name)
         if data:
-            return web.json_response(data, headers={"Access-Control-Allow-Origin": "*"})
-    return web.json_response({"error": "Ob-havo ma'lumoti topilmadi"}, status=404, headers={"Access-Control-Allow-Origin": "*"})
+            return web.json_response(data, headers=PUBLIC_CORS)
+    return web.json_response({"error": "Ob-havo ma'lumoti topilmadi"}, status=404, headers=PUBLIC_CORS)
 
 from src.database import get_services, count_services, get_service_by_id
 
@@ -312,7 +342,7 @@ async def api_services(request: web.Request) -> web.Response:
     return web.json_response({
         "services": services,
         "total": total
-    }, headers={"Access-Control-Allow-Origin": "*"})
+    }, headers=PUBLIC_CORS)
 
 from src.database import get_services, count_services, get_service_by_id, add_service
 
@@ -323,7 +353,16 @@ async def api_add_service(request: web.Request) -> web.Response:
         return web.json_response({
             "success": False,
             "error": "Juda ko'p so'rov yuborildi. Iltimos, 10 daqiqadan so'ng qayta urinib ko'ring."
-        }, status=429, headers={"Access-Control-Allow-Origin": "*"})
+        }, status=429, headers=PRIVATE_CORS)
+
+    # E'lon joylash uchun tekshirilgan Telegram shaxsi majburiy; body'dagi user_id'ga ishonilmaydi.
+    auth_user = get_auth_user(request)
+    if not auth_user or not auth_user.get("id"):
+        return web.json_response({
+            "success": False,
+            "error": "Avtorizatsiyadan o'tilmagan. Iltimos, ilovani Telegram orqali oching."
+        }, status=401, headers=PRIVATE_CORS)
+    user_id = int(auth_user["id"])
 
     try:
         data = await request.json()
@@ -335,18 +374,15 @@ async def api_add_service(request: web.Request) -> web.Response:
         price = (data.get("price") or "Kelishilgan holda").strip()
         description = (data.get("description") or "").strip()
         username = (data.get("username") or "").replace("@", "").strip()
-        
-        auth_user = get_auth_user(request)
-        user_id = auth_user["id"] if (auth_user and "id" in auth_user) else int(data.get("user_id") or 0)
 
         if not title or not phone:
             return web.json_response({
                 "success": False,
                 "error": "Sarlavha va telefon raqami kiritilishi shart!"
-            }, status=400, headers={"Access-Control-Allow-Origin": "*"})
+            }, status=400, headers=PRIVATE_CORS)
 
         service_id = add_service(
-            user_id=user_id if user_id else 1,
+            user_id=user_id,
             master_name=master_name,
             phone=phone,
             username=username,
@@ -395,10 +431,10 @@ async def api_add_service(request: web.Request) -> web.Response:
             "success": True,
             "service_id": service_id,
             "message": "Xizmat muvaffaqiyatli qo'shildi!"
-        }, headers={"Access-Control-Allow-Origin": "*"})
+        }, headers=PRIVATE_CORS)
     except Exception as e:
         logger.error(f"Xizmat qo'shishda xatolik: {e}")
-        return web.json_response({"success": False, "error": "Xizmat qo'shishda xatolik yuz berdi"}, status=500, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"success": False, "error": "Xizmat qo'shishda xatolik yuz berdi"}, status=500, headers=PRIVATE_CORS)
 
 async def api_service_detail(request: web.Request) -> web.Response:
     """Bitta xizmat tafsilotlari API"""
@@ -406,30 +442,30 @@ async def api_service_detail(request: web.Request) -> web.Response:
     try:
         service = get_service_by_id(int(s_id))
         if service:
-            return web.json_response(service, headers={"Access-Control-Allow-Origin": "*"})
+            return web.json_response(service, headers=PUBLIC_CORS)
     except Exception:
         pass
-    return web.json_response({"error": "Xizmat topilmadi"}, status=404, headers={"Access-Control-Allow-Origin": "*"})
+    return web.json_response({"error": "Xizmat topilmadi"}, status=404, headers=PUBLIC_CORS)
 
 async def api_get_secretary_settings(request: web.Request) -> web.Response:
     """Foydalanuvchining kotib sozlamalarini olish API (Faqat avtorizatsiyalangan foydalanuvchi)"""
     auth_user = get_auth_user(request)
     if not auth_user or not auth_user.get("id"):
-        return web.json_response({"success": False, "error": "Avtorizatsiyadan o'tilmagan. Iltimos, ilovani Telegram orqali oching."}, status=401, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"success": False, "error": "Avtorizatsiyadan o'tilmagan. Iltimos, ilovani Telegram orqali oching."}, status=401, headers=PRIVATE_CORS)
     user_id = int(auth_user["id"])
 
     try:
         settings = get_secretary_settings(user_id)
-        return web.json_response({"success": True, "settings": settings, "modes": SECRETARY_MODES}, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"success": True, "settings": settings, "modes": SECRETARY_MODES}, headers=PRIVATE_CORS)
     except Exception as e:
         logger.error(f"Error api_get_secretary_settings: {e}")
-        return web.json_response({"success": False, "error": "Sozlamalarni olishda xatolik yuz berdi"}, status=500, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"success": False, "error": "Sozlamalarni olishda xatolik yuz berdi"}, status=500, headers=PRIVATE_CORS)
 
 async def api_save_secretary_settings(request: web.Request) -> web.Response:
     """Foydalanuvchining kotib sozlamalarini yangilash API"""
     auth_user = get_auth_user(request)
     if not auth_user or not auth_user.get("id"):
-        return web.json_response({"success": False, "error": "Avtorizatsiyadan o'tilmagan. Iltimos, ilovani Telegram orqali oching."}, status=401, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"success": False, "error": "Avtorizatsiyadan o'tilmagan. Iltimos, ilovani Telegram orqali oching."}, status=401, headers=PRIVATE_CORS)
     user_id = int(auth_user["id"])
 
     try:
@@ -458,45 +494,45 @@ async def api_save_secretary_settings(request: web.Request) -> web.Response:
 
         update_secretary_settings(user_id, **updates)
         new_settings = get_secretary_settings(user_id)
-        return web.json_response({"success": True, "settings": new_settings, "modes": SECRETARY_MODES}, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"success": True, "settings": new_settings, "modes": SECRETARY_MODES}, headers=PRIVATE_CORS)
     except Exception as e:
         logger.error(f"Error api_save_secretary_settings: {e}")
-        return web.json_response({"success": False, "error": "Sozlamalarni saqlashda xatolik yuz berdi"}, status=500, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"success": False, "error": "Sozlamalarni saqlashda xatolik yuz berdi"}, status=500, headers=PRIVATE_CORS)
 
 async def api_get_secretary_logs(request: web.Request) -> web.Response:
     """Kotib qabul qilgan so'nggi xabarlar jurnali API"""
     auth_user = get_auth_user(request)
     if not auth_user or not auth_user.get("id"):
-        return web.json_response({"success": False, "error": "Avtorizatsiyadan o'tilmagan. Iltimos, ilovani Telegram orqali oching."}, status=401, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"success": False, "error": "Avtorizatsiyadan o'tilmagan. Iltimos, ilovani Telegram orqali oching."}, status=401, headers=PRIVATE_CORS)
     user_id = int(auth_user["id"])
 
     try:
         logs = get_secretary_logs(user_id, limit=20)
-        return web.json_response({"success": True, "logs": logs}, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"success": True, "logs": logs}, headers=PRIVATE_CORS)
     except Exception as e:
         logger.error(f"Error api_get_secretary_logs: {e}")
-        return web.json_response({"success": False, "error": "Xabarlar jurnalini olishda xatolik yuz berdi"}, status=500, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"success": False, "error": "Xabarlar jurnalini olishda xatolik yuz berdi"}, status=500, headers=PRIVATE_CORS)
 
 async def api_get_secretary_schedules(request: web.Request) -> web.Response:
     """Vaqt jadvallari ro'yxati API"""
     auth_user = get_auth_user(request)
     if not auth_user or not auth_user.get("id"):
-        return web.json_response({"success": False, "error": "Avtorizatsiyadan o'tilmagan. Iltimos, ilovani Telegram orqali oching."}, status=401, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"success": False, "error": "Avtorizatsiyadan o'tilmagan. Iltimos, ilovani Telegram orqali oching."}, status=401, headers=PRIVATE_CORS)
     user_id = int(auth_user["id"])
 
     try:
         seed_default_secretary_schedules_if_empty(user_id)
         schedules = get_secretary_schedules(user_id)
-        return web.json_response({"success": True, "schedules": schedules}, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"success": True, "schedules": schedules}, headers=PRIVATE_CORS)
     except Exception as e:
         logger.error(f"Error api_get_secretary_schedules: {e}")
-        return web.json_response({"success": False, "error": "Jadvallarni olishda xatolik yuz berdi"}, status=500, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"success": False, "error": "Jadvallarni olishda xatolik yuz berdi"}, status=500, headers=PRIVATE_CORS)
 
 async def api_save_secretary_schedule(request: web.Request) -> web.Response:
     """Yangi vaqt oralig'i qo'shish API"""
     auth_user = get_auth_user(request)
     if not auth_user or not auth_user.get("id"):
-        return web.json_response({"success": False, "error": "Avtorizatsiyadan o'tilmagan. Iltimos, ilovani Telegram orqali oching."}, status=401, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"success": False, "error": "Avtorizatsiyadan o'tilmagan. Iltimos, ilovani Telegram orqali oching."}, status=401, headers=PRIVATE_CORS)
     user_id = int(auth_user["id"])
 
     try:
@@ -507,7 +543,7 @@ async def api_save_secretary_schedule(request: web.Request) -> web.Response:
         reply_text = str(data.get("reply_text", "")).strip()
 
         if not reply_text:
-            return web.json_response({"success": False, "error": "Javob matni kiritilishi shart"}, status=400, headers={"Access-Control-Allow-Origin": "*"})
+            return web.json_response({"success": False, "error": "Javob matni kiritilishi shart"}, status=400, headers=PRIVATE_CORS)
 
         new_id = add_secretary_schedule(
             user_id=user_id,
@@ -518,84 +554,84 @@ async def api_save_secretary_schedule(request: web.Request) -> web.Response:
             is_active=1
         )
         schedules = get_secretary_schedules(user_id)
-        return web.json_response({"success": True, "id": new_id, "schedules": schedules}, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"success": True, "id": new_id, "schedules": schedules}, headers=PRIVATE_CORS)
     except Exception as e:
         logger.error(f"Error api_save_secretary_schedule: {e}")
-        return web.json_response({"success": False, "error": "Jadvalni saqlashda xatolik yuz berdi"}, status=500, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"success": False, "error": "Jadvalni saqlashda xatolik yuz berdi"}, status=500, headers=PRIVATE_CORS)
 
 async def api_toggle_secretary_schedule(request: web.Request) -> web.Response:
     """Vaqt oralig'i holatini (faol/nofaol) o'zgartirish API"""
     auth_user = get_auth_user(request)
     if not auth_user or not auth_user.get("id"):
-        return web.json_response({"success": False, "error": "Avtorizatsiyadan o'tilmagan. Iltimos, ilovani Telegram orqali oching."}, status=401, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"success": False, "error": "Avtorizatsiyadan o'tilmagan. Iltimos, ilovani Telegram orqali oching."}, status=401, headers=PRIVATE_CORS)
     user_id = int(auth_user["id"])
 
     try:
         schedule_id = int(request.match_info["id"])
         toggle_secretary_schedule(schedule_id, user_id)
         schedules = get_secretary_schedules(user_id)
-        return web.json_response({"success": True, "schedules": schedules}, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"success": True, "schedules": schedules}, headers=PRIVATE_CORS)
     except Exception as e:
         logger.error(f"Error api_toggle_secretary_schedule: {e}")
-        return web.json_response({"success": False, "error": "Jadval holatini o'zgartirishda xatolik yuz berdi"}, status=500, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"success": False, "error": "Jadval holatini o'zgartirishda xatolik yuz berdi"}, status=500, headers=PRIVATE_CORS)
 
 async def api_delete_secretary_schedule(request: web.Request) -> web.Response:
     """Vaqt oralig'ini o'chirish API"""
     auth_user = get_auth_user(request)
     if not auth_user or not auth_user.get("id"):
-        return web.json_response({"success": False, "error": "Avtorizatsiyadan o'tilmagan. Iltimos, ilovani Telegram orqali oching."}, status=401, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"success": False, "error": "Avtorizatsiyadan o'tilmagan. Iltimos, ilovani Telegram orqali oching."}, status=401, headers=PRIVATE_CORS)
     user_id = int(auth_user["id"])
 
     try:
         schedule_id = int(request.match_info["id"])
         delete_secretary_schedule(schedule_id, user_id)
         schedules = get_secretary_schedules(user_id)
-        return web.json_response({"success": True, "schedules": schedules}, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"success": True, "schedules": schedules}, headers=PRIVATE_CORS)
     except Exception as e:
         logger.error(f"Error api_delete_secretary_schedule: {e}")
-        return web.json_response({"success": False, "error": "Jadvalni o'chirishda xatolik yuz berdi"}, status=500, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"success": False, "error": "Jadvalni o'chirishda xatolik yuz berdi"}, status=500, headers=PRIVATE_CORS)
 
 async def api_reset_secretary_schedules(request: web.Request) -> web.Response:
     """Standart jadvallarni qayta tiklash API"""
     auth_user = get_auth_user(request)
     if not auth_user or not auth_user.get("id"):
-        return web.json_response({"success": False, "error": "Avtorizatsiyadan o'tilmagan. Iltimos, ilovani Telegram orqali oching."}, status=401, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"success": False, "error": "Avtorizatsiyadan o'tilmagan. Iltimos, ilovani Telegram orqali oching."}, status=401, headers=PRIVATE_CORS)
     user_id = int(auth_user["id"])
 
     try:
         seed_default_secretary_schedules_if_empty(user_id, force_reset=True)
         schedules = get_secretary_schedules(user_id)
-        return web.json_response({"success": True, "schedules": schedules}, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"success": True, "schedules": schedules}, headers=PRIVATE_CORS)
     except Exception as e:
         logger.error(f"Error api_reset_secretary_schedules: {e}")
-        return web.json_response({"success": False, "error": "Jadvallarni tiklashda xatolik yuz berdi"}, status=500, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"success": False, "error": "Jadvallarni tiklashda xatolik yuz berdi"}, status=500, headers=PRIVATE_CORS)
 
 async def api_clear_secretary_schedules(request: web.Request) -> web.Response:
     """Barcha jadvallarni tozalash API"""
     auth_user = get_auth_user(request)
     if not auth_user or not auth_user.get("id"):
-        return web.json_response({"success": False, "error": "Avtorizatsiyadan o'tilmagan. Iltimos, ilovani Telegram orqali oching."}, status=401, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"success": False, "error": "Avtorizatsiyadan o'tilmagan. Iltimos, ilovani Telegram orqali oching."}, status=401, headers=PRIVATE_CORS)
     user_id = int(auth_user["id"])
 
     try:
         clear_all_secretary_schedules(user_id)
-        return web.json_response({"success": True, "schedules": []}, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"success": True, "schedules": []}, headers=PRIVATE_CORS)
     except Exception as e:
         logger.error(f"Error api_clear_secretary_schedules: {e}")
-        return web.json_response({"success": False, "error": "Jadvallarni tozalashda xatolik yuz berdi"}, status=500, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"success": False, "error": "Jadvallarni tozalashda xatolik yuz berdi"}, status=500, headers=PRIVATE_CORS)
 
 async def api_test_secretary_ai(request: web.Request) -> web.Response:
     """Mini App orqali AI javobini sinab ko'rish API (Avtorizatsiyalangan & Rate-limited)"""
     auth_user = get_auth_user(request)
     if not auth_user or not auth_user.get("id"):
-        return web.json_response({"success": False, "error": "Avtorizatsiyadan o'tilmagan. Iltimos, ilovani Telegram orqali oching."}, status=401, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"success": False, "error": "Avtorizatsiyadan o'tilmagan. Iltimos, ilovani Telegram orqali oching."}, status=401, headers=PRIVATE_CORS)
     user_id = int(auth_user["id"])
 
     if not check_rate_limit(f"ai_test:{user_id}", max_calls=6, window_sec=60):
         return web.json_response({
             "success": False,
             "error": "AI sinov chegarasiga yetildi. 1 daqiqadan so'ng qayta urinib ko'ring."
-        }, status=429, headers={"Access-Control-Allow-Origin": "*"})
+        }, status=429, headers=PRIVATE_CORS)
 
     try:
         from src.services.ai_secretary_service import generate_ai_reply
@@ -616,10 +652,10 @@ async def api_test_secretary_ai(request: web.Request) -> web.Response:
             emergency_phone=emergency_phone,
             time_info=time_info
         )
-        return web.json_response({"success": True, "reply": reply}, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"success": True, "reply": reply}, headers=PRIVATE_CORS)
     except Exception as e:
         logger.error(f"Error api_test_secretary_ai: {e}")
-        return web.json_response({"success": False, "error": "AI sinovida xatolik yuz berdi"}, status=500, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"success": False, "error": "AI sinovida xatolik yuz berdi"}, status=500, headers=PRIVATE_CORS)
 
 def create_web_app(bot: Optional[Any] = None) -> web.Application:
     app = web.Application()
@@ -664,11 +700,16 @@ def create_web_app(bot: Optional[Any] = None) -> web.Application:
     return app
 
 async def api_copier_status(request: web.Request) -> web.Response:
-    """Kitoblar nusxalash jarayoni holati va xatoliklarini tekshirish API"""
+    """Kitoblar nusxalash jarayoni holati (Faqat Administrator uchun - ichki diagnostika)"""
+    auth_user = get_auth_user(request)
+    if not auth_user or not auth_user.get("id"):
+        return web.json_response({"success": False, "error": "Avtorizatsiyadan o'tilmagan"}, status=401, headers=PRIVATE_CORS)
+    if int(auth_user.get("id", 0)) not in ADMIN_IDS:
+        return web.json_response({"success": False, "error": "Ruxsat etilmagan: faqat administratorlar uchun"}, status=403, headers=PRIVATE_CORS)
     try:
         from src.services.book_service import get_copier_debug_status
-        return web.json_response(get_copier_debug_status(), headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response(get_copier_debug_status(), headers=PRIVATE_CORS)
     except Exception as e:
         logger.error(f"api_copier_status error: {e}")
-        return web.json_response({"error": "Holatni tekshirishda xatolik yuz berdi"}, status=500, headers={"Access-Control-Allow-Origin": "*"})
+        return web.json_response({"error": "Holatni tekshirishda xatolik yuz berdi"}, status=500, headers=PRIVATE_CORS)
 

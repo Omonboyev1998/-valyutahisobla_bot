@@ -4597,6 +4597,47 @@
     }
 
     window.footballStreamsMap = {};
+    // Inline onclick ichiga ma'lumot qo'yish o'rniga raqamli indeks bo'yicha yo'naltiramiz.
+    window._footballStreamList = [];
+    window.registerFootballStream = function(s) {
+      window._footballStreamList.push(s);
+      return window._footballStreamList.length - 1;
+    };
+    window.openFootballStreamByIndex = function(idx) {
+      const s = window._footballStreamList && window._footballStreamList[Number(idx)];
+      if (!s) return;
+      openFootballStream(s.id, s.stream_url, s.title || ((s.home_team || '') + ' - ' + (s.away_team || '')), s.channel_name, s.is_live, s.score, s.match_time);
+    };
+    // Faqat http/https sxemasiga ruxsat beradi (javascript:, data:, blob: va h.k. bloklanadi).
+    function safeUrl(url, fallback) {
+      const fb = (fallback === undefined) ? '' : fallback;
+      if (url === null || url === undefined) return fb;
+      const raw = String(url).trim();
+      if (!raw) return fb;
+      // Nazoratsiz belgilar sxemani yashirishda ishlatiladi.
+      const cleaned = raw.replace(/[\u0000-\u001F\u007F\u00A0\u2028\u2029]/g, '');
+      const scheme = cleaned.match(/^([a-zA-Z][a-zA-Z0-9+.-]*):/);
+      if (!scheme) {
+        // Sxemasiz: protokolga nisbatan havolalar ham xavfli bo'lishi mumkin.
+        if (cleaned.startsWith('//')) return fb;
+        return cleaned;
+      }
+      const proto = scheme[1].toLowerCase();
+      if (proto === 'http' || proto === 'https') return cleaned;
+      return fb;
+    }
+    window.safeUrl = safeUrl;
+
+    // Faqat telefon raqamida uchraydigan belgilarni qoldiradi (tel: havolasi uchun).
+    function safePhone(phone) {
+      return String(phone === null || phone === undefined ? '' : phone).replace(/[^0-9+\-()\s]/g, '').trim();
+    }
+
+    // Telegram foydalanuvchi nomi: faqat harf, raqam va pastki chiziq.
+    function safeUsername(name) {
+      return String(name === null || name === undefined ? '' : name).replace(/^@/, '').replace(/[^A-Za-z0-9_]/g, '');
+    }
+
     window.openFootballStreamById = function(id) {
       const s = window.footballStreamsMap[id];
       if (s) {
@@ -5224,9 +5265,9 @@
 
         const price = item.price || 'Kelishilgan holda';
 
-        const phone = item.phone || '';
+        const phone = safePhone(item.phone);
 
-        const username = item.username ? item.username.replace('@', '') : '';
+        const username = safeUsername(item.username);
 
 
 
@@ -5246,7 +5287,7 @@
 
             '<div class="service-master-name"><span>👤</span> <b>' + escapeHtml(item.master_name) + '</b></div>' +
 
-            '<div class="service-rating-badge">⭐ ' + rating + ' <span style="opacity: 0.8; font-weight: 500;">(' + ratingCount + ')</span></div>' +
+            '<div class="service-rating-badge">⭐ ' + escapeHtml(String(rating)) + ' <span style="opacity: 0.8; font-weight: 500;">(' + escapeHtml(String(ratingCount)) + ')</span></div>' +
 
           '</div>' +
 
@@ -5256,9 +5297,9 @@
 
           '<div class="service-actions-row">' +
 
-            '<a href="tel:' + phone + '" class="btn-action-call">📞 Qo&#39;ng&#39;iroq</a>' +
+            '<a href="tel:' + escapeHtml(phone) + '" class="btn-action-call">📞 Qo&#39;ng&#39;iroq</a>' +
 
-            (username ? '<a href="https://t.me/' + username + '" target="_blank" class="btn-action-tg">💬 Telegram</a>' : '') +
+            (username ? '<a href="https://t.me/' + escapeHtml(username) + '" target="_blank" class="btn-action-tg">💬 Telegram</a>' : '') +
 
             '<button class="btn-action-view" onclick="openServiceDetail(' + item.id + ')">Batafsil</button>' +
 
@@ -5294,9 +5335,9 @@
 
       const price = item.price || 'Kelishilgan holda';
 
-      const phone = item.phone || '';
+      const phone = safePhone(item.phone);
 
-      const username = item.username ? item.username.replace('@', '') : '';
+      const username = safeUsername(item.username);
 
       const defaultDesc = 'Qo&#39;shimcha tavsif berilmagan.';
 
@@ -5324,7 +5365,7 @@
 
           '</div>' +
 
-          '<div class="service-rating-badge" style="font-size: 13px; padding: 4px 10px;">⭐ ' + rating + ' (' + ratingCount + ' ta baho)</div>' +
+          '<div class="service-rating-badge" style="font-size: 13px; padding: 4px 10px;">⭐ ' + escapeHtml(String(rating)) + ' (' + escapeHtml(String(ratingCount)) + ' ta baho)</div>' +
 
         '</div>' +
 
@@ -5350,9 +5391,9 @@
 
         '<div style="display: flex; flex-direction: column; gap: 8px; margin-top: 6px;">' +
 
-          '<a href="tel:' + phone + '" class="btn-action-call" style="padding: 12px; font-size: 14px;">📞 Qo&#39;ng&#39;iroq qilish: ' + phone + '</a>' +
+          '<a href="tel:' + escapeHtml(phone) + '" class="btn-action-call" style="padding: 12px; font-size: 14px;">📞 Qo&#39;ng&#39;iroq qilish: ' + escapeHtml(phone) + '</a>' +
 
-          (username ? '<a href="https://t.me/' + username + '" target="_blank" class="btn-action-tg" style="padding: 12px; font-size: 14px;">💬 Telegram orqali yozish (@' + username + ')</a>' : '') +
+          (username ? '<a href="https://t.me/' + escapeHtml(username) + '" target="_blank" class="btn-action-tg" style="padding: 12px; font-size: 14px;">💬 Telegram orqali yozish (@' + escapeHtml(username) + ')</a>' : '') +
 
           '<button class="btn-action-view" style="padding: 12px; font-weight: 700; color: var(--ios-blue);" onclick="openTelegramBot(\'srv_' + item.id + '\')">📩 Bot ichida buyurtma & baholash</button>' +
 
@@ -5976,6 +6017,8 @@
 
       const upcomingList = document.getElementById('fbUpcomingList');
 
+      window._footballStreamList = [];
+
 
 
       if (!streams || streams.length === 0) {
@@ -6033,11 +6076,13 @@
 
 
 
-          const badgeHtml = isRealLive ? 
+          const heroIdx = window.registerFootballStream(hero);
 
-            `<span class="live-pulse-badge" style="background: rgba(255, 59, 48, 0.25); color: #ff6b6b;"><span class="live-pulse-dot"></span> ${hero.match_time || 'JONLI EFIR'}</span>` :
+          const badgeHtml = isRealLive ?
 
-            `<span style="font-size: 11px; font-weight: 700; color: #38bdf8; background: rgba(56, 189, 248, 0.15); padding: 3px 8px; border-radius: 10px;">⏰ ${hero.match_time || 'Bugun kutilmoqda'}</span>`;
+            `<span class="live-pulse-badge" style="background: rgba(255, 59, 48, 0.25); color: #ff6b6b;"><span class="live-pulse-dot"></span> ${escapeHtml(hero.match_time || 'JONLI EFIR')}</span>` :
+
+            `<span style="font-size: 11px; font-weight: 700; color: #38bdf8; background: rgba(56, 189, 248, 0.15); padding: 3px 8px; border-radius: 10px;">⏰ ${escapeHtml(hero.match_time || 'Bugun kutilmoqda')}</span>`;
 
 
 
@@ -6061,7 +6106,7 @@
 
                 <div class="hero-team">
 
-                  <img src="${hLogo}" class="hero-team-logo" alt="" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png'">
+                  <img src="${escapeHtml(safeUrl(hLogo, 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png'))}" class="hero-team-logo" alt="" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png'">
 
                   <span class="hero-team-name">${escapeHtml(hName)}</span>
 
@@ -6077,7 +6122,7 @@
 
                 <div class="hero-team">
 
-                  <img src="${aLogo}" class="hero-team-logo" alt="" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png'">
+                  <img src="${escapeHtml(safeUrl(aLogo, 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png'))}" class="hero-team-logo" alt="" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png'">
 
                   <span class="hero-team-name">${escapeHtml(aName)}</span>
 
@@ -6085,7 +6130,7 @@
 
               </div>
 
-              <button class="btn-watch-live" onclick="openFootballStreamById('${escapeHtml(hero.id)}')">
+              <button class="btn-watch-live" onclick="openFootballStreamByIndex(${heroIdx})">
 
                 ${btnText}
 
@@ -6116,17 +6161,19 @@
           liveMatches.forEach(function(m) {
             window.footballStreamsMap[m.id] = m;
 
+            const mIdx = window.registerFootballStream(m);
+
             const hLogo = m.home_logo || 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png';
 
             const aLogo = m.away_logo || 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png';
 
             liveHtml += `
 
-              <div class="stream-card" onclick="openFootballStreamById('${escapeHtml(m.id)}')">
+              <div class="stream-card" onclick="openFootballStreamByIndex(${mIdx})">
 
                 <div class="stream-card-header">
 
-                  <span class="live-pulse-badge"><span class="live-pulse-dot"></span> ${m.match_time || 'JONLI'}</span>
+                  <span class="live-pulse-badge"><span class="live-pulse-dot"></span> ${escapeHtml(m.match_time || 'JONLI')}</span>
 
                   <span style="font-size: 11px; font-weight: 600; color: var(--ios-text-secondary);">${escapeHtml(m.league || 'Futbol')} • ${escapeHtml(m.channel_name || 'Sport TV')}</span>
 
@@ -6136,7 +6183,7 @@
 
                   <div class="stream-team-side">
 
-                    <img src="${hLogo}" class="stream-team-badge" alt="" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png'">
+                    <img src="${escapeHtml(safeUrl(hLogo, 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png'))}" class="stream-team-badge" alt="" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png'">
 
                     <span style="font-size: 13px; font-weight: 700; color: var(--ios-text);">${escapeHtml(m.home_team)}</span>
 
@@ -6148,7 +6195,7 @@
 
                     <span style="font-size: 13px; font-weight: 700; color: var(--ios-text);">${escapeHtml(m.away_team)}</span>
 
-                    <img src="${aLogo}" class="stream-team-badge" alt="" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png'">
+                    <img src="${escapeHtml(safeUrl(aLogo, 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png'))}" class="stream-team-badge" alt="" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png'">
 
                   </div>
 
@@ -6183,17 +6230,19 @@
           upcomingMatches.forEach(function(u) {
             window.footballStreamsMap[u.id] = u;
 
+            const uIdx = window.registerFootballStream(u);
+
             const hLogo = u.home_logo || 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png';
 
             const aLogo = u.away_logo || 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png';
 
             upHtml += `
 
-              <div class="stream-card" onclick="openFootballStreamById('${escapeHtml(u.id)}')">
+              <div class="stream-card" onclick="openFootballStreamByIndex(${uIdx})">
 
                 <div class="stream-card-header">
 
-                  <span style="font-size: 11px; font-weight: 700; color: var(--ios-blue); background: rgba(0, 122, 255, 0.1); padding: 3px 8px; border-radius: 10px;">⏰ ${u.match_time || 'Bugun'}</span>
+                  <span style="font-size: 11px; font-weight: 700; color: var(--ios-blue); background: rgba(0, 122, 255, 0.1); padding: 3px 8px; border-radius: 10px;">⏰ ${escapeHtml(u.match_time || 'Bugun')}</span>
 
                   <span style="font-size: 11px; font-weight: 600; color: var(--ios-text-secondary);">${escapeHtml(u.league || 'Liga')}</span>
 
@@ -6203,19 +6252,19 @@
 
                   <div class="stream-team-side">
 
-                    <img src="${hLogo}" class="stream-team-badge" alt="" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png'">
+                    <img src="${escapeHtml(safeUrl(hLogo, 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png'))}" class="stream-team-badge" alt="" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png'">
 
                     <span style="font-size: 13px; font-weight: 600; color: var(--ios-text);">${escapeHtml(u.home_team || u.title)}</span>
 
                   </div>
 
-                  <div style="font-size: 12px; font-weight: 600; color: var(--ios-text-secondary);">📺 ${u.channel_name || 'Sport TV'}</div>
+                  <div style="font-size: 12px; font-weight: 600; color: var(--ios-text-secondary);">📺 ${escapeHtml(u.channel_name || 'Sport TV')}</div>
 
                   <div class="stream-team-side right">
 
                     <span style="font-size: 13px; font-weight: 600; color: var(--ios-text);">${escapeHtml(u.away_team || '')}</span>
 
-                    ${u.away_logo ? '<img src="' + aLogo + '" class="stream-team-badge" alt="" onerror="this.src=\'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png\'">' : ''}
+                    ${u.away_logo ? '<img src="' + escapeHtml(safeUrl(aLogo, 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png')) + '" class="stream-team-badge" alt="" onerror="this.src=\'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png\'">' : ''}
 
                   </div>
 
@@ -6635,7 +6684,7 @@
 
           if (tg && typeof tg.openLink === 'function') {
 
-            tg.openLink(streamUrl);
+            tg.openLink(safeUrl(streamUrl));
 
             return;
 
@@ -6643,7 +6692,7 @@
 
         } catch (e) {}
 
-        window.open(streamUrl, '_blank');
+        if (safeUrl(streamUrl)) window.open(safeUrl(streamUrl), '_blank');
 
       } else {
 
@@ -6687,11 +6736,14 @@
 
 
 
-      const offUrl = (meta && meta.official) ? meta.official : (streamUrl.startsWith('http') ? streamUrl : 'https://famelack.com/tv/uz');
+      const offUrl = (meta && meta.official) ? meta.official : safeUrl(streamUrl, 'https://famelack.com/tv/uz');
 
-      const ytUrl = meta ? meta.youtube : '';
+      const ytUrl = safeUrl(meta ? meta.youtube : '');
 
       const fUrl = (meta && meta.famelack) ? meta.famelack : 'https://famelack.com/tv/uz';
+
+      // Havolalarni indeks orqali uzatamiz: inline handler ichida ma'lumot bo'lmaydi.
+      window._fallbackUrls = [safeUrl(offUrl, 'https://famelack.com/tv/uz'), ytUrl, safeUrl(fUrl, 'https://famelack.com/tv/uz')];
 
       const desc = meta ? meta.desc : 'Ushbu telekanal efirini quyidagi manbalar orqali bepul tomosha qiling:';
 
@@ -6703,15 +6755,15 @@
 
           <div style="font-size: 38px; margin-bottom: 8px;">📺</div>
 
-          <div style="font-size: 17px; font-weight: 800; margin-bottom: 4px;">${title}</div>
+          <div style="font-size: 17px; font-weight: 800; margin-bottom: 4px;">${escapeHtml(title)}</div>
 
           <div style="font-size: 12px; color: #38bdf8; font-weight: 600; margin-bottom: 10px;">🔴 24/7 Jonli Efir</div>
 
-          <div style="font-size: 12px; color: #94a3b8; max-width: 300px; line-height: 1.4; margin-bottom: 16px;">${desc}</div>
+          <div style="font-size: 12px; color: #94a3b8; max-width: 300px; line-height: 1.4; margin-bottom: 16px;">${escapeHtml(desc)}</div>
 
           <div style="display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 270px;">
 
-            <button onclick="openExternalUrl('${offUrl}')" style="background: #0284c7; color: #fff; border: none; padding: 11px 16px; border-radius: 12px; font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <button onclick="openFallbackUrlByIndex(0)" style="background: #0284c7; color: #fff; border: none; padding: 11px 16px; border-radius: 12px; font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
 
               🌐 Rasmiy Sahifasida Ko'rish ↗
 
@@ -6719,13 +6771,13 @@
 
             ${ytUrl ? `
 
-            <button onclick="openExternalUrl('${ytUrl}')" style="background: #dc2626; color: #fff; border: none; padding: 11px 16px; border-radius: 12px; font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <button onclick="openFallbackUrlByIndex(1)" style="background: #dc2626; color: #fff; border: none; padding: 11px 16px; border-radius: 12px; font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
 
               ▶️ YouTube Jonli Efiri ↗
 
             </button>` : ''}
 
-            <button onclick="openExternalUrl('${fUrl}')" style="background: #7c3aed; color: #fff; border: none; padding: 11px 16px; border-radius: 12px; font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <button onclick="openFallbackUrlByIndex(2)" style="background: #7c3aed; color: #fff; border: none; padding: 11px 16px; border-radius: 12px; font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
 
               📡 Famelack TV Portali ↗
 
@@ -6745,11 +6797,15 @@
 
       haptic();
 
+      const target = safeUrl(url);
+
+      if (!target) return;
+
       try {
 
         if (tg && typeof tg.openLink === 'function') {
 
-          tg.openLink(url);
+          tg.openLink(target);
 
           return;
 
@@ -6757,9 +6813,14 @@
 
       } catch (e) {}
 
-      window.open(url, '_blank');
+      window.open(target, '_blank');
 
     }
+
+    window.openFallbackUrlByIndex = function(idx) {
+      const list = window._fallbackUrls || [];
+      openExternalUrl(list[Number(idx)]);
+    };
 
 
 
@@ -6768,6 +6829,9 @@
       haptic();
 
       currentActiveStreamUrl = streamUrl || '';
+
+      // Inline handlerlarga matn uzatmaslik uchun joriy kontekstni saqlaymiz.
+      window._currentStreamContext = { title: title || '', channel: channel || '' };
 
 
 
@@ -6829,7 +6893,7 @@
 
         const iframe = document.createElement('iframe');
 
-        iframe.src = streamUrl;
+        iframe.src = safeUrl(streamUrl);
 
         iframe.style.width = '100%';
 
@@ -6903,7 +6967,7 @@
 
           if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
 
-            videoEl.src = finalUrl;
+            videoEl.src = safeUrl(finalUrl);
 
             videoEl.onerror = handleHlsFatalError;
 
@@ -6943,7 +7007,7 @@
 
           } else {
 
-            videoEl.src = finalUrl;
+            videoEl.src = safeUrl(finalUrl);
 
             videoEl.onerror = handleHlsFatalError;
 
@@ -6953,7 +7017,7 @@
 
           const iframe = document.createElement('iframe');
 
-          iframe.src = finalUrl;
+          iframe.src = safeUrl(finalUrl);
 
           iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen';
 
@@ -6975,13 +7039,13 @@
 
             <div style="font-size: 32px; margin-bottom: 6px;">⚽️</div>
 
-            <div style="font-size: 15px; font-weight: 700; margin-bottom: 4px;">${title}</div>
+            <div style="font-size: 15px; font-weight: 700; margin-bottom: 4px;">${escapeHtml(title)}</div>
 
-            <div style="font-size: 13px; color: #38bdf8; font-weight: 600; margin-bottom: 10px;">⏰ ${startTime || 'Bugun kutilmoqda'}</div>
+            <div style="font-size: 13px; color: #38bdf8; font-weight: 600; margin-bottom: 10px;">⏰ ${escapeHtml(startTime || 'Bugun kutilmoqda')}</div>
 
             <div style="font-size: 12px; color: #cbd5e1; max-width: 290px; line-height: 1.4; margin-bottom: 14px;">
 
-              Ushbu uchrashuv translyatori: <b>${channel || 'UzReport TV / Sport TV'}</b>.<br>
+              Ushbu uchrashuv translyatori: <b>${escapeHtml(channel || 'UzReport TV / Sport TV')}</b>.<br>
 
               O\'yin boshlanishi bilan efir to\'g\'ridan-to\'g\'ri namoyish etiladi.
 
@@ -6989,9 +7053,9 @@
 
             <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;">
 
-              <button onclick="openExternalChannel('${channel}')" style="background: #0284c7; color: #fff; border: none; padding: 9px 14px; border-radius: 10px; font-size: 12px; font-weight: 600; cursor: pointer;">
+              <button onclick="openCurrentFallbackChannel()" style="background: #0284c7; color: #fff; border: none; padding: 9px 14px; border-radius: 10px; font-size: 12px; font-weight: 600; cursor: pointer;">
 
-                📺 ${channel || 'Telekanal'} Efiriga o\'tish
+                📺 ${escapeHtml(channel || 'Telekanal')} Efiriga o\'tish
 
               </button>
 
@@ -7001,7 +7065,7 @@
 
               </button>
 
-              <button onclick="openCustomStreamForMatch('${title.replace(/'/g, "\\'")}')" style="background: rgba(255, 255, 255, 0.15); color: #fff; border: 1px solid rgba(255, 255, 255, 0.3); padding: 9px 14px; border-radius: 10px; font-size: 12px; font-weight: 600; cursor: pointer;">
+              <button onclick="openCustomStreamForCurrentMatch()" style="background: rgba(255, 255, 255, 0.15); color: #fff; border: 1px solid rgba(255, 255, 255, 0.3); padding: 9px 14px; border-radius: 10px; font-size: 12px; font-weight: 600; cursor: pointer;">
 
                 🔗 Maxsus havola qo\'shish
 
@@ -7080,6 +7144,14 @@
       }
 
     }
+
+    window.openCurrentFallbackChannel = function() {
+      openExternalChannel((window._currentStreamContext || {}).channel);
+    };
+
+    window.openCustomStreamForCurrentMatch = function() {
+      openCustomStreamForMatch((window._currentStreamContext || {}).title);
+    };
 
 
 
@@ -7161,13 +7233,15 @@
 
     function openStreamInNewTab() {
 
-      if (currentActiveStreamUrl) {
+      const target = safeUrl(currentActiveStreamUrl);
+
+      if (target) {
 
         try {
 
           if (tg && typeof tg.openLink === 'function') {
 
-            tg.openLink(currentActiveStreamUrl);
+            tg.openLink(target);
 
             return;
 
@@ -7175,7 +7249,7 @@
 
         } catch (e) {}
 
-        window.open(currentActiveStreamUrl, '_blank');
+        window.open(target, '_blank');
 
       } else {
 
@@ -7261,7 +7335,7 @@
 
           method: 'POST',
 
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
 
           body: JSON.stringify(payload)
 
@@ -7323,9 +7397,9 @@
 
                 <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--ios-text-secondary); margin-bottom: 4px;">
 
-                  <span>${data.league || 'Liga'}</span>
+                  <span>${escapeHtml(data.league || 'Liga')}</span>
 
-                  <span style="font-weight: 600; color: var(--ios-blue);">${m.status || 'Tugagan'}</span>
+                  <span style="font-weight: 600; color: var(--ios-blue);">${escapeHtml(m.status || 'Tugagan')}</span>
 
                 </div>
 
@@ -7333,7 +7407,7 @@
 
                   <div style="display: flex; align-items: center; gap: 8px; width: 40%;">
 
-                    ${m.home_logo ? '<img src="' + m.home_logo + '" style="width: 22px; height: 22px; object-fit: contain;" onerror="this.src=\'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png\'">' : ''}
+                    ${m.home_logo ? '<img src="' + escapeHtml(safeUrl(m.home_logo)) + '" style="width: 22px; height: 22px; object-fit: contain;" onerror="this.src=\'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png\'">' : ''}
 
                     <span style="font-size: 13px; font-weight: 700; color: var(--ios-text);">${escapeHtml(m.home_team)}</span>
 
@@ -7341,7 +7415,7 @@
 
                   <div style="font-size: 14px; font-weight: 800; color: var(--ios-text); background: rgba(142, 142, 147, 0.12); padding: 4px 10px; border-radius: 8px;">
 
-                    ${m.score || 'vs'}
+                    ${escapeHtml(m.score || 'vs')}
 
                   </div>
 
@@ -7349,7 +7423,7 @@
 
                     <span style="font-size: 13px; font-weight: 700; color: var(--ios-text);">${escapeHtml(m.away_team)}</span>
 
-                    ${m.away_logo ? '<img src="' + m.away_logo + '" style="width: 22px; height: 22px; object-fit: contain;" onerror="this.src=\'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png\'">' : ''}
+                    ${m.away_logo ? '<img src="' + escapeHtml(safeUrl(m.away_logo)) + '" style="width: 22px; height: 22px; object-fit: contain;" onerror="this.src=\'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Soccerball.svg/500px-Soccerball.svg.png\'">' : ''}
 
                   </div>
 
@@ -7433,19 +7507,19 @@
 
                 '<div class="team-cell">' +
 
-                  (t.logo ? '<img src="' + t.logo + '" class="team-badge" loading="lazy" alt="">' : '') +
+                  (t.logo ? '<img src="' + escapeHtml(safeUrl(t.logo)) + '" class="team-badge" loading="lazy" alt="">' : '') +
 
-                  '<span>' + teamName + '</span>' +
+                  '<span>' + escapeHtml(teamName) + '</span>' +
 
                 '</div>' +
 
               '</td>' +
 
-              '<td style="text-align: center;">' + (t.played !== undefined ? t.played : (t.p || 0)) + '</td>' +
+              '<td style="text-align: center;">' + escapeHtml(String(t.played !== undefined ? t.played : (t.p || 0))) + '</td>' +
 
-              '<td style="text-align: center; color: var(--ios-text-secondary);">' + (t.diff !== undefined ? t.diff : (t.gd || 0)) + '</td>' +
+              '<td style="text-align: center; color: var(--ios-text-secondary);">' + escapeHtml(String(t.diff !== undefined ? t.diff : (t.gd || 0))) + '</td>' +
 
-              '<td style="text-align: right; font-weight: 700; color: var(--ios-blue);">' + (t.points !== undefined ? t.points : (t.pts || 0)) + '</td>' +
+              '<td style="text-align: right; font-weight: 700; color: var(--ios-blue);">' + escapeHtml(String(t.points !== undefined ? t.points : (t.pts || 0))) + '</td>' +
 
             '</tr>';
 
@@ -7541,11 +7615,11 @@
 
               fHtml += '<div class="forecast-item">' +
 
-                '<span style="font-weight: 600;">' + f.date + '</span>' +
+                '<span style="font-weight: 600;">' + escapeHtml(f.date) + '</span>' +
 
-                '<span>' + f.emoji + ' ' + f.desc + '</span>' +
+                '<span>' + escapeHtml(f.emoji) + ' ' + escapeHtml(f.desc) + '</span>' +
 
-                '<span style="font-weight: 700; color: var(--ios-blue);">' + (f.max > 0 ? '+' : '') + f.max + '° / ' + (f.min > 0 ? '+' : '') + f.min + '°</span>' +
+                '<span style="font-weight: 700; color: var(--ios-blue);">' + (f.max > 0 ? '+' : '') + escapeHtml(String(f.max)) + '° / ' + (f.min > 0 ? '+' : '') + escapeHtml(String(f.min)) + '°</span>' +
 
               '</div>';
 
@@ -7979,17 +8053,17 @@
 
         if (data.success && data.reply) {
 
-          resultDiv.innerHTML = '<b>🤖 AI Javobi:</b><br><br>' + data.reply.replace(/\n/g, '<br>');
+          resultDiv.innerHTML = '<b>🤖 AI Javobi:</b><br><br>' + escapeHtml(data.reply).replace(/\n/g, '<br>');
 
         } else {
 
-          resultDiv.innerHTML = '❌ Xatolik: ' + (data.error || 'Noma\'lum xato');
+          resultDiv.innerHTML = '❌ Xatolik: ' + escapeHtml(data.error || 'Noma\'lum xato');
 
         }
 
       } catch (err) {
 
-        resultDiv.innerHTML = '❌ Tarmoq xatosi: ' + err.message;
+        resultDiv.innerHTML = '❌ Tarmoq xatosi: ' + escapeHtml(err && err.message);
 
       }
 
@@ -8059,19 +8133,19 @@
 
                     <strong style="font-size: 13px; color: var(--ios-text);">${escapeHtml(s.title)}</strong>
 
-                    <span style="background: ${badgeBg}; color: ${badgeColor}; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 6px;">${s.start_time} - ${s.end_time}</span>
+                    <span style="background: ${badgeBg}; color: ${badgeColor}; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 6px;">${escapeHtml(s.start_time)} - ${escapeHtml(s.end_time)}</span>
 
                   </div>
 
                   <div style="display: flex; align-items: center; gap: 6px;">
 
-                    <button onclick="toggleSecretarySchedule(${s.id})" style="background: none; border: 1px solid rgba(0,0,0,0.15); border-radius: 6px; padding: 3px 6px; font-size: 11px; cursor: pointer;">
+                    <button onclick="toggleSecretarySchedule(${Number(s.id) || 0})" style="background: none; border: 1px solid rgba(0,0,0,0.15); border-radius: 6px; padding: 3px 6px; font-size: 11px; cursor: pointer;">
 
                       ${isActive ? '⏸' : '▶️'}
 
                     </button>
 
-                    <button onclick="deleteSecretarySchedule(${s.id})" style="background: none; border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; border-radius: 6px; padding: 3px 6px; font-size: 11px; cursor: pointer;">
+                    <button onclick="deleteSecretarySchedule(${Number(s.id) || 0})" style="background: none; border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; border-radius: 6px; padding: 3px 6px; font-size: 11px; cursor: pointer;">
 
                       🗑
 
@@ -8367,7 +8441,7 @@
 
               <div style="padding: 6px 0; border-bottom: 0.5px solid rgba(0,0,0,0.06);">
 
-                <div style="font-weight: 600; color: var(--ios-text);">${urgentBadge}${l.sender_name} <span style="font-size: 10px; color: var(--ios-text-secondary);">${l.created_at.slice(11, 16)}</span></div>
+                <div style="font-weight: 600; color: var(--ios-text);">${urgentBadge}${escapeHtml(l.sender_name)} <span style="font-size: 10px; color: var(--ios-text-secondary);">${escapeHtml(String(l.created_at || '').slice(11, 16))}</span></div>
 
                 <div style="font-size: 11px; color: var(--ios-text-secondary); text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">"${escapeHtml(l.message_text)}"</div>
 
