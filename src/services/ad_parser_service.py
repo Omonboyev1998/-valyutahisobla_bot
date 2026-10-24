@@ -289,7 +289,8 @@ Faqat toza JSON formatida javob bering, hech qanday markdown (` ```json `) yoki 
 
     parts.append({"text": f"Xabar matni:\n{text}"})
 
-    url = f"{GEMINI_API_URL}?key={GEMINI_API_KEY}"
+    url = GEMINI_API_URL
+    headers = {"x-goog-api-key": GEMINI_API_KEY}
     payload = {
         "contents": [{"parts": parts}],
         "generationConfig": {
@@ -301,7 +302,7 @@ Faqat toza JSON formatida javob bering, hech qanday markdown (` ```json `) yoki 
 
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=15)) as resp:
+            async with session.post(url, json=payload, headers=headers, timeout=aiohttp.ClientTimeout(total=15)) as resp:
                 if resp.status == 200:
                     data = await resp.json()
                     candidates = data.get("candidates", [])

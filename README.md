@@ -131,8 +131,8 @@ pip install -r requirements.txt
 
 4. **Muhit o'zgaruvchilari (`.env` fayli):**
 ```env
-BOT_TOKEN=8804264020:AAE6dL9DjGKkOCno_1Bj1qMdA-s_LOEIjLM
-ADMIN_ID=1045855587
+BOT_TOKEN=your_telegram_bot_token_here
+ADMIN_ID=your_telegram_user_id
 PORT=8000
 ```
 

@@ -28,7 +28,7 @@ def get_db():
         try:
             conn = _libsql.connect(TURSO_DATABASE_URL, auth_token=TURSO_AUTH_TOKEN)
         except TypeError:
-            conn = _libsql.connect(f"{TURSO_DATABASE_URL}?authToken={TURSO_AUTH_TOKEN}")
+            conn = _libsql.connect(TURSO_DATABASE_URL, authToken=TURSO_AUTH_TOKEN)
     else:
         conn = sqlite3.connect(DB_PATH, timeout=20.0)
     try:

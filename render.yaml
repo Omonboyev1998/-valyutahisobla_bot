@@ -8,7 +8,9 @@ services:
       - key: BOT_TOKEN
         sync: false
       - key: ADMIN_ID
-        value: "1045855587"
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
       - key: TURSO_DATABASE_URL
         sync: false
       - key: TURSO_AUTH_TOKEN
@@ -21,3 +23,9 @@ services:
         sync: false
       - key: TARGET_CHATS
         value: "Xortumliklar,Xortum,Хортум,Хортумликлар"
+      - key: BOOK_SOURCE_CHAT
+        value: "onlayn_kutubxona_pdfo"
+      - key: BOOK_STORAGE_CHAT
+        sync: false
+      - key: BOOK_STORAGE_CHAT_ID
+        sync: false
