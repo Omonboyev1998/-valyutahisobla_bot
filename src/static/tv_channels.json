@@ -315,7 +315,7 @@
       "desc": "Sport musobaqalari",
       "icon": "🏆",
       "color": "#10b981",
-      "stream_url": "https://stream8.cinerama.uz/1004/tracks-v1a1/mono.m3u8",
+      "stream_url": "https://stream3.cinerama.uz/1004/tracks-v1a1/mono.m3u8",
       "country": "uz",
       "country_flag": "🇺🇿"
     },
@@ -381,7 +381,7 @@
       "desc": "Ko'ngilochar shoular",
       "icon": "🎭",
       "color": "#8b5cf6",
-      "stream_url": "https://stream8.cinerama.uz/1016/tracks-v1a1/mono.m3u8",
+      "stream_url": "https://stream3.cinerama.uz/1016/tracks-v1a1/mono.m3u8",
       "country": "uz",
       "country_flag": "🇺🇿"
     }
@@ -1625,7 +1625,7 @@
       "country_flag": "🇺🇿",
       "group": "uz",
       "icon": "🏆",
-      "stream_url": "https://stream8.cinerama.uz/1004/tracks-v1a1/mono.m3u8"
+      "stream_url": "https://stream3.cinerama.uz/1004/tracks-v1a1/mono.m3u8"
     },
     {
       "id": "X52MQmppYpmBGG",
