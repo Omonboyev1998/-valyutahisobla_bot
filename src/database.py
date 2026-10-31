@@ -43,6 +43,36 @@ def get_db():
         except Exception:
             pass
 
+@contextmanager
+def db_session():
+    """Qayta ishlatiladigan ulanish (uzun skanerlash jarayonlari uchun).
+
+    get_db() bilan bir xil ulanishni beradi, lekin chaqiruvchi uni ko'p
+    operatsiya uchun ushlab turadi; har bir operatsiyada yangi ulanish
+    ochilmaydi. get_db() ning o'zi hech qanday o'zgarmadi.
+    """
+    with get_db() as conn:
+        yield conn
+
+
+@contextmanager
+def _conn_ctx(conn=None):
+    """Berilgan ulanishni qayta ishlatadi, aks holda yangisini ochadi."""
+    if conn is not None:
+        try:
+            yield conn
+        except BaseException:
+            # A later checkpoint commit must never commit a failed book write.
+            try:
+                conn.rollback()
+            except Exception:
+                conn.close()
+            raise
+    else:
+        with get_db() as fresh:
+            yield fresh
+
+
 def to_dict(cols_or_cursor, row):
     if not row:
         return None
@@ -1353,17 +1383,17 @@ DEFAULT_AUTO_DM_TEMPLATE = (
     "👉 @valyutahisobla_bot"
 )
 
-def get_userbot_setting(key: str, default: str = "") -> str:
+def get_userbot_setting(key: str, default: str = "", conn=None) -> str:
     """Userbot sozlamasini olish"""
-    with get_db() as conn:
+    with _conn_ctx(conn) as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT value FROM userbot_settings WHERE key = ?", (key,))
         row = cursor.fetchone()
         return row[0] if row and row[0] is not None else default
 
-def set_userbot_setting(key: str, value: str) -> bool:
+def set_userbot_setting(key: str, value: str, conn=None) -> bool:
     """Userbot sozlamasini saqlash"""
-    with get_db() as conn:
+    with _conn_ctx(conn) as conn:
         cursor = conn.cursor()
         cursor.execute("""
             INSERT OR REPLACE INTO userbot_settings (key, value)
@@ -1413,10 +1443,11 @@ def add_book(
     storage_message_id: int,
     source_chat_id: Optional[str] = None,
     source_message_id: Optional[int] = None,
-    caption: str = ""
+    caption: str = "",
+    conn=None
 ) -> Optional[int]:
     """Yangi kitobni bazaga qo'shish yoki yangilash"""
-    with get_db() as conn:
+    with _conn_ctx(conn) as conn:
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO books (
@@ -1433,9 +1464,42 @@ def add_book(
         conn.commit()
         return cursor.lastrowid
 
-def is_book_indexed(source_chat_id: Optional[str], source_message_id: Optional[int], file_name: str, file_size: int) -> bool:
+def add_books_batch(books: List[Dict[str, Any]], conn=None) -> int:
+    """Bir nechta kitobni BITTA tranzaksiya/commit bilan qo'shish.
+
+    add_book() bilan bir xil ustunlar va bir xil normalizatsiya. Hammasi
+    birgalikda commit qilinadi: commit muvaffaqiyatli bo'lmasa, hech biri
+    yozilmaydi (resume checkpoint faqat commit qilingandan keyin suriladi).
+    """
+    if not books:
+        return 0
+    rows = [
+        (
+            b.get("title"), b.get("author"), b.get("file_name"), b.get("file_size"),
+            b.get("file_extension"), b.get("mime_type"), str(b.get("storage_chat_id")),
+            b.get("storage_message_id"),
+            str(b.get("source_chat_id")) if b.get("source_chat_id") else None,
+            b.get("source_message_id"), b.get("caption", ""),
+        )
+        for b in books
+    ]
+    with _conn_ctx(conn) as conn:
+        cursor = conn.cursor()
+        for row in rows:
+            cursor.execute("""
+                INSERT INTO books (
+                    title, author, file_name, file_size, file_extension,
+                    mime_type, storage_chat_id, storage_message_id,
+                    source_chat_id, source_message_id, caption
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, row)
+        conn.commit()
+        return len(rows)
+
+def is_book_indexed(source_chat_id: Optional[str], source_message_id: Optional[int], file_name: str, file_size: int, conn=None) -> bool:
     """Kitob avval bazaga kiritilganmi?"""
-    with get_db() as conn:
+    with _conn_ctx(conn) as conn:
         cursor = conn.cursor()
         if source_chat_id and source_message_id:
             cursor.execute(
@@ -1452,6 +1516,73 @@ def is_book_indexed(source_chat_id: Optional[str], source_message_id: Optional[i
             if cursor.fetchone():
                 return True
         return False
+
+class BookDedupeIndex:
+    """is_book_indexed() semantikasini xotirada aks ettiruvchi indeks."""
+
+    __slots__ = ("source_keys", "file_keys")
+
+    def __init__(self):
+        self.source_keys = set()
+        self.file_keys = set()
+
+    def add_source(self, source_chat_id, source_message_id) -> None:
+        if source_chat_id and source_message_id:
+            self.source_keys.add((str(source_chat_id), source_message_id))
+
+    def add_file(self, file_name, file_size) -> None:
+        if file_name and file_size:
+            self.file_keys.add((file_name, file_size))
+
+    def add(self, source_chat_id, source_message_id, file_name, file_size) -> None:
+        self.add_source(source_chat_id, source_message_id)
+        self.add_file(file_name, file_size)
+
+    def contains(self, source_chat_id, source_message_id, file_name, file_size) -> bool:
+        # is_book_indexed() bilan bir xil tartib: avval manba kaliti, keyin fayl kaliti.
+        if source_chat_id and source_message_id:
+            if (str(source_chat_id), source_message_id) in self.source_keys:
+                return True
+        if file_name and file_size:
+            if (file_name, file_size) in self.file_keys:
+                return True
+        return False
+
+    def __len__(self) -> int:
+        return len(self.source_keys) + len(self.file_keys)
+
+
+def load_book_dedupe_index(source_chat_id: Optional[str], conn=None, page_size: int = 5000):
+    """Skan boshida dedupe kalitlarini ommaviy so'rovlar bilan yuklaydi."""
+    index = BookDedupeIndex()
+    with _conn_ctx(conn) as conn:
+        cursor = conn.cursor()
+        if source_chat_id:
+            cursor.execute(
+                "SELECT source_message_id FROM books WHERE source_chat_id = ?",
+                (str(source_chat_id),),
+            )
+            for row in cursor.fetchall():
+                index.add_source(source_chat_id, row[0])
+        # Fayl kaliti butun books jadvali bo'yicha tekshiriladi (is_book_indexed
+        # ham shunday qiladi), shuning uchun sahifalab o'qiymiz.
+        last_id = 0
+        while True:
+            cursor.execute(
+                "SELECT id, file_name, file_size FROM books "
+                "WHERE id > ? ORDER BY id LIMIT ?",
+                (last_id, page_size),
+            )
+            rows = cursor.fetchall()
+            if not rows:
+                break
+            for row in rows:
+                last_id = row[0]
+                index.add_file(row[1], row[2])
+            if len(rows) < page_size:
+                break
+    return index
+
 
 def get_book_by_id(book_id: int) -> Optional[Dict[str, Any]]:
     """ID bo'yicha kitobni olish"""

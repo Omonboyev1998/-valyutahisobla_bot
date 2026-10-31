@@ -31,5 +31,18 @@ USERBOT_SESSION = os.getenv("USERBOT_SESSION", "data/userbot")
 BOOK_SOURCE_CHAT = os.getenv("BOOK_SOURCE_CHAT", "onlayn_kutubxona_pdfo")
 BOOK_STORAGE_CHAT = os.getenv("BOOK_STORAGE_CHAT", "@dunyokitoblari1")
 BOOK_STORAGE_CHAT_ID = int(os.getenv("BOOK_STORAGE_CHAT_ID", "-1004326786240"))
+# Nusxalash tezligi sozlamalari (Telegram limitlaridan himoya saqlanadi)
+BOOK_COPY_PAUSE_SECONDS = float(os.getenv("BOOK_COPY_PAUSE_SECONDS", "0.4"))
+# Progress (offset) bazaga har nechta skanerlangan xabardan keyin yozilsin
+BOOK_PROGRESS_FLUSH_EVERY = max(1, int(os.getenv("BOOK_PROGRESS_FLUSH_EVERY", "25")))
+# Kitob yozuvlari bazaga necha donalab (paket) yozilsin
+BOOK_INSERT_BATCH_SIZE = max(1, int(os.getenv("BOOK_INSERT_BATCH_SIZE", "10")))
+# Forward qilingan, lekin hali bazaga yozilmagan kitoblar jurnali (crash-safety).
+# Konteynerning yoziladigan data katalogida turadi.
+BOOK_JOURNAL_PATH = os.getenv(
+    "BOOK_JOURNAL_PATH",
+    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                 "data", "book_copy_journal.jsonl"),
+)
 
 
